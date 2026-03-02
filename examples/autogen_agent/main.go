@@ -39,9 +39,9 @@ type AutoGenMessage struct {
 
 // AutoGenConfig AutoGen 配置
 type AutoGenConfig struct {
-	Agents     []string   // Agent 名称列表
-	MaxTurns   int        // 最大对话轮次
-	LLMConfig  LLMConfig  // LLM 配置
+	Agents    []string  // Agent 名称列表
+	MaxTurns  int       // 最大对话轮次
+	LLMConfig LLMConfig // LLM 配置
 }
 
 // LLMConfig LLM 配置
@@ -72,7 +72,7 @@ func (c *AutoGenClient) Invoke(ctx context.Context, input map[string]any) (map[s
 	// 模拟 AutoGen 执行
 	// 实际使用中调用 AutoGen 的 GroupChat 或 ConversableAgent
 	result := map[string]any{
-		"status":      "completed",
+		"status":       "completed",
 		"last_message": "Processed by AutoGen agents",
 		"agent_count":  len(c.GetAgentNames()),
 		"messages":     messages,
@@ -130,9 +130,9 @@ type AutoGenError struct {
 }
 
 const (
-	AutoGenErrorNeedsInput  = "needs_input"
-	AutoGenErrorRetryable   = "retryable"
-	AutoGenErrorPermanent   = "permanent"
+	AutoGenErrorNeedsInput = "needs_input"
+	AutoGenErrorRetryable  = "retryable"
+	AutoGenErrorPermanent  = "permanent"
 )
 
 func (e *AutoGenError) Error() string {
@@ -150,7 +150,7 @@ func MapAutoGenError(err error) error {
 	case AutoGenErrorNeedsInput:
 		return &agentexec.SignalWaitRequired{
 			CorrelationKey: autoGenErr.CorrelationID,
-			Reason:        autoGenErr.InputRequest,
+			Reason:         autoGenErr.InputRequest,
 		}
 	case AutoGenErrorRetryable:
 		return &agentexec.StepFailure{

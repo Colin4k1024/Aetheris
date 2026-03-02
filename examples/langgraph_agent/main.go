@@ -44,9 +44,9 @@ func (c *MyLangGraphClient) Invoke(ctx context.Context, input map[string]any) (m
 
 	// 模拟 LangGraph 执行逻辑
 	result := map[string]any{
-		"status":    "completed",
-		"goal":      goal,
-		"reasoning": "Analyzed the request and generated a response",
+		"status":      "completed",
+		"goal":        goal,
+		"reasoning":   "Analyzed the request and generated a response",
 		"next_action": "respond",
 	}
 
@@ -89,7 +89,7 @@ func main() {
 	// 1. 创建 LangGraph 客户端
 	client := &MyLangGraphClient{
 		APIEndpoint: "http://localhost:8000",
-		APIKey:     "your-api-key",
+		APIKey:      "your-api-key",
 	}
 
 	// 2. 创建 LangGraph 节点适配器

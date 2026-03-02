@@ -32,24 +32,24 @@ type CrewAIClient struct {
 
 // CrewConfig CrewAI 配置
 type CrewConfig struct {
-	Agents     []AgentConfig   // Agent 配置
-	Tasks      []TaskConfig   // Task 配置
-	Process    ProcessType    // sequential | hierarchical
-	Verbose    bool           // 详细输出
+	Agents  []AgentConfig // Agent 配置
+	Tasks   []TaskConfig  // Task 配置
+	Process ProcessType   // sequential | hierarchical
+	Verbose bool          // 详细输出
 }
 
 // AgentConfig Agent 配置
 type AgentConfig struct {
-	Role       string
-	Goal       string
-	Backstory  string
-	Tools      []string
+	Role      string
+	Goal      string
+	Backstory string
+	Tools     []string
 }
 
 // TaskConfig Task 配置
 type TaskConfig struct {
-	Description string
-	Agent       string
+	Description    string
+	Agent          string
 	ExpectedOutput string
 }
 
@@ -99,8 +99,8 @@ func (c *CrewAIClient) Config() CrewConfig {
 			{Description: "Analyze results", Agent: "Analyzer", ExpectedOutput: "Analysis report"},
 			{Description: "Write final report", Agent: "Writer", ExpectedOutput: "Final document"},
 		},
-		Process:    ProcessSequential,
-		Verbose:    true,
+		Process: ProcessSequential,
+		Verbose: true,
 	}
 }
 
@@ -124,11 +124,11 @@ func (c *CrewAIClient) Stream(ctx context.Context, input map[string]any, onChunk
 	// 模拟 agent 依次执行
 	for i, task := range config.Tasks {
 		chunk := map[string]any{
-			"stage":     i + 1,
-			"total":     len(config.Tasks),
-			"task":      task.Description,
-			"agent":     task.Agent,
-			"progress":  float64(i+1) / float64(len(config.Tasks)),
+			"stage":    i + 1,
+			"total":    len(config.Tasks),
+			"task":     task.Description,
+			"agent":    task.Agent,
+			"progress": float64(i+1) / float64(len(config.Tasks)),
 		}
 		if err := onChunk(chunk); err != nil {
 			return err
@@ -147,8 +147,8 @@ type CrewAIError struct {
 
 const (
 	CrewAIErrorAwaitApproval = "await_approval"
-	CrewAIErrorRetryable    = "retryable"
-	CrewAIErrorPermanent    = "permanent"
+	CrewAIErrorRetryable     = "retryable"
+	CrewAIErrorPermanent     = "permanent"
 )
 
 func (e *CrewAIError) Error() string {
@@ -166,7 +166,7 @@ func MapCrewAIError(err error) error {
 	case CrewAIErrorAwaitApproval:
 		return &agentexec.SignalWaitRequired{
 			CorrelationKey: crewErr.CorrelationID,
-			Reason:        crewErr.Message,
+			Reason:         crewErr.Message,
 		}
 	case CrewAIErrorRetryable:
 		return &agentexec.StepFailure{
@@ -227,9 +227,9 @@ func buildTaskGraph(config CrewConfig) *planner.TaskGraph {
 			ID:   nodeID,
 			Type: planner.NodeTool, // 或创建专门的 NodeCrewAI
 			Config: map[string]any{
-				"tool_name":       "crewai_task",
+				"tool_name":        "crewai_task",
 				"task_description": task.Description,
-				"agent_role":      task.Agent,
+				"agent_role":       task.Agent,
 			},
 		})
 
