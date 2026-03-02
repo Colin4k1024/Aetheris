@@ -148,6 +148,49 @@ Hands-on walkthroughs for these three scenarios are in [docs/getting-started-age
 
 ---
 
+## Installation
+
+### Quick Install (macOS/Linux)
+
+```bash
+# Install CLI via Homebrew (coming soon)
+# brew install aetheris
+
+# Or use curl installer
+curl -sSL https://raw.githubusercontent.com/Colin4k1024/Aetheris/main/scripts/install.sh | bash
+
+# Or install from source
+go install github.com/Colin4k1024/Aetheris/cmd/cli@latest
+```
+
+### Build from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/Colin4k1024/Aetheris.git
+cd Aetheris
+
+# Build all binaries
+make build
+
+# Or build individual components
+go build -o bin/api ./cmd/api
+go build -o bin/worker ./cmd/worker
+go build -o bin/aetheris ./cmd/cli
+```
+
+### Docker Quick Start
+
+```bash
+# Start a local stack with Docker Compose
+./scripts/local-2.0-stack.sh start
+
+# Check health
+curl http://localhost:8080/api/health
+```
+
+---
+
 ## Quick Start
 
 **Scaffold a minimal agent project**: From an empty directory, run `aetheris init` (or `aetheris init <dir>`) to copy a minimal template with config and a sample agent. Then see [Getting Started with Agents](docs/getting-started-agents.md) to build your first production agent in 15 minutes.
