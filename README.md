@@ -1,5 +1,11 @@
 # Aetheris
 
+[![Go Version](https://img.shields.io/github/go-mod/go-version/Colin4k1024/Aetheris)](https://github.com/Colin4k1024/Aetheris)
+[![License](https://img.shields.io/github/license/Colin4k1024/Aetheris)](LICENSE)
+[![CI](https://github.com/Colin4k1024/Aetheris/actions/workflows/ci.yml/badge.svg)](https://github.com/Colin4k1024/Aetheris/actions)
+[![Discord](https://img.shields.io/discord/123456789)](https://discord.gg/aetheris)
+[![Twitter](https://img.shields.io/twitter/follow/AetherisIO)](https://twitter.com/AetherisIO)
+
 **Aetheris is an execution runtime for intelligent agents.**
 
 It provides a durable, replayable, and observable environment where AI agents can plan, execute, pause, resume, and recover long-running tasks. Execution is event-sourced and recoverable, so agents can resume after crashes and be replayed for debugging.
@@ -202,13 +208,26 @@ See a real business scenario (refund approval agent with human-in-the-loop) runn
 - Crash recovery (Worker crash → resume without duplicate)
 - Trace & Replay (audit & debug)
 
-## Adapters
+## Ecosystem & Adapters
+
+Aetheris integrates with popular agent frameworks:
+
+| Framework | Status | Description |
+|-----------|--------|-------------|
+| [LangGraph](examples/langgraph_agent/) | ✅ Stable | Run LangGraph flows on Aetheris |
+| [AutoGen](examples/autogen_agent/) | ✅ Stable | Microsoft AutoGen multi-agent support |
+| [CrewAI](examples/crewai_agent/) | ✅ Stable | CrewAI crew orchestration |
 
 Already have agents? Migrate them to Aetheris:
 
 - [Adapter Index](docs/adapters/README.md) — Choose adapter by migration path and granularity
 - [Custom Agent Adapter](docs/adapters/custom-agent.md) — Wrap your existing agents (imperative → TaskGraph)
 - [LangGraph Adapter](docs/adapters/langgraph.md) — Run LangGraph flows on Aetheris runtime
+
+## Examples
+
+- [Human Approval](examples/human_approval_agent/) — Approval workflows with human-in-the-loop
+- [Multi-Agent Collaboration](examples/multi_agent_collaboration/) — Complex multi-agent systems
 
 ---
 
