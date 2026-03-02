@@ -16,13 +16,16 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
 	"rag-platform/internal/agent/replay"
 	runtimeeffects "rag-platform/internal/agent/runtime/effects"
 	agentexec "rag-platform/internal/agent/runtime/executor"
+	"rag-platform/internal/runtime/eino"
 	"rag-platform/internal/runtime/jobstore"
 )
 
@@ -31,12 +34,18 @@ var _ agentexec.NodeEventSink = (*nodeEventSinkImpl)(nil)
 
 // nodeEventSinkImpl 将节点级事件写入 JobStore，供 Replay 重建执行上下文
 type nodeEventSinkImpl struct {
-	store jobstore.JobStore
+	store    jobstore.JobStore
+	runStore eino.RuntimeRunStore
 }
 
 // NewNodeEventSink 创建节点/工具/命令事件 Sink；store 为 nil 时不写入。返回值可同时用于 SetNodeEventSink 与 NewDAGCompiler 的 toolEventSink/commandEventSink 参数。
 func NewNodeEventSink(store jobstore.JobStore) agentexec.NodeToolAndCommandEventSink {
-	return &nodeEventSinkImpl{store: store}
+	return NewNodeEventSinkWithRunStore(store, nil)
+}
+
+// NewNodeEventSinkWithRunStore 创建节点/工具/命令事件 Sink；runStore 非 nil 时会将 tool_invocation_started 同步到运行视图（run_id=job_id）。
+func NewNodeEventSinkWithRunStore(store jobstore.JobStore, runStore eino.RuntimeRunStore) agentexec.NodeToolAndCommandEventSink {
+	return &nodeEventSinkImpl{store: store, runStore: runStore}
 }
 
 // AppendNodeStarted 实现 NodeEventSink（v0.9 含 attempt, worker_id）
@@ -271,6 +280,30 @@ func (s *nodeEventSinkImpl) AppendToolInvocationStarted(ctx context.Context, job
 	_, err = s.store.Append(ctx, jobID, ver, jobstore.JobEvent{
 		JobID: jobID, Type: jobstore.ToolInvocationStarted, Payload: payloadBytes,
 	})
+	if err != nil {
+		return err
+	}
+	if s.runStore != nil {
+		if _, getErr := s.runStore.GetRun(ctx, jobID); getErr != nil {
+			if errors.Is(getErr, eino.ErrRunNotFound) {
+				_, _ = s.runStore.CreateRun(ctx, &eino.Run{
+					ID:         jobID,
+					WorkflowID: "agent_job",
+					Input: map[string]interface{}{
+						"job_id": jobID,
+					},
+				})
+			}
+		}
+		_, _ = s.runStore.UpsertToolCall(ctx, &eino.ToolCall{
+			ID:             payload.InvocationID,
+			RunID:          jobID,
+			StepID:         nodeID,
+			ToolName:       payload.ToolName,
+			Status:         "STARTED",
+			IdempotencyKey: payload.IdempotencyKey,
+		})
+	}
 	return err
 }
 
@@ -303,6 +336,37 @@ func (s *nodeEventSinkImpl) AppendToolInvocationFinished(ctx context.Context, jo
 	_, err = s.store.Append(ctx, jobID, ver, jobstore.JobEvent{
 		JobID: jobID, Type: jobstore.ToolInvocationFinished, Payload: payloadBytes,
 	})
+	if err != nil {
+		return err
+	}
+	if s.runStore != nil {
+		resultPayload := map[string]interface{}{}
+		if len(payload.Result) > 0 {
+			var decoded map[string]interface{}
+			if unmarshalErr := json.Unmarshal(payload.Result, &decoded); unmarshalErr == nil {
+				resultPayload = decoded
+			} else {
+				resultPayload["result_base64"] = base64.StdEncoding.EncodeToString(payload.Result)
+			}
+		}
+		status := "FAILED"
+		switch payload.Outcome {
+		case agentexec.ToolInvocationOutcomeSuccess:
+			status = "SUCCEEDED"
+		case agentexec.ToolInvocationOutcomeTimeout:
+			status = "TIMEOUT"
+		case agentexec.ToolInvocationOutcomeFailure:
+			status = "FAILED"
+		}
+		_, _ = s.runStore.UpsertToolCall(ctx, &eino.ToolCall{
+			ID:              payload.InvocationID,
+			RunID:           jobID,
+			StepID:          nodeID,
+			Status:          status,
+			ResponsePayload: resultPayload,
+			ErrorMessage:    payload.Error,
+		})
+	}
 	return err
 }
 

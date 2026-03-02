@@ -270,6 +270,8 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	sessionManager := session.NewManager(sessionStore)
 	docService := app.NewDocumentService(bootstrap.MetadataStore)
 	handler := http.NewHandler(engine, docService)
+	runtimeRunStore := eino.NewMemoryRunStore()
+	handler.SetRuntimeRunStore(runtimeRunStore)
 	handler.SetAgent(agentRunner)
 	handler.SetSessionManager(sessionManager)
 	// 主 ADK Runner：当启用时 /api/agent/run、resume、stream 使用 ADK 执行
@@ -367,7 +369,7 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	} else {
 		effectStore = agentexec.NewEffectStoreMem()
 	}
-	nodeEventSink := NewNodeEventSink(jobEventStore)
+	nodeEventSink := NewNodeEventSinkWithRunStore(jobEventStore, runtimeRunStore)
 	var resourceVerifier agentexec.ResourceVerifier
 	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
 		resourceVerifier = verifier.NewGitHubVerifier(token)

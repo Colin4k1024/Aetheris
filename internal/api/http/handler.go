@@ -82,6 +82,7 @@ type IngestQueueForAPI interface {
 type Handler struct {
 	engine         *eino.Engine
 	docService     appcore.DocumentService
+	runStore       eino.RuntimeRunStore
 	agent          AgentRunner
 	sessionManager SessionManager
 
@@ -116,7 +117,13 @@ func NewHandler(engine *eino.Engine, docService appcore.DocumentService) *Handle
 	return &Handler{
 		engine:     engine,
 		docService: docService,
+		runStore:   eino.NewMemoryRunStore(),
 	}
+}
+
+// SetRuntimeRunStore 设置运行实例存储；用于 /api/runs 系列接口。
+func (h *Handler) SetRuntimeRunStore(store eino.RuntimeRunStore) {
+	h.runStore = store
 }
 
 // SetAgent 设置 Agent 入口（可选，用于 /api/agent/run）

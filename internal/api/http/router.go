@@ -107,6 +107,18 @@ func (r *Router) Build(addr string, opts ...config.Option) *server.Hertz {
 		knowledge.DELETE("/collections/:id", r.authChainWith(auth.PermissionJobView, r.handler.DeleteCollection)...)
 	}
 
+	runs := api.Group("/runs")
+	{
+		runs.POST("", r.authChainWith(auth.PermissionJobCreate, r.handler.CreateRun)...)
+		runs.POST("/", r.authChainWith(auth.PermissionJobCreate, r.handler.CreateRun)...)
+		runs.GET("/:id", r.authChainWith(auth.PermissionJobView, r.handler.GetRun)...)
+		runs.GET("/:id/events", r.authChainWith(auth.PermissionJobView, r.handler.GetRunEvents)...)
+		runs.POST("/:id/tool-calls", r.authChainWith(auth.PermissionJobCreate, r.handler.UpsertToolCall)...)
+		runs.POST("/:id/pause", r.authChainWith(auth.PermissionJobStop, r.handler.PauseRun)...)
+		runs.POST("/:id/resume", r.authChainWith(auth.PermissionJobCreate, r.handler.ResumeRun)...)
+		runs.POST("/:id/human-decisions", r.authChainWith(auth.PermissionJobCreate, r.handler.InjectHumanDecision)...)
+	}
+
 	// Deprecated: 请使用 POST /api/agents/{id}/message
 	query := api.Group("/query")
 	{
