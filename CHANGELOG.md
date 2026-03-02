@@ -6,19 +6,33 @@
 
 ### Added
 
-- 暂无（2.0.0 已发布，后续增量请记录在此）
-
 ### Changed
-
-- 暂无
 
 ### Deprecated
 
-- 暂无
+### Documentation
+
+---
+
+## [2.1.0] - 2026-03-02
+
+### Added
+
+- **运行时执行监控 API** (`/api/runs`):
+  - GET/POST `/api/runs` - Run 管理
+  - GET `/api/runs/:id/events` - Run 事件流
+  - POST `/api/runs/:id/pause|resume` - 执行控制
+  - POST `/api/runs/:id/tool-calls` - 幂等工具调用追踪
+  - POST `/api/runs/:id/human-decisions` - Human-in-the-Loop 支持
+- **RuntimeRunStore 接口** - 内存实现用于运行时状态追踪
+
+### Changed
+
+- NodeEventSink 增强，支持同步到运行视图
 
 ### Documentation
 
-- 暂无
+- CLAUDE.md - Claude Code 开发指南
 
 ---
 
