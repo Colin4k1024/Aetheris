@@ -10,6 +10,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
 	"rag-platform/internal/runtime/eino"
+	"rag-platform/pkg/metrics"
 )
 
 type createRunRequest struct {
@@ -143,6 +144,12 @@ func (h *Handler) PauseRun(ctx context.Context, c *app.RequestContext) {
 		c.JSON(status, map[string]string{"error": msg})
 		return
 	}
+	// Record pause metrics
+	reason := req.Reason
+	if reason == "" {
+		reason = "manual"
+	}
+	metrics.RunPauseTotal.WithLabelValues("default", reason).Inc()
 	c.JSON(consts.StatusOK, run)
 }
 
@@ -172,6 +179,8 @@ func (h *Handler) ResumeRun(ctx context.Context, c *app.RequestContext) {
 		c.JSON(status, map[string]string{"error": msg})
 		return
 	}
+	// Record resume metrics
+	metrics.RunResumeTotal.WithLabelValues("default", string(req.Strategy)).Inc()
 	c.JSON(consts.StatusOK, run)
 }
 
@@ -199,6 +208,12 @@ func (h *Handler) InjectHumanDecision(ctx context.Context, c *app.RequestContext
 		c.JSON(status, map[string]string{"error": msg})
 		return
 	}
+	// Record human decision metrics
+	operator := req.Operator
+	if operator == "" {
+		operator = "unknown"
+	}
+	metrics.HumanDecisionTotal.WithLabelValues("default", operator).Inc()
 	c.JSON(consts.StatusAccepted, ev)
 }
 

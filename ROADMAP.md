@@ -21,21 +21,21 @@ Aetheris aims to be the standard runtime for production-grade AI agents.
 
 ### v2.2.0 - Enhanced Observability
 
-- [ ] OpenTelemetry integration
-- [ ] Distributed tracing UI
-- [ ] Metrics dashboard (Grafana)
+- [x] OpenTelemetry integration
+- [x] Distributed tracing UI
+- [x] Metrics dashboard (Grafana)
 
 ### v2.3.0 - More Adapters
 
-- [ ] LlamaIndex adapter
-- [ ] Vertex AI Agent Engine adapter
-- [ ] Bedrock Agents adapter
+- [x] LlamaIndex adapter
+- [x] Vertex AI Agent Engine adapter
+- [x] Bedrock Agents adapter
 
 ### v3.0.0 - Enterprise Scale
 
-- [ ] Multi-region deployment
-- [ ] Advanced RBAC
-- [ ] SLA guarantees
+- [x] Multi-region deployment (Region config, Scheduler, Design doc)
+- [x] Advanced RBAC
+- [x] SLA guarantees (Quotas, SLO Monitor, Metrics)
 
 ## Community Requests
 

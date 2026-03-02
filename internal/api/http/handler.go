@@ -110,6 +110,8 @@ type Handler struct {
 	signalInbox signal.SignalInbox
 	// observabilityReader 可选；非 nil 时提供 GET /api/observability/summary（队列积压、卡住 Job）
 	observabilityReader job.ObservabilityReader
+	// rbac RBAC 权限检查器（可选）
+	rbac auth.RBACChecker
 }
 
 // NewHandler 创建新的 HTTP 处理器
@@ -201,6 +203,11 @@ func (h *Handler) SetSignalInbox(inbox signal.SignalInbox) {
 // SetObservabilityReader 设置可观测性数据源；非 nil 时提供 GET /api/observability/summary
 func (h *Handler) SetObservabilityReader(r job.ObservabilityReader) {
 	h.observabilityReader = r
+}
+
+// SetRBAC 设置 RBAC 权限检查器
+func (h *Handler) SetRBAC(rbac auth.RBACChecker) {
+	h.rbac = rbac
 }
 
 // getJobAndCheckTenant 按 jobID 取 Job 并校验当前请求租户；不通过时写 404 并返回 (nil, false)
@@ -2338,4 +2345,88 @@ func (h *Handler) GetTool(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	c.JSON(consts.StatusOK, m)
+}
+
+// RBAC Handlers
+
+// GetUserRole 获取当前用户的角色
+func (h *Handler) GetUserRole(ctx context.Context, c *app.RequestContext) {
+	if h.rbac == nil {
+		c.JSON(consts.StatusServiceUnavailable, map[string]string{"error": "RBAC not configured"})
+		return
+	}
+	userID := auth.GetUserID(ctx)
+	tenantID := auth.GetTenantID(ctx)
+	if userID == "" || tenantID == "" {
+		c.JSON(consts.StatusUnauthorized, map[string]string{"error": "authentication required"})
+		return
+	}
+	role, err := h.rbac.GetUserRole(ctx, tenantID, userID)
+	if err != nil {
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	c.JSON(consts.StatusOK, map[string]string{
+		"user_id":   userID,
+		"tenant_id": tenantID,
+		"role":      string(role),
+	})
+}
+
+// AssignRole 分配角色给用户
+func (h *Handler) AssignRole(ctx context.Context, c *app.RequestContext) {
+	if h.rbac == nil {
+		c.JSON(consts.StatusServiceUnavailable, map[string]string{"error": "RBAC not configured"})
+		return
+	}
+	var req struct {
+		UserID string `json:"user_id"`
+		Role   string `json:"role"`
+	}
+	if err := c.Bind(&req); err != nil {
+		c.JSON(consts.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	tenantID := auth.GetTenantID(ctx)
+	if tenantID == "" {
+		c.JSON(consts.StatusUnauthorized, map[string]string{"error": "tenant required"})
+		return
+	}
+	err := h.rbac.AssignRole(ctx, tenantID, req.UserID, auth.Role(req.Role))
+	if err != nil {
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	c.JSON(consts.StatusOK, map[string]string{
+		"user_id": req.UserID,
+		"role":    req.Role,
+	})
+}
+
+// CheckPermission 检查权限
+func (h *Handler) CheckPermission(ctx context.Context, c *app.RequestContext) {
+	if h.rbac == nil {
+		c.JSON(consts.StatusServiceUnavailable, map[string]string{"error": "RBAC not configured"})
+		return
+	}
+	var req struct {
+		Permission string `json:"permission"`
+		ResourceID string `json:"resource_id"`
+	}
+	if err := c.Bind(&req); err != nil {
+		c.JSON(consts.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	userID := auth.GetUserID(ctx)
+	tenantID := auth.GetTenantID(ctx)
+	if userID == "" || tenantID == "" {
+		c.JSON(consts.StatusUnauthorized, map[string]string{"error": "authentication required"})
+		return
+	}
+	allowed, err := h.rbac.CheckPermission(ctx, tenantID, userID, auth.Permission(req.Permission), req.ResourceID)
+	if err != nil {
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	c.JSON(consts.StatusOK, map[string]bool{"allowed": allowed})
 }

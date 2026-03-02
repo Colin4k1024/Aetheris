@@ -31,6 +31,7 @@ import (
 	agenteffects "rag-platform/internal/agent/runtime/effects"
 	"rag-platform/pkg/agent/sdk"
 	"rag-platform/pkg/metrics"
+	"rag-platform/pkg/tracing"
 )
 
 // StepResultType classifies a step completion (Production Semantics Phase A). See design/step-result-failure-model.md.
@@ -528,19 +529,35 @@ func (r *Runner) Run(ctx context.Context, agent *runtime.Agent, goal string) err
 		agent.SetStatus(runtime.StatusIdle)
 	}()
 
+	// Plan span
+	ctx, planSpan := tracing.StartPlanSpan(ctx, goal)
+	defer planSpan.End()
+	planStart := time.Now()
 	planOut, err := agent.Planner.Plan(ctx, goal, agent.Memory)
+	planDuration := time.Since(planStart).Seconds()
+	tenant := "default"
+	metrics.PlanDurationSeconds.WithLabelValues(tenant).Observe(planDuration)
 	if err != nil {
+		planSpan.RecordError(err)
 		agent.SetStatus(runtime.StatusFailed)
 		return fmt.Errorf("executor: Plan failed: %w", err)
 	}
 	taskGraph, ok := planOut.(*planner.TaskGraph)
 	if !ok || taskGraph == nil {
+		planSpan.SetStatus(1, "Planner did not return *TaskGraph")
 		agent.SetStatus(runtime.StatusFailed)
 		return fmt.Errorf("executor: Planner did not return *TaskGraph")
 	}
 
+	// Compile span
+	ctx, compileSpan := tracing.StartCompileSpan(ctx)
+	defer compileSpan.End()
+	compileStart := time.Now()
 	graph, err := r.compiler.Compile(ctx, taskGraph, agent)
+	compileDuration := time.Since(compileStart).Seconds()
+	metrics.CompileDurationSeconds.WithLabelValues(tenant).Observe(compileDuration)
 	if err != nil {
+		compileSpan.RecordError(err)
 		agent.SetStatus(runtime.StatusFailed)
 		return fmt.Errorf("executor: Compile failed: %w", err)
 	}
@@ -557,8 +574,13 @@ func (r *Runner) Run(ctx context.Context, agent *runtime.Agent, goal string) err
 		sessionID = agent.Session.ID
 	}
 	payload := NewAgentDAGPayload(goal, agent.ID, sessionID)
+
+	// Invoke span
+	ctx, invokeSpan := tracing.StartInvokeSpan(ctx)
+	defer invokeSpan.End()
 	out, err := runnable.Invoke(ctx, payload)
 	if err != nil {
+		invokeSpan.RecordError(err)
 		agent.SetStatus(runtime.StatusFailed)
 		return fmt.Errorf("executor: Invoke failed: %w", err)
 	}
@@ -759,6 +781,9 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 		runCtx = agenteffects.WithRecordedEffects(runCtx, jobID, effectiveStepID, replayCtx, r.recordedEffectsRecorder)
 	}
 	runCtx = sdk.WithRuntimeContext(runCtx, newRuntimeContextAdapter(jobID, effectiveStepID))
+	// Node span for tracing
+	ctx, nodeSpan := tracing.StartNodeSpan(ctx, step.NodeID, step.NodeType)
+	defer nodeSpan.End()
 	var runErr error
 	if len(r.stepValidators) > 0 {
 		if err := r.runStepValidators(runCtx, jobID, effectiveStepID, step.NodeID, step.NodeType, nil); err != nil {
@@ -1311,6 +1336,9 @@ runLoop:
 			runCtx = agenteffects.WithRecordedEffects(runCtx, j.ID, effectiveStepID, replayCtx, r.recordedEffectsRecorder)
 		}
 		runCtx = sdk.WithRuntimeContext(runCtx, newRuntimeContextAdapter(j.ID, effectiveStepID))
+		// Node span for tracing
+		ctx, nodeSpan := tracing.StartNodeSpan(ctx, step.NodeID, step.NodeType)
+		defer nodeSpan.End()
 		var runErr error
 		if len(r.stepValidators) > 0 {
 			if err := r.runStepValidators(runCtx, j.ID, effectiveStepID, step.NodeID, step.NodeType, nil); err != nil {
@@ -1387,6 +1415,12 @@ runLoop:
 			_ = r.nodeEventSink.AppendNodeFinished(ctx, j.ID, step.NodeID, payloadResults, durationMs, stateStr, 1, resultType, reason, effectiveStepID, "")
 			_ = r.nodeEventSink.AppendStepCommitted(ctx, j.ID, step.NodeID, effectiveStepID, effectiveStepID, "")
 		}
+		// Record node execution metrics
+		status := "success"
+		if isStepFailure(resultType) {
+			status = "failure"
+		}
+		metrics.NodeExecutionTotal.WithLabelValues(tenant, step.NodeType, status).Inc()
 		if isStepFailure(resultType) {
 			if resultType == StepResultCompensatableFailure && r.compensationRegistry != nil {
 				if fn := r.compensationRegistry.GetCompensation(step.NodeID); fn != nil {

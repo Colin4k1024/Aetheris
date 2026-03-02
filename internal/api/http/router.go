@@ -196,5 +196,13 @@ func (r *Router) Build(addr string, opts ...config.Option) *server.Hertz {
 	api.GET("/observability/stuck", r.authChainWith(auth.PermissionJobView, r.handler.GetObservabilityStuck)...)
 	api.GET("/trace/overview/page", r.authChainWith(auth.PermissionTraceView, r.handler.GetTraceOverviewPage)...)
 
+	// RBAC routes
+	rbac := api.Group("/rbac")
+	{
+		rbac.GET("/role", r.authChainWith(auth.PermissionAgentManage, r.handler.GetUserRole)...)
+		rbac.POST("/role", r.authChainWith(auth.PermissionAgentManage, r.handler.AssignRole)...)
+		rbac.POST("/check", r.authChainWith(auth.PermissionJobView, r.handler.CheckPermission)...)
+	}
+
 	return h
 }

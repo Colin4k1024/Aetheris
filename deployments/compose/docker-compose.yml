@@ -26,6 +26,8 @@ services:
       dockerfile: deployments/compose/Dockerfile
     command: ["/usr/local/bin/api"]
     working_dir: /app
+    volumes:
+      - ../../configs:/app/configs:ro
     environment:
       JOBSTORE_TYPE: postgres
       JOBSTORE_DSN: "postgres://corag:corag@postgres:5432/corag?sslmode=disable"
@@ -100,5 +102,19 @@ services:
     depends_on:
       - api
 
+  jaeger:
+    image: jaegertracing/all-in-one:1.52
+    ports:
+      - "16686:16686"        # Jaeger UI
+      - "4317:4317"         # OTLP HTTP receiver
+      - "4318:4318"         # OTLP gRPC receiver
+      - "14268:14268"       # Jaeger HTTP collector
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=badger
+    volumes:
+      - jaeger_data:/badger
+
 volumes:
   postgres_data: {}
+  jaeger_data: {}

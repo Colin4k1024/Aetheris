@@ -95,3 +95,39 @@ func StartToolSpan(ctx context.Context, toolName string, idempotencyKey string) 
 	)
 	return ctx, span
 }
+
+// StartPlanSpan 开始 plan 生成 span
+func StartPlanSpan(ctx context.Context, goal string) (context.Context, trace.Span) {
+	tracer := otel.Tracer("aetheris")
+	ctx, span := tracer.Start(ctx, "plan.generate",
+		trace.WithAttributes(
+			attribute.String("goal", goal),
+		),
+	)
+	return ctx, span
+}
+
+// StartCompileSpan 开始 TaskGraph 编译 span
+func StartCompileSpan(ctx context.Context) (context.Context, trace.Span) {
+	tracer := otel.Tracer("aetheris")
+	ctx, span := tracer.Start(ctx, "graph.compile")
+	return ctx, span
+}
+
+// StartInvokeSpan 开始 DAG invoke span
+func StartInvokeSpan(ctx context.Context) (context.Context, trace.Span) {
+	tracer := otel.Tracer("aetheris")
+	ctx, span := tracer.Start(ctx, "graph.invoke")
+	return ctx, span
+}
+
+// StartLLMSpan 开始 LLM 调用 span
+func StartLLMSpan(ctx context.Context, model string) (context.Context, trace.Span) {
+	tracer := otel.Tracer("aetheris")
+	ctx, span := tracer.Start(ctx, "llm.generate",
+		trace.WithAttributes(
+			attribute.String("llm.model", model),
+		),
+	)
+	return ctx, span
+}

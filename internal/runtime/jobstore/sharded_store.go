@@ -102,3 +102,8 @@ func (s *ShardedStore) GetLatestSnapshot(ctx context.Context, jobID string) (*Jo
 func (s *ShardedStore) DeleteSnapshotsBefore(ctx context.Context, jobID string, beforeVersion int) error {
 	return s.getShard(jobID).DeleteSnapshotsBefore(ctx, jobID, beforeVersion)
 }
+
+// ShardCount 返回分片数量
+func (s *ShardedStore) ShardCount() int {
+	return s.count
+}

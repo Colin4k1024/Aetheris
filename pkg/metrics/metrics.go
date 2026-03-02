@@ -43,6 +43,12 @@ func init() {
 		StepRetriesTotal, StepTimeoutTotal,
 		LeaseAcquireTotal, SchedulerTickDurationSeconds,
 		ToolInvocationsTotal, ToolErrorsTotal, ConfirmationReplayFailTotal, ConfirmationReplayWarnTotal,
+		// Runtime tracing metrics
+		PlanDurationSeconds, CompileDurationSeconds, NodeExecutionTotal,
+		RunPauseTotal, RunResumeTotal, HumanDecisionTotal,
+		// SLA metrics
+		SLAQuotaLimitTotal, SLAQuotaUsed, SLAQuotaExceededTotal,
+		SLOSLOStatus, SLAViolationTotal,
 	)
 }
 
@@ -322,6 +328,111 @@ var ConfirmationReplayWarnTotal = prometheus.NewCounterVec(
 		Help: "Replay verification failed but continued (warn mode)",
 	},
 	[]string{"tenant", "tool"},
+)
+
+// --- Runtime execution metrics ---
+
+// PlanDurationSeconds Plan 生成耗时（秒）
+var PlanDurationSeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "aetheris_plan_duration_seconds",
+		Help:    "Plan 生成耗时（秒）",
+		Buckets: prometheus.DefBuckets,
+	},
+	[]string{"tenant"},
+)
+
+// CompileDurationSeconds TaskGraph 编译耗时（秒）
+var CompileDurationSeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "aetheris_compile_duration_seconds",
+		Help:    "TaskGraph 编译耗时（秒）",
+		Buckets: prometheus.DefBuckets,
+	},
+	[]string{"tenant"},
+)
+
+// NodeExecutionTotal Node 执行计数（按类型/状态）
+var NodeExecutionTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_node_execution_total",
+		Help: "Node 执行计数（按类型与状态）",
+	},
+	[]string{"tenant", "node_type", "status"}, // node_type: llm|tool|workflow|wait, status: success|failure
+)
+
+// RunPauseTotal Run 暂停次数
+var RunPauseTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_run_pause_total",
+		Help: "Run 暂停次数",
+	},
+	[]string{"tenant", "reason"},
+)
+
+// RunResumeTotal Run 恢复次数
+var RunResumeTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_run_resume_total",
+		Help: "Run 恢复次数",
+	},
+	[]string{"tenant", "strategy"}, // strategy: REUSE_SUCCESSFUL_EFFECTS | REEXECUTE_FROM_POINT
+)
+
+// HumanDecisionTotal 人工决策注入次数
+var HumanDecisionTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_human_decision_total",
+		Help: "人工决策注入次数",
+	},
+	[]string{"tenant", "operator"},
+)
+
+// SLA Quota metrics
+
+// SLAQuotaLimitTotal Quota 限制
+var SLAQuotaLimitTotal = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "aetheris_sla_quota_limit_total",
+		Help: "SLA Quota 限制",
+	},
+	[]string{"tenant", "quota_type"},
+)
+
+// SLAQuotaUsed 已使用配额
+var SLAQuotaUsed = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "aetheris_sla_quota_used",
+		Help: "已使用配额",
+	},
+	[]string{"tenant", "quota_type"},
+)
+
+// SLAQuotaExceededTotal Quota 超限次数
+var SLAQuotaExceededTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_sla_quota_exceeded_total",
+		Help: "Quota 超限次数",
+	},
+	[]string{"tenant", "quota_type"},
+)
+
+// SLOSLOStatus SLO 状态
+var SLOSLOStatus = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "aetheris_slo_status",
+		Help: "SLO 状态 (1=met, 0=violated)",
+	},
+	[]string{"tenant", "slo_name", "slo_type"},
+)
+
+// SLAViolationTotal SLA 违规次数
+var SLAViolationTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_sla_violation_total",
+		Help: "SLA 违规次数",
+	},
+	[]string{"tenant", "slo_name", "slo_type"},
 )
 
 // WritePrometheus 将 Prometheus 文本格式写入 w（供 Hertz 等复用）

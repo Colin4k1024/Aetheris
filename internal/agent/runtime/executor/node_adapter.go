@@ -27,6 +27,7 @@ import (
 	"rag-platform/internal/agent/planner"
 	"rag-platform/internal/agent/runtime"
 	"rag-platform/pkg/metrics"
+	"rag-platform/pkg/tracing"
 )
 
 // NodeRunner 单节点执行函数（用于 Steppable 执行与 node-level checkpoint）
@@ -149,8 +150,16 @@ func (a *LLMNodeAdapter) runNode(ctx context.Context, taskID string, cfg map[str
 		inputBytes, _ := json.Marshal(map[string]any{"prompt": prompt})
 		_ = a.CommandEventSink.AppendCommandEmitted(ctx, jobID, taskID, taskID, "llm", inputBytes)
 	}
+	// LLM span for tracing
+	model := "default"
+	if mp, ok := a.LLM.(LLMMetadataProvider); ok {
+		model = mp.ModelInfo(ctx).Model
+	}
+	ctx, llmSpan := tracing.StartLLMSpan(ctx, model)
+	defer llmSpan.End()
 	resp, err := a.LLM.Generate(ctx, prompt)
 	if err != nil {
+		llmSpan.RecordError(err)
 		return nil, err
 	}
 	resultBytes, _ := json.Marshal(resp)
@@ -621,6 +630,9 @@ func (a *ToolNodeAdapter) runNodeExecute(ctx context.Context, jobID, taskID, too
 	if a.RetryPolicy != nil && a.RetryPolicy.MaxRetries > 0 {
 		maxAttempts = 1 + a.RetryPolicy.MaxRetries
 	}
+	// Tool span for tracing
+	ctx, toolSpan := tracing.StartToolSpan(ctx, toolName, idempotencyKey)
+	defer toolSpan.End()
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		if attempt > 0 && a.RetryPolicy != nil && a.RetryPolicy.Backoff > 0 {
 			time.Sleep(a.RetryPolicy.Backoff)
@@ -629,6 +641,7 @@ func (a *ToolNodeAdapter) runNodeExecute(ctx context.Context, jobID, taskID, too
 		if err == nil {
 			break
 		}
+		toolSpan.RecordError(err)
 		if !IsRetryable(err, a.RetryPolicy) {
 			break
 		}
