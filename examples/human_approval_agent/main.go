@@ -84,7 +84,7 @@ func main() {
 	fmt.Println("Human Approval Workflow:")
 	fmt.Println(string(bytes))
 	fmt.Println("\n=== Usage ===")
-	fmt.Println(`
+	fmt.Print(`
 # 1. Create agent with workflow
 curl -X POST http://localhost:8080/api/agents \
   -H "Content-Type: application/json" \
