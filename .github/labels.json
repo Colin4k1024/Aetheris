@@ -1,0 +1,52 @@
+[
+  {
+    "name": "bug",
+    "description": "Something isn't working as expected",
+    "color": "d73a4a"
+  },
+  {
+    "name": "enhancement",
+    "description": "New feature or request",
+    "color": "84b6eb"
+  },
+  {
+    "name": "documentation",
+    "description": "Improvements or additions to documentation",
+    "color": "0075ca"
+  },
+  {
+    "name": "question",
+    "description": "Further information is requested",
+    "color": "d876e3"
+  },
+  {
+    "name": "good first issue",
+    "description": "Good for newcomers",
+    "color": "7057ff"
+  },
+  {
+    "name": "help wanted",
+    "description": "Extra attention is needed",
+    "color": "008672"
+  },
+  {
+    "name": "adapter",
+    "description": "Related to agent adapters (LangGraph, AutoGen, CrewAI)",
+    "color": "bfd4f2"
+  },
+  {
+    "name": "runtime",
+    "description": "Related to agent runtime and execution",
+    "color": "bfd4f2"
+  },
+  {
+    "name": "api",
+    "description": "Related to API and HTTP endpoints",
+    "color": "bfd4f2"
+  },
+  {
+    "name": "security",
+    "description": "Security related issues",
+    "color": "ee0701"
+  }
+]

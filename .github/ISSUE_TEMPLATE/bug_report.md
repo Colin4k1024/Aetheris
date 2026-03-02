@@ -2,20 +2,21 @@
 name: Bug report
 about: Report a reproducible bug in Aetheris
 title: "[Bug] "
-labels: bug
+labels: ["bug", "triage-needed"]
 assignees: ""
 ---
 
 ## Summary
 
-Describe the bug clearly.
+A clear and concise description of what the bug is.
 
 ## Environment
 
-- Aetheris version / commit:
-- Go version:
-- OS:
-- Config mode (`memory` / `postgres`):
+- **Aetheris Version**: <!-- e.g., v2.1.0 -->
+- **Go Version**: <!-- go version output -->
+- **OS**: <!-- macOS, Linux, Windows -->
+- **Deployment**: <!-- Docker, Binary, Source -->
+- **Storage**: <!-- memory, postgres, redis -->
 
 ## Steps to Reproduce
 
@@ -34,4 +35,12 @@ What actually happened, including error output.
 ## Logs / Trace
 
 Add relevant logs, `job_id`, and trace/event snippets.
+
+## Possible Fix
+
+Suggest how to fix the bug (if known).
+
+## Additional Context
+
+Add any other context about the problem here.
 

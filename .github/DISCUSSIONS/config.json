@@ -1,0 +1,28 @@
+{
+  "categories": [
+    {
+      "name": "Q&A",
+      "description": "Ask and answer questions about using Aetheris",
+      "emoji": "❓"
+    },
+    {
+      "name": "Ideas",
+      "description": "Share ideas and suggestions for new features",
+      "emoji": "💡"
+    },
+    {
+      "name": "Show and Tell",
+      "description": "Share projects, examples, and tutorials built with Aetheris",
+      "emoji": "🎉"
+    },
+    {
+      "name": "General",
+      "description": "General discussion about Aetheris",
+      "emoji": "💬"
+    }
+  ],
+  "announcement": {
+    "title": "Welcome to Aetheris!",
+    "body": "Aetheris is an agent hosting runtime - Temporal for Agents. Ask questions, share your projects, and help build the community!"
+  }
+}
