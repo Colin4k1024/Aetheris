@@ -16,6 +16,11 @@
       "emoji": "🎉"
     },
     {
+      "name": "Feedback",
+      "description": "Share your experience and suggestions",
+      "emoji": "💭"
+    },
+    {
       "name": "General",
       "description": "General discussion about Aetheris",
       "emoji": "💬"
