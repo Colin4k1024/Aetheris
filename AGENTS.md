@@ -4,12 +4,16 @@ This document provides guidelines for AI agents working with the Aetheris codeba
 
 ## Project Overview
 
-Aetheris is a Go + Cloudwego eino powered agent execution runtime. Key technologies:
+**Aetheris** (CoRag) is an execution runtime for intelligent agents — a durable, replayable, and observable environment where AI agents can plan, execute, pause, resume, and recover long-running tasks.
+
+Key technologies:
 - **Go 1.25.7** (see `go.mod` and CI)
 - **Go module**: `rag-platform` (import path for all internal packages)
 - **Cloudwego eino**: Workflow/DAG execution, Agent scheduling, Pipeline orchestration
 - **Hertz**: HTTP framework for REST APIs
 - **Viper**: Configuration management
+- **PostgreSQL**: JobStore (event-sourced durable history)
+- **Redis**: Cache, RAG, Vector Index
 
 ## Build, Lint, and Test Commands
 
@@ -21,7 +25,7 @@ go build ./...
 # Build specific binary
 go build -o bin/api ./cmd/api
 go build -o bin/worker ./cmd/worker
-go build -o bin/cli ./cmd/cli
+go build -o bin/aetheris ./cmd/cli
 
 # Build with race detector
 go build -race ./...
@@ -61,6 +65,9 @@ go test -run TestQueryPipeline_ValidQuery ./internal/pipeline/query/...
 
 # Run tests with race detector
 go test -race ./...
+
+# Run key integration tests (runtime + http)
+go test -v ./internal/agent/runtime/executor ./internal/api/http
 ```
 
 ### Vet and Lint
@@ -89,6 +96,27 @@ go mod verify
 
 # List dependencies
 go list -m all
+```
+
+### Makefile Commands
+The project provides a Makefile for convenient build and startup:
+
+```bash
+make help              # Show help
+make build             # Build api, worker, and cli into bin/
+make run               # Build and start API + Worker in background (one-command startup)
+make run-api           # Build and start only API in background
+make run-worker        # Build and start only Worker in background
+make stop              # Stop API and Worker started by make run
+make clean             # Remove bin/
+make test              # Run tests
+make test-integration  # Run key integration tests (runtime + http)
+make docker-build      # Build runtime container image
+make docker-run        # Start local 2.0 stack via Compose
+make docker-stop       # Stop local 2.0 stack
+make vet               # go vet
+make fmt               # gofmt -w
+make tidy              # go mod tidy
 ```
 
 ## Code Style Guidelines
@@ -135,6 +163,7 @@ import (
 - Return meaningful errors with context
 - Handle errors at the appropriate level (don't ignore with `_`)
 - Use `context.Context` for cancellation and timeouts
+- Use `hlog.CtxErrorf` for logging errors in handlers
 
 ```go
 if err != nil {
@@ -170,7 +199,7 @@ func (h *Handler) Query(ctx context.Context, c *app.RequestContext) error {
 ```
 
 ### Comments
-- Use Chinese comments for public APIs and documentation
+- Use Chinese or English comments for public APIs and documentation (team preference)
 - Comment exported types and functions
 - Use sentence case for comments
 - No commented-out code
@@ -219,15 +248,19 @@ func (h *Handler) Query(ctx context.Context, c *app.RequestContext) {
 
 ### Project Structure
 ```
-cmd/              # Entry points (api, worker, cli)
-internal/          # Private application code
-  app/            # Application core (bootstrap, services)
+cmd/              # Entry points (api, worker, cli, devops)
+internal/         # Private application code
+  agent/          # Agent runtime (execution, scheduling, recovery)
   api/            # HTTP/gRPC API
-  runtime/eino/   # Workflow and agent orchestration
-  pipeline/       # Domain pipelines (query, specialized)
+  app/            # Application core (bootstrap, services)
+  einoext/        # Cloudwego eino extensions
+  ingestqueue/    # Document ingestion queue
   model/          # LLM, embedding, vision abstractions
-  storage/        # Data storage implementations
+  pipeline/       # Domain pipelines (query, specialized)
+  runtime/        # Runtime core (eino workflow orchestration)
   splitter/       # Text splitting implementations
+  storage/        # Data storage implementations
+  tool/           # Tool definitions and implementations
 pkg/              # Public libraries
   config/         # Configuration
   errors/         # Error utilities
@@ -258,6 +291,8 @@ deployments/      # Docker, K8s configurations
 - `internal/api/http/handler.go`: HTTP handlers
 - `internal/app/bootstrap.go`, `internal/app/api/app.go`: Bootstrap and API assembly (startup and wiring)
 - `pkg/errors/errors.go`: Error utilities
+- `internal/agent/runtime/executor.go`: Agent execution runtime
+- `Makefile`: Build and run commands (use `make run` to start all services)
 
 ## Common Tasks
 
