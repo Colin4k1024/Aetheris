@@ -542,7 +542,7 @@ Before deploying Aetheris to production:
 - [ ] **JobStore = Postgres** (crash recovery)
 - [ ] **WakeupQueue configured** (multi-worker signal delivery)
 - [ ] **Postgres backups** (disaster recovery)
-- [ ] **Monitoring** (Prometheus metrics, see [docs/observability.md](observability.md))
+- [ ] **Monitoring** (Prometheus metrics, see [observability.md](observability.md))
 - [ ] **Step timeout configured** (prevent hung steps)
 - [ ] **Retry policy configured** (max retries, backoff)
 - [ ] **All Tools follow Step Contract** (no direct external calls, use idempotency key)

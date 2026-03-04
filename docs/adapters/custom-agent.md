@@ -708,7 +708,7 @@ After migration:
 1. **Test crash scenarios**: Kill Worker during execution, verify recovery
 2. **Test replay**: Compare first execution vs replay (should be identical)
 3. **Configure production**: Postgres, Effect Store, Ledger, WakeupQueue
-4. **Monitor**: Prometheus metrics (see [docs/observability.md](../observability.md))
+4. **Monitor**: Prometheus metrics (see [../guides/observability.md](../guides/observability.md))
 5. **Read contracts**: [design/step-contract.md](../../design/step-contract.md) (prohibited behaviors), [design/execution-guarantees.md](../../design/execution-guarantees.md) (guarantees)
 
 ---
@@ -721,7 +721,7 @@ After migration:
 
 ### Q: What if my agent is too complex for a static TaskGraph?
 
-**A**: Use dynamic planning. Your Planner can call LLM to generate TaskGraph based on input. Aetheris supports this (see [docs/getting-started-agents.md](../getting-started-agents.md)).
+**A**: Use dynamic planning. Your Planner can call LLM to generate TaskGraph based on input. Aetheris supports this (see [../guides/getting-started-agents.md](../guides/getting-started-agents.md)).
 
 ### Q: Can I use LangGraph/LangChain alongside Aetheris?
 
@@ -739,7 +739,7 @@ After migration:
 
 ## Support
 
-- **Docs**: [docs/](../)
+- **Docs**: [../README.md](../README.md)
 - **Design specs**: [design/](../../design/)
 - **Examples**: [examples/](../../examples/)
 - **Issues**: Open an issue in the repository's **Issues** tab.

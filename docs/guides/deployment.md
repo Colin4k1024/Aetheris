@@ -68,4 +68,4 @@ Use the same runtime contract across `dev`, `staging`, and `prod`, with differen
 
 ---
 
-For config (api.yaml, worker.yaml, model.yaml) and env vars see [config.md](config.md); for API and CLI usage see [usage.md](usage.md) and [cli.md](cli.md).
+For config (api.yaml, worker.yaml, model.yaml) and env vars see [config.md](../reference/config.md); for API and CLI usage see [usage.md](usage.md) and [cli.md](cli.md).

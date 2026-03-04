@@ -549,7 +549,7 @@ wakeup_queue:
 - **Single-process**: 1 API (includes Scheduler) + WakeupQueueMem
 - **Multi-worker**: 1 API + N Workers + Postgres + Redis (WakeupQueue)
 
-See [docs/deployment.md](deployment.md) for Kubernetes/Docker Compose.
+See [deployment.md](deployment.md) for Kubernetes/Docker Compose.
 
 ---
 
@@ -572,8 +572,8 @@ A **production-grade refund agent** with:
 
 - **Add more tools**: Email notification, Slack message, database update
 - **Add conditional logic**: Conditional edges in TaskGraph (amount > 500 → need approval)
-- **Add retry**: Configure RetryMax in Worker (see [docs/config.md](config.md))
-- **Add monitoring**: Prometheus metrics + Grafana (see [docs/observability.md](observability.md))
+- **Add retry**: Configure RetryMax in Worker (see [reference/config.md](../reference/config.md))
+- **Add monitoring**: Prometheus metrics + Grafana (see [observability.md](observability.md))
 - **Read contracts**: [design/step-contract.md](../design/step-contract.md) (how to write correct steps), [design/execution-guarantees.md](../design/execution-guarantees.md) (runtime guarantees)
 
 ---
