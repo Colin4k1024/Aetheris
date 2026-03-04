@@ -26,8 +26,8 @@ jobstore:
 
 # Runtime profile（prod 严格模式下强制要求 postgres 持久化依赖）
 runtime:
-  profile: "prod"   # dev | prod
-  strict: true
+  profile: "dev"   # dev | prod
+  strict: false
 
 # Effect Store（两步提交第一阶段：先写 effect，再写 command_committed）
 effect_store:
