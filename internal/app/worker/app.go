@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -632,7 +633,28 @@ func validateProductionRuntimeConfig(cfg *config.Config) error {
 	if cfg.CheckpointStore.Type != "postgres" || cfg.CheckpointStore.DSN == "" {
 		return fmt.Errorf("production requires checkpoint_store.type=postgres with dsn")
 	}
+	// Validate default passwords are not used
+	if containsDefaultPassword(cfg.JobStore.DSN) || containsDefaultPassword(cfg.EffectStore.DSN) || containsDefaultPassword(cfg.CheckpointStore.DSN) {
+		return fmt.Errorf("production requires changing default passwords in DSN")
+	}
+	// Validate SSL is enabled
+	if !isSSLEnabled(cfg.JobStore.DSN) || !isSSLEnabled(cfg.EffectStore.DSN) || !isSSLEnabled(cfg.CheckpointStore.DSN) {
+		return fmt.Errorf("production requires SSL to be enabled for database connections")
+	}
 	return nil
+}
+
+// containsDefaultPassword checks if DSN contains the default password
+func containsDefaultPassword(dsn string) bool {
+	return dsn != "" && (strings.Contains(dsn, "aetheris:aetheris@") || strings.Contains(dsn, "password=aetheris"))
+}
+
+// isSSLEnabled checks if SSL is enabled in the DSN
+func isSSLEnabled(dsn string) bool {
+	if dsn == "" {
+		return true
+	}
+	return !strings.Contains(dsn, "sslmode=disable")
 }
 
 func getHostname() string {

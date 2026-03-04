@@ -729,6 +729,15 @@ func containsDefaultPassword(dsn string) bool {
 	return dsn != "" && (strings.Contains(dsn, "aetheris:aetheris@") || strings.Contains(dsn, "password=aetheris"))
 }
 
+// isSSLEnabled checks if SSL is enabled in the DSN
+func isSSLEnabled(dsn string) bool {
+	if dsn == "" {
+		return true // empty DSN will use default which is secure
+	}
+	// Check if sslmode is explicitly set to disable
+	return !strings.Contains(dsn, "sslmode=disable")
+}
+
 func validateProductionRuntimeConfig(cfg *config.Config) error {
 	if cfg == nil {
 		return nil
@@ -750,6 +759,10 @@ func validateProductionRuntimeConfig(cfg *config.Config) error {
 	// Validate DSN does not contain default credentials
 	if containsDefaultPassword(cfg.JobStore.DSN) || containsDefaultPassword(cfg.EffectStore.DSN) || containsDefaultPassword(cfg.CheckpointStore.DSN) {
 		return fmt.Errorf("production requires changing default passwords in DSN")
+	}
+	// Validate SSL is enabled for database connections
+	if !isSSLEnabled(cfg.JobStore.DSN) || !isSSLEnabled(cfg.EffectStore.DSN) || !isSSLEnabled(cfg.CheckpointStore.DSN) {
+		return fmt.Errorf("production requires SSL to be enabled for database connections. Use sslmode=require or sslmode=verify-full in DSN")
 	}
 	// CORS validation - production should not allow all origins
 	if len(cfg.API.CORS.AllowOrigins) == 0 || cfg.API.CORS.AllowOrigins[0] == "*" {
