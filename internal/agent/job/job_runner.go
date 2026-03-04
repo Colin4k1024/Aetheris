@@ -16,6 +16,7 @@ package job
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -28,6 +29,7 @@ type JobRunner struct {
 	store   JobStore
 	manager *runtime.Manager
 	runner  *agentexec.Runner
+	logger  *slog.Logger
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
@@ -43,6 +45,11 @@ func NewJobRunner(store JobStore, manager *runtime.Manager, runner *agentexec.Ru
 	}
 }
 
+// SetLogger 设置日志记录器
+func (r *JobRunner) SetLogger(logger *slog.Logger) {
+	r.logger = logger
+}
+
 // Start 启动后台循环：拉取 Pending Job，执行，更新状态；ctx 用于执行时传递，不用于停止
 func (r *JobRunner) Start(ctx context.Context) {
 	r.wg.Add(1)
@@ -54,28 +61,40 @@ func (r *JobRunner) Start(ctx context.Context) {
 				return
 			default:
 			}
-			j, _ := r.store.ClaimNextPending(ctx)
+			j, err := r.store.ClaimNextPending(ctx)
+			if err != nil && r.logger != nil {
+				r.logger.Error("failed to claim job", "error", err)
+			}
 			if j == nil {
 				time.Sleep(200 * time.Millisecond)
 				continue
 			}
 			runCtx := context.Background()
-			agent, _ := r.manager.Get(runCtx, j.AgentID)
+			agent, err := r.manager.Get(runCtx, j.AgentID)
+			if err != nil && r.logger != nil {
+				r.logger.Error("failed to get agent", "agentID", j.AgentID, "error", err)
+			}
 			if agent == nil {
-				_ = r.store.UpdateStatus(runCtx, j.ID, StatusFailed)
+				if err := r.store.UpdateStatus(runCtx, j.ID, StatusFailed); err != nil && r.logger != nil {
+					r.logger.Error("failed to update job status", "jobID", j.ID, "error", err)
+				}
 				continue
 			}
 			tenantID := j.TenantID
 			if tenantID == "" {
 				tenantID = "default"
 			}
-			err := r.runner.RunForJob(runCtx, agent, &agentexec.JobForRunner{
+			runErr := r.runner.RunForJob(runCtx, agent, &agentexec.JobForRunner{
 				ID: j.ID, AgentID: j.AgentID, Goal: j.Goal, Cursor: j.Cursor, TenantID: tenantID,
 			})
-			if err != nil {
-				_ = r.store.UpdateStatus(runCtx, j.ID, StatusFailed)
+			if runErr != nil {
+				if err := r.store.UpdateStatus(runCtx, j.ID, StatusFailed); err != nil && r.logger != nil {
+					r.logger.Error("failed to update job status to failed", "jobID", j.ID, "error", err)
+				}
 			} else {
-				_ = r.store.UpdateStatus(runCtx, j.ID, StatusCompleted)
+				if err := r.store.UpdateStatus(runCtx, j.ID, StatusCompleted); err != nil && r.logger != nil {
+					r.logger.Error("failed to update job status to completed", "jobID", j.ID, "error", err)
+				}
 			}
 		}
 	}()

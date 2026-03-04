@@ -101,7 +101,7 @@ func (w *Working) GetStepResults(sessionID string) []StepResult {
 	defer w.mu.RUnlock()
 	list := w.sessions[sessionID]
 	if len(list) == 0 {
-		return nil
+		return []StepResult{}
 	}
 	out := make([]StepResult, len(list))
 	copy(out, list)

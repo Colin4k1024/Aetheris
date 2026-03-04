@@ -400,6 +400,11 @@ func (r *Runner) runParallelLevel(
 		}
 		s, sCtx, eid := step, stepCtx, effectiveStepID
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					ch <- result{idx: idx, payload: payloadCopy, err: fmt.Errorf("panic in step execution: %v", r)}
+				}
+			}()
 			var runErr error
 			if len(r.stepValidators) > 0 {
 				runErr = r.runStepValidators(sCtx, j.ID, eid, s.NodeID, s.NodeType, nil)

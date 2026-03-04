@@ -46,7 +46,7 @@ func (s *ShortTerm) GetMessages(sessionID string) []llm.Message {
 	defer s.mu.RUnlock()
 	list := s.sessions[sessionID]
 	if len(list) == 0 {
-		return nil
+		return []llm.Message{}
 	}
 	out := make([]llm.Message, len(list))
 	copy(out, list)

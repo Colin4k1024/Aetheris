@@ -19,6 +19,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"log"
 	"time"
 )
 
@@ -97,7 +98,9 @@ func ExecuteLLM(ctx context.Context, sys System, req LLMRequest, caller LLMCalle
 	}
 
 	// Store the result data using Complete
-	_ = sys.Complete(result.ID, response)
+	if err := sys.Complete(result.ID, response); err != nil {
+		log.Printf("failed to complete LLM effect: %v", err)
+	}
 
 	return response, nil
 }

@@ -19,6 +19,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"log"
 	"time"
 )
 
@@ -83,7 +84,9 @@ func ExecuteTool(ctx context.Context, sys System, name string, args map[string]i
 	}
 
 	// Store the result data using Complete
-	_ = sys.Complete(result.ID, response)
+	if err := sys.Complete(result.ID, response); err != nil {
+		log.Printf("failed to complete tool effect: %v", err)
+	}
 
 	return response, nil
 }
@@ -120,7 +123,9 @@ func ExecuteToolWithTimeout(ctx context.Context, sys System, name string, args m
 	}
 
 	// Store the result data using Complete
-	_ = sys.Complete(result.ID, response)
+	if err := sys.Complete(result.ID, response); err != nil {
+		log.Printf("failed to complete tool effect: %v", err)
+	}
 
 	return response, nil
 }

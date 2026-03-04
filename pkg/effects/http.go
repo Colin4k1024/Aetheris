@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -74,7 +75,9 @@ func ExecuteHTTP(ctx context.Context, sys System, req HTTPRequest, caller HTTPCa
 	}
 
 	// Store the result data using Complete
-	_ = sys.Complete(result.ID, response)
+	if err := sys.Complete(result.ID, response); err != nil {
+		log.Printf("failed to complete HTTP effect: %v", err)
+	}
 
 	return response, nil
 }

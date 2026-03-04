@@ -581,6 +581,7 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	// auth 未开启时 user_id 兜底为 "anonymous"，预置 Admin 角色以保持 API 可用（生产环境请开启 JWT）
 	authEnabled := bootstrap.Config != nil && bootstrap.Config.API.Middleware.Auth
 	if !authEnabled {
+		bootstrap.Logger.Warn("SECURITY: Authentication is disabled. Anonymous users have admin privileges. Enable JWT in production.")
 		_ = roleStore.SetUserRole(context.Background(), "default", "anonymous", auth.RoleAdmin)
 	}
 	rbacChecker := auth.NewSimpleRBACChecker(roleStore)
