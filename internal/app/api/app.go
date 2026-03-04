@@ -623,6 +623,7 @@ func (a *App) Run(addr string) error {
 		if err != nil {
 			return fmt.Errorf("打开日志文件failed: %w", err)
 		}
+		defer f.Close()
 		output = f
 	}
 	levelVar := &slog.LevelVar{}

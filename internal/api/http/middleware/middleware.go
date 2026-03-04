@@ -216,22 +216,24 @@ func (m *Middleware) RateLimit(rps int) app.HandlerFunc {
 		lastTime time.Time
 		count    int
 	)
+	if rps <= 0 {
+		rps = 100 // default
+	}
 	return func(ctx context.Context, c *app.RequestContext) {
 		mu.Lock()
 		now := time.Now()
 		if now.Sub(lastTime) > time.Second {
 			lastTime = now
-			count = 1
-		} else {
-			count++
-			if count > rps {
-				mu.Unlock()
-				c.JSON(consts.StatusTooManyRequests, map[string]string{
-					"error": "请求过于频繁，请稍后再试",
-				})
-				c.Abort()
-				return
-			}
+			count = 0
+		}
+		count++
+		if count > rps {
+			mu.Unlock()
+			c.JSON(consts.StatusTooManyRequests, map[string]string{
+				"error": "请求过于频繁，请稍后再试",
+			})
+			c.Abort()
+			return
 		}
 		mu.Unlock()
 		c.Next(ctx)

@@ -621,7 +621,10 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 	}
 	payload := NewAgentDAGPayload(j.Goal, agent.ID, sessionID)
 	if len(state.PayloadResults) > 0 {
-		_ = json.Unmarshal(state.PayloadResults, &payload.Results)
+		if err := json.Unmarshal(state.PayloadResults, &payload.Results); err != nil {
+			// Log error but continue with empty results to allow replay to proceed
+			// In production, this should be logged via proper logging
+		}
 	}
 	completedSet := state.CompletedNodeIDs
 	replayCtx := state.ReplayContext

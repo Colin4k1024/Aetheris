@@ -129,7 +129,10 @@ func (a *LLMNodeAdapter) runNode(ctx context.Context, taskID string, cfg map[str
 		eff, err := a.EffectStore.GetEffectByJobAndCommandID(ctx, jobID, taskID)
 		if err == nil && eff != nil && len(eff.Output) > 0 {
 			var resp string
-			_ = json.Unmarshal(eff.Output, &resp)
+			if err := json.Unmarshal(eff.Output, &resp); err != nil {
+				// Use raw output if unmarshal fails
+				resp = string(eff.Output)
+			}
 			if p.Results == nil {
 				p.Results = make(map[string]any)
 			}
