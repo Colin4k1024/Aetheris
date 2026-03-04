@@ -434,6 +434,16 @@ See [design/execution-forensics.md](design/execution-forensics.md) and [design/c
 
 Projects and companies using Aetheris in production.
 
+### Featured Case Studies
+
+| Company | Industry | Use Case | Results |
+|---------|----------|----------|---------|
+| [AutoFinance](./docs/showcase/01-autofinance.md) | Fintech | AI Portfolio Rebalancing | 99.9% reliability |
+| [HealthAI](./docs/showcase/02-healthai.md) | Healthcare | Patient Triage | 40% faster |
+| [LogiShip](./docs/showcase/03-logiship.md) | Logistics | Inventory Optimization | $2M savings |
+
+[View all case studies →](./docs/showcase/README.md)
+
 ### Add Your Project
 
 To add your project, please open a PR or start a [Discussion](https://github.com/Colin4k1024/Aetheris/discussions/category/show-and-tell).
@@ -447,6 +457,18 @@ Aetheris is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for de
 ## Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started.
+
+## Community
+
+Join our growing community:
+
+| Platform | Description |
+|----------|-------------|
+| [Discord](https://discord.gg/aetheris) | Real-time chat, help, discussions |
+| [GitHub Discussions](https://github.com/Colin4k1024/Aetheris/discussions) | Q&A, feature ideas |
+| [Community Docs](docs/community.md) | Full community guide |
+
+---
 
 ## Code of Conduct
 

@@ -1,5 +1,7 @@
 # Get Started — 核心功能完整测试指南
 
+> **版本提示**：本文档适用于 **v2.2.0+**，包含可观测性增强、多适配器支持与企业级功能。
+
 本文档帮助你在本地快速跑通 Aetheris 的主要能力，并按需完成「完整运行时」测试（崩溃恢复、多 Worker、Trace、取消等）。
 
 ---
@@ -7,6 +9,17 @@
 ## 1. 前置条件
 
 - **Go**：1.25.7+（与 [go.mod](../go.mod) 一致）
+
+### v2.2.0 新特性概览
+
+| 特性 | 说明 |
+|------|------|
+| **可观测性增强** | Jaeger 分布式追踪、OpenTelemetry 默认启用、Grafana Dashboard |
+| **多适配器** | LlamaIndex、Vertex AI Agent Engine、AWS Bedrock Agents |
+| **企业级功能** | RBAC 角色管理、Region 感知调度、SLA/Quota 管理 |
+
+使用 `make docker-run` 可一键启动完整栈（Postgres + Redis + API + Workers + Jaeger + Grafana）。
+
 - **模型配置**：[configs/model.yaml](../configs/model.yaml) 中至少配置一种 LLM + Embedding：
   - 当前默认使用 Qwen（需在 `model.yaml` 中填写有效 `api_key`，或设置 `DASHSCOPE_API_KEY`）
   - 或设置 `OPENAI_API_KEY`，并将 `defaults.llm` / `defaults.embedding` 改为 `openai.gpt_35_turbo`、`openai.text_embedding_ada_002` 等

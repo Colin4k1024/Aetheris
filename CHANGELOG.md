@@ -4,13 +4,37 @@
 
 ## [Unreleased]
 
+---
+
+## [2.2.0] - 2026-03-04
+
 ### Added
+
+- **可观测性增强**:
+  - 添加 Jaeger 到 docker-compose 用于分布式追踪
+  - 默认启用 OpenTelemetry 追踪
+  - 新增 Grafana dashboard 面板 (Plan/Compile duration, Node execution, Run control)
+- **多适配器支持**:
+  - 添加 LlamaIndex adapter (NodeLlamaIndex)
+  - 添加 Vertex AI Agent Engine adapter (NodeVertex)
+  - 添加 AWS Bedrock Agents adapter (NodeBedrock)
+- **企业级功能**:
+  - Postgres RoleStore 用于 RBAC
+  - RBAC API 端点 (GET/POST /api/rbac/role, POST /api/rbac/check)
+  - Region 配置和 region-aware scheduler
+  - SLA Quota manager 和 SLO monitor
 
 ### Changed
 
-### Deprecated
+- docker-compose 默认配置优化
 
 ### Documentation
+
+- 新增 3 个 adapter 示例代码
+
+### Verification
+
+- Release gates 测试通过
 
 ---
 
