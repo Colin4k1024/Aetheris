@@ -430,6 +430,16 @@ See [design/execution-forensics.md](design/execution-forensics.md) and [design/c
 
 ---
 
+## Powered by Aetheris
+
+Projects and companies using Aetheris in production.
+
+### Add Your Project
+
+To add your project, please open a PR or start a [Discussion](https://github.com/Colin4k1024/Aetheris/discussions/category/show-and-tell).
+
+---
+
 ## License
 
 Aetheris is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
