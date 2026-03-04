@@ -65,6 +65,6 @@ This document describes a **full flow** from agent design to deployment on Aethe
 ## 5. References
 
 - [Getting Started with Agents](getting-started-agents.md) — Full code (tools, planner, wait node, signal).
-- [Custom Agent Adapter](adapters/custom-agent.md) — Migrate an existing agent to Aetheris (imperative → TaskGraph).
+- [Custom Agent Adapter](../adapters/custom-agent.md) — Migrate an existing agent to Aetheris (imperative → TaskGraph).
 - [Step Contract](../design/step-contract.md) — Rules for deterministic replay and at-most-once tools.
 - [Runtime guarantees](runtime-guarantees.md) — Crash recovery, retries, and signal semantics.

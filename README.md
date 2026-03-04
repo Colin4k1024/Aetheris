@@ -150,7 +150,7 @@ Financial transactions, medical prescriptions, government systems — must recor
 
 If your agent is becoming a "critical system" (customers depend on it, data loss is unacceptable, failures cost money), you need Aetheris.
 
-Hands-on walkthroughs for these three scenarios are in [docs/getting-started-agents.md](docs/getting-started-agents.md).
+Hands-on walkthroughs for these three scenarios are in [docs/guides/getting-started-agents.md](docs/guides/getting-started-agents.md).
 
 ---
 
@@ -199,7 +199,7 @@ curl http://localhost:8080/api/health
 
 ## Quick Start
 
-**Scaffold a minimal agent project**: From an empty directory, run `aetheris init` (or `aetheris init <dir>`) to copy a minimal template with config and a sample agent. Then see [Getting Started with Agents](docs/getting-started-agents.md) to build your first production agent in 15 minutes.
+**Scaffold a minimal agent project**: From an empty directory, run `aetheris init` (or `aetheris init <dir>`) to copy a minimal template with config and a sample agent. Then see [Getting Started with Agents](docs/guides/getting-started-agents.md) to build your first production agent in 15 minutes.
 
 See a real business scenario (refund approval agent with human-in-the-loop) running on Aetheris, including:
 - Tool definition (at-most-once side effects)
@@ -386,7 +386,7 @@ The project provides a Makefile for one-command build and startup of all service
 | `make fmt` | gofmt -w |
 | `make tidy` | go mod tidy |
 
-**One-command run**: From the repo root, run `make run` to build and then start the API (default :8080) and Worker in the background; PIDs and logs are under `bin/`. Use `make stop` to stop. If using Postgres as jobstore, start Postgres first (see [docs/deployment.md](docs/deployment.md)). For a full walkthrough of core features (quick trial vs full runtime), see [docs/get-started.md](docs/get-started.md).
+**One-command run**: From the repo root, run `make run` to build and then start the API (default :8080) and Worker in the background; PIDs and logs are under `bin/`. Use `make stop` to stop. If using Postgres as jobstore, start Postgres first (see [docs/guides/deployment.md](docs/guides/deployment.md)). For a full walkthrough of core features (quick trial vs full runtime), see [docs/guides/get-started.md](docs/guides/get-started.md).
 
 **Local 2.0 stack (Compose)**: run `./scripts/local-2.0-stack.sh start` to launch `postgres + api + worker1 + worker2`, and `./scripts/local-2.0-stack.sh stop` to shut it down.
 
@@ -426,7 +426,7 @@ Aetheris is built not only to **trace** execution but to **audit** and **attribu
 
 See [design/execution-forensics.md](design/execution-forensics.md) and [design/causal-debugging.md](design/causal-debugging.md).
 
-**Runtime guarantees and failure behavior** are documented in [docs/runtime-guarantees.md](docs/runtime-guarantees.md). See what happens when workers crash, steps timeout, or signals are lost. Formal guarantees table: [design/execution-guarantees.md](design/execution-guarantees.md).
+**Runtime guarantees and failure behavior** are documented in [docs/guides/runtime-guarantees.md](docs/guides/runtime-guarantees.md). See what happens when workers crash, steps timeout, or signals are lost. Formal guarantees table: [design/execution-guarantees.md](design/execution-guarantees.md).
 
 ---
 

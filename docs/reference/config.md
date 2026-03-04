@@ -55,7 +55,7 @@ Only when `jobstore.type=memory`; with `postgres` the API does not start the Sch
 | enabled | Optional. When `false`, disable ADK and use legacy agent for /api/agent/run. Unset or true → use ADK. |
 | checkpoint_store | `memory` (default) for in-process checkpoint; reserved for future postgres/redis. |
 
-**Resume**：请求体 `{"checkpoint_id":"..."}`，用于从 ADK 中断点恢复。**Stream**：与 run 相同请求体，响应为 SSE（`text/event-stream`）。详见 [docs/adk.md](adk.md).
+**Resume**：请求体 `{"checkpoint_id":"..."}`，用于从 ADK 中断点恢复。**Stream**：与 run 相同请求体，响应为 SSE（`text/event-stream`）。详见 [concepts/adk.md](../concepts/adk.md).
 
 ### storage (API)
 
