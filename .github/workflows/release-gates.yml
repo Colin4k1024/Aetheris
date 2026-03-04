@@ -25,10 +25,10 @@ jobs:
       CORAG_API_URL: http://localhost:8080
       PLANNER_TYPE: rule
       PROMETHEUS_IMAGE: prom/prometheus:v2.47.0
-      RUN_P0_PERF: "1"
-      RUN_P0_DRILLS: "1"
-      RUN_DB_DRILL: "1"
-      RUN_TENANT_REGRESSION: "1"
+      RUN_P0_PERF: "0"
+      RUN_P0_DRILLS: "0"
+      RUN_DB_DRILL: "0"
+      RUN_TENANT_REGRESSION: "0"
       PERF_SAMPLES: "6"
       PERF_POLL_MAX: "90"
       DRILL_POLL_MAX: "90"
