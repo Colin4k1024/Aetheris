@@ -82,8 +82,11 @@ RETURNING ingest_tasks.id, ingest_tasks.payload`,
 
 // MarkCompleted 实现 IngestQueue
 func (q *ingestQueuePg) MarkCompleted(ctx context.Context, taskID string, result interface{}) error {
-	resultJSON, _ := json.Marshal(result)
-	_, err := q.pool.Exec(ctx,
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		resultJSON = []byte(`{"error": "marshal failed"}`)
+	}
+	_, err = q.pool.Exec(ctx,
 		`UPDATE ingest_tasks SET status = 'completed', result = $1, error = NULL, completed_at = now() WHERE id = $2`,
 		resultJSON, taskID,
 	)

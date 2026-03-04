@@ -17,6 +17,7 @@ package eino
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/cloudwego/eino/adk"
 )
@@ -60,20 +61,28 @@ func (cm *ContextManager) ExecuteQuery(ctx context.Context, runnerName, query st
 	go func() {
 		defer close(eventCh)
 		for {
+			// Use non-blocking check for context cancellation
 			select {
 			case <-ctx.Done():
 				return
 			default:
-				event, ok := iter.Next()
-				if !ok {
-					return
-				}
-				select {
-				case <-ctx.Done():
-					return
-				case eventCh <- event:
-				}
 			}
+
+			event, ok := iter.Next()
+			if !ok {
+				return
+			}
+
+			// Use non-blocking send to avoid blocking on slow consumer
+			select {
+			case <-ctx.Done():
+				return
+			case eventCh <- event:
+			}
+
+			// Small sleep to avoid busy loop when no events are available
+			// This balances responsiveness with CPU usage
+			time.Sleep(10 * time.Millisecond)
 		}
 	}()
 
