@@ -16,10 +16,11 @@ package effects
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
-	"time"
+	"math"
+	"math/big"
 )
 
 // RandomResult represents the recorded random values.
@@ -38,17 +39,16 @@ func ExecuteRandomInt63(ctx context.Context, sys System, source string) (int64, 
 		Values: make([]byte, 8),
 	}
 
-	// Use a deterministic seed based on source + system time for first run
-	seed := time.Now().UnixNano()
-	rng := rand.New(rand.NewSource(seed))
-
-	val := rng.Int63()
+	// Use crypto/rand for secure random number generation
+	val, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		return 0, fmt.Errorf("failed to generate random int64: %w", err)
+	}
 	b := make([]byte, 8)
 	for i := 0; i < 8; i++ {
-		b[i] = byte((val >> (i * 8)) & 0xff)
+		b[i] = byte((val.Int64() >> (i * 8)) & 0xff)
 	}
 	result.Values = b
-	result.SeedUsed = seed
 
 	effect := NewEffect(KindRandom, result).
 		WithIdempotencyKey("random:" + source + ":int63").
@@ -71,7 +71,7 @@ func ExecuteRandomInt63(ctx context.Context, sys System, source string) (int64, 
 
 	// Record the generated value
 	res.Data = result
-	return val, nil
+	return val.Int64(), nil
 }
 
 // ExecuteRandomBytes generates random bytes of the specified length.
@@ -82,10 +82,10 @@ func ExecuteRandomBytes(ctx context.Context, sys System, source string, length i
 		Values: make([]byte, length),
 	}
 
-	// Use a deterministic seed
-	seed := time.Now().UnixNano()
-	rng := rand.New(rand.NewSource(seed))
-	rng.Read(result.Values)
+	// Use crypto/rand for secure random bytes
+	if _, err := rand.Read(result.Values); err != nil {
+		return nil, fmt.Errorf("failed to generate random bytes: %w", err)
+	}
 
 	effect := NewEffect(KindRandom, result).
 		WithIdempotencyKey("random:" + source + ":bytes:" + fmt.Sprintf("%d", length)).
