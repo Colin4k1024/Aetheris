@@ -143,34 +143,54 @@ func (s *Scheduler) Start(ctx context.Context) {
 							case agentexec.StepResultRetryableFailure:
 								if job.RetryCount < s.config.RetryMax {
 									time.Sleep(s.config.Backoff)
-									_ = s.store.Requeue(runCtx, job)
+									if err := s.store.Requeue(runCtx, job); err != nil && s.logger != nil {
+										s.logger.Error("failed to requeue job", "job_id", job.ID, "error", err)
+									}
 								} else {
-									_ = s.store.UpdateStatus(runCtx, job.ID, StatusFailed)
+									if err := s.store.UpdateStatus(runCtx, job.ID, StatusFailed); err != nil && s.logger != nil {
+										s.logger.Error("failed to update job status to failed", "job_id", job.ID, "error", err)
+									}
 								}
 							case agentexec.StepResultPermanentFailure:
-								_ = s.store.UpdateStatus(runCtx, job.ID, StatusFailed)
+								if err := s.store.UpdateStatus(runCtx, job.ID, StatusFailed); err != nil && s.logger != nil {
+									s.logger.Error("failed to update job status to failed", "job_id", job.ID, "error", err)
+								}
 							case agentexec.StepResultCompensatableFailure:
 								if s.compensate != nil {
-									_ = s.compensate(runCtx, job.ID, sf.FailedNodeID())
+									if err := s.compensate(runCtx, job.ID, sf.FailedNodeID()); err != nil && s.logger != nil {
+										s.logger.Error("failed to compensate job", "job_id", job.ID, "error", err)
+									}
 								}
-								_ = s.store.UpdateStatus(runCtx, job.ID, StatusFailed)
+								if err := s.store.UpdateStatus(runCtx, job.ID, StatusFailed); err != nil && s.logger != nil {
+									s.logger.Error("failed to update job status to failed", "job_id", job.ID, "error", err)
+								}
 							case agentexec.StepResultSideEffectCommitted, agentexec.StepResultCompensated:
 								// 不应以错误返回；若出现则不再重试，直接failed
-								_ = s.store.UpdateStatus(runCtx, job.ID, StatusFailed)
+								if err := s.store.UpdateStatus(runCtx, job.ID, StatusFailed); err != nil && s.logger != nil {
+									s.logger.Error("failed to update job status to failed", "job_id", job.ID, "error", err)
+								}
 							default:
-								_ = s.store.UpdateStatus(runCtx, job.ID, StatusFailed)
+								if err := s.store.UpdateStatus(runCtx, job.ID, StatusFailed); err != nil && s.logger != nil {
+									s.logger.Error("failed to update job status to failed", "job_id", job.ID, "error", err)
+								}
 							}
 						} else {
 							// No step outcome: backward compat, retry up to RetryMax
 							if job.RetryCount < s.config.RetryMax {
 								time.Sleep(s.config.Backoff)
-								_ = s.store.Requeue(runCtx, job)
+								if err := s.store.Requeue(runCtx, job); err != nil && s.logger != nil {
+									s.logger.Error("failed to requeue job", "job_id", job.ID, "error", err)
+								}
 							} else {
-								_ = s.store.UpdateStatus(runCtx, job.ID, StatusFailed)
+								if err := s.store.UpdateStatus(runCtx, job.ID, StatusFailed); err != nil && s.logger != nil {
+									s.logger.Error("failed to update job status to failed", "job_id", job.ID, "error", err)
+								}
 							}
 						}
 					} else {
-						_ = s.store.UpdateStatus(runCtx, job.ID, StatusCompleted)
+						if err := s.store.UpdateStatus(runCtx, job.ID, StatusCompleted); err != nil && s.logger != nil {
+							s.logger.Error("failed to update job status to completed", "job_id", job.ID, "error", err)
+						}
 					}
 				}(j)
 			}
