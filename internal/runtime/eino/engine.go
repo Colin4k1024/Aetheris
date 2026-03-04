@@ -277,11 +277,20 @@ func (e *Engine) Execute(ctx context.Context, agentID string, query string) (cha
 	go func() {
 		defer close(eventCh)
 		for {
-			event, ok := iter.Next()
-			if !ok {
-				break
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				event, ok := iter.Next()
+				if !ok {
+					return
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case eventCh <- event:
+				}
 			}
-			eventCh <- event
 		}
 	}()
 

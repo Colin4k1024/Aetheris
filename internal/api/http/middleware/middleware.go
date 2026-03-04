@@ -28,17 +28,43 @@ import (
 )
 
 // Middleware 中间件管理器
-type Middleware struct{}
+type Middleware struct {
+	// CORS 允许的来源列表
+	AllowOrigins []string
+}
 
 // NewMiddleware 创建新的中间件管理器
 func NewMiddleware() *Middleware {
 	return &Middleware{}
 }
 
+// NewMiddlewareWithCORS 创建带有 CORS 配置的中间件管理器
+func NewMiddlewareWithCORS(allowOrigins []string) *Middleware {
+	return &Middleware{
+		AllowOrigins: allowOrigins,
+	}
+}
+
 // CORS CORS 中间件
 func (m *Middleware) CORS() app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
-		c.Header("Access-Control-Allow-Origin", "*")
+		// 如果配置了允许的来源列表，则使用配置的来源
+		// 否则默认允许所有（开发环境兼容）
+		allowOrigin := "*"
+		if len(m.AllowOrigins) > 0 {
+			// 检查请求来源是否在允许列表中
+			requestOrigin := string(c.Request.Header.Peek("Origin"))
+			if requestOrigin != "" {
+				for _, origin := range m.AllowOrigins {
+					if origin == "*" || origin == requestOrigin {
+						allowOrigin = requestOrigin
+						break
+					}
+				}
+			}
+		}
+
+		c.Header("Access-Control-Allow-Origin", allowOrigin)
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 		c.Header("Access-Control-Expose-Headers", "Content-Length")

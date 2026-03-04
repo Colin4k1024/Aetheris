@@ -22,6 +22,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app/server"
@@ -555,7 +556,11 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 		handler.SetPlanAtJobCreation(PlanGoalForJobFunc(agentRuntimeManager, v1Planner))
 	}
 
+	// 初始化中间件，传入 CORS 配置
 	mw := middleware.NewMiddleware()
+	if bootstrap.Config != nil && len(bootstrap.Config.API.CORS.AllowOrigins) > 0 {
+		mw = middleware.NewMiddlewareWithCORS(bootstrap.Config.API.CORS.AllowOrigins)
+	}
 	router := http.NewRouter(handler, mw)
 	if bootstrap.Config != nil {
 		router.SetForensicsExperimental(bootstrap.Config.API.Forensics.Experimental)
@@ -719,6 +724,11 @@ func parseDuration(s string, defaultVal time.Duration) time.Duration {
 	return d
 }
 
+// containsDefaultPassword checks if DSN contains the default password
+func containsDefaultPassword(dsn string) bool {
+	return dsn != "" && (strings.Contains(dsn, "aetheris:aetheris@") || strings.Contains(dsn, "password=aetheris"))
+}
+
 func validateProductionRuntimeConfig(cfg *config.Config) error {
 	if cfg == nil {
 		return nil
@@ -736,6 +746,14 @@ func validateProductionRuntimeConfig(cfg *config.Config) error {
 	}
 	if cfg.CheckpointStore.Type != "postgres" || cfg.CheckpointStore.DSN == "" {
 		return fmt.Errorf("production requires checkpoint_store.type=postgres with dsn")
+	}
+	// Validate DSN does not contain default credentials
+	if containsDefaultPassword(cfg.JobStore.DSN) || containsDefaultPassword(cfg.EffectStore.DSN) || containsDefaultPassword(cfg.CheckpointStore.DSN) {
+		return fmt.Errorf("production requires changing default passwords in DSN")
+	}
+	// CORS validation - production should not allow all origins
+	if len(cfg.API.CORS.AllowOrigins) == 0 || cfg.API.CORS.AllowOrigins[0] == "*" {
+		return fmt.Errorf("production requires specific CORS origins. Set api.cors.allow_origins to a list of allowed domains")
 	}
 	// Auth validation
 	if !cfg.API.Middleware.Auth {

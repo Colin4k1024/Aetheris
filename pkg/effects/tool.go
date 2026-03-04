@@ -140,7 +140,11 @@ func computeToolIdempotencyKey(name string, args map[string]interface{}) string 
 		Args: args,
 	}
 
-	data, _ := json.Marshal(keyData)
+	data, err := json.Marshal(keyData)
+	if err != nil {
+		// Fallback: use name as part of hash if marshaling fails
+		data = []byte(name)
+	}
 	hash := sha256.Sum256(data)
 	return "tool:" + hex.EncodeToString(hash[:])
 }

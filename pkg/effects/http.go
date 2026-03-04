@@ -96,7 +96,10 @@ func computeHTTPIdempotencyKey(req HTTPRequest) string {
 		Body:    req.Body,
 	}
 
-	data, _ := json.Marshal(keyData)
+	data, err := json.Marshal(keyData)
+	if err != nil {
+		data = []byte(req.Method + req.URL)
+	}
 	hash := sha256.Sum256(data)
 	return "http:" + hex.EncodeToString(hash[:8])
 }

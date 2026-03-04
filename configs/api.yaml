@@ -7,7 +7,7 @@ api:
     enable: true
     allow_origins: ["*"]
   middleware:
-    auth: false
+    auth: true
     rate_limit: true
     rate_limit_rps: 100
     # JWT（auth 为 true 时生效）；jwt_key 建议用环境变量 "${JWT_SECRET}"

@@ -120,7 +120,10 @@ func computeLLMIdempotencyKey(req LLMRequest) string {
 		Params:       req.Params,
 	}
 
-	data, _ := json.Marshal(canonical)
+	data, err := json.Marshal(canonical)
+	if err != nil {
+		data = []byte(req.Model + req.SystemPrompt)
+	}
 	hash := sha256.Sum256(data)
 	return hex.EncodeToString(hash[:])
 }

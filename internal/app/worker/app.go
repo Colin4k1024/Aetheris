@@ -242,6 +242,8 @@ func NewApp(cfg *config.Config) (*App, error) {
 		if maxAttempts <= 0 {
 			maxAttempts = 3
 		}
+		// 捕获 logger 供内部函数使用
+		workerLogger := logger
 		waitPlanReady := func(ctx context.Context, jobID string, maxWait time.Duration) error {
 			if maxWait <= 0 {
 				maxWait = 15 * time.Second
@@ -290,7 +292,9 @@ func NewApp(cfg *config.Config) (*App, error) {
 				ID: j.ID, AgentID: j.AgentID, Goal: j.Goal, Cursor: j.Cursor, TenantID: tenantID,
 			})
 			if agentStateStore != nil && agent.Session != nil {
-				_ = agentStateStore.SaveAgentState(ctx, j.AgentID, agent.Session.ID, runtime.SessionToAgentState(agent.Session))
+				if err := agentStateStore.SaveAgentState(ctx, j.AgentID, agent.Session.ID, runtime.SessionToAgentState(agent.Session)); err != nil {
+					workerLogger.Warn("failed to save agent state", "error", err, "agent_id", j.AgentID)
+				}
 			}
 			_, ver, _ := pgEventStore.ListEvents(ctx, j.ID)
 			if err != nil && errors.Is(err, agentexec.ErrJobWaiting) {
@@ -302,15 +306,25 @@ func NewApp(cfg *config.Config) (*App, error) {
 				if j.RetryCount+1 >= maxAttempts {
 					errStr := err.Error()
 					payload, _ := json.Marshal(map[string]interface{}{"goal": j.Goal, "error": errStr})
-					_, _ = pgEventStore.Append(ctx, j.ID, ver, jobstore.JobEvent{JobID: j.ID, Type: jobstore.JobFailed, Payload: payload})
-					_ = pgJobStore.UpdateStatus(ctx, j.ID, job.StatusFailed)
+					if _, er := pgEventStore.Append(ctx, j.ID, ver, jobstore.JobEvent{JobID: j.ID, Type: jobstore.JobFailed, Payload: payload}); er != nil {
+						workerLogger.Warn("failed to append job_failed event", "error", er, "job_id", j.ID)
+					}
+					if er := pgJobStore.UpdateStatus(ctx, j.ID, job.StatusFailed); er != nil {
+						workerLogger.Warn("failed to update job status to failed", "error", er, "job_id", j.ID)
+					}
 				} else {
-					_ = pgJobStore.Requeue(ctx, j)
+					if er := pgJobStore.Requeue(ctx, j); er != nil {
+						workerLogger.Warn("failed to requeue job", "error", er, "job_id", j.ID)
+					}
 				}
 			} else {
 				payload, _ := json.Marshal(map[string]interface{}{"goal": j.Goal})
-				_, _ = pgEventStore.Append(ctx, j.ID, ver, jobstore.JobEvent{JobID: j.ID, Type: jobstore.JobCompleted, Payload: payload})
-				_ = pgJobStore.UpdateStatus(ctx, j.ID, job.StatusCompleted)
+				if _, er := pgEventStore.Append(ctx, j.ID, ver, jobstore.JobEvent{JobID: j.ID, Type: jobstore.JobCompleted, Payload: payload}); er != nil {
+					workerLogger.Warn("failed to append job_completed event", "error", er, "job_id", j.ID)
+				}
+				if er := pgJobStore.UpdateStatus(ctx, j.ID, job.StatusCompleted); er != nil {
+					workerLogger.Warn("failed to update job status to completed", "error", er, "job_id", j.ID)
+				}
 			}
 			return err
 		}
