@@ -1,16 +1,27 @@
 # Aetheris
 
-[![Go Version](https://img.shields.io/github/go-mod/go-version/Colin4k1024/Aetheris)](https://github.com/Colin4k1024/Aetheris)
-[![License](https://img.shields.io/github/license/Colin4k1024/Aetheris)](LICENSE)
-[![CI](https://github.com/Colin4k1024/Aetheris/actions/workflows/ci.yml/badge.svg)](https://github.com/Colin4k1024/Aetheris/actions)
-[![Discord](https://img.shields.io/discord/123456789)](https://discord.gg/PrrK2Mua)
-[![Twitter](https://img.shields.io/twitter/follow/AetherisIO)](https://twitter.com/AetherisIO)
+<p align="center">
+  <img src="https://img.shields.io/github/v/release/Colin4k1024/Aetheris" alt="Release">
+  <img src="https://img.shields.io/github/go-mod/go-version/Colin4k1024/Aetheris" alt="Go Version">
+  <img src="https://img.shields.io/github/license/Colin4k1024/Aetheris" alt="License">
+  <img src="https://img.shields.io/github/actions/workflow/status/Colin4k1024/Aetheris/ci" alt="CI">
+  <img src="https://goreportcard.com/badge/github.com/Colin4k1024/Aetheris" alt="Go Report Card">
+</p>
 
 **Aetheris is an execution runtime for intelligent agents.**
 
 It provides a durable, replayable, and observable environment where AI agents can plan, execute, pause, resume, and recover long-running tasks. Execution is event-sourced and recoverable, so agents can resume after crashes and be replayed for debugging.
 
 Instead of treating LLM calls as stateless requests, Aetheris treats an agent as a **stateful process** — similar to how an operating system manages programs.
+
+## Key Features
+
+- **Durable Execution** — Agents survive crashes and can resume from checkpoints
+- **At-Most-Once** — Tool executions are guaranteed not to repeat (Ledger-based)
+- **Deterministic Replay** — Reproduce any agent run for debugging
+- **Human-in-the-Loop** — Pause for approval, signals, or external events
+- **Audit Trail** — Full decision history with evidence graph
+- **Multi-Framework Support** — LangGraph, AutoGen, CrewAI adapters
 
 ---
 
@@ -447,6 +458,24 @@ Projects and companies using Aetheris in production.
 ### Add Your Project
 
 To add your project, please open a PR or start a [Discussion](https://github.com/Colin4k1024/Aetheris/discussions/category/show-and-tell).
+
+---
+
+## Security
+
+Aetheris includes production-ready security features:
+
+- **Authentication** — JWT-based authentication (configurable)
+- **CORS Control** — Configurable allowed origins
+- **Production Mode** — Strict validation for production deployments:
+  - Requires PostgreSQL for durable storage
+  - Requires authentication enabled
+  - Requires JWT secret key
+  - Requires SSL for database connections
+  - Requires specific CORS origins (not wildcard)
+  - Validates default credentials are changed
+
+See [Security Guide](docs/guides/security.md) for security settings.
 
 ---
 
