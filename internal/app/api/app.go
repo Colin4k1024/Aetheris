@@ -727,6 +727,7 @@ func validateProductionRuntimeConfig(cfg *config.Config) error {
 	if !prod {
 		return nil
 	}
+	// Storage validation
 	if cfg.JobStore.Type != "postgres" || cfg.JobStore.DSN == "" {
 		return fmt.Errorf("production requires jobstore.type=postgres with dsn")
 	}
@@ -735,6 +736,13 @@ func validateProductionRuntimeConfig(cfg *config.Config) error {
 	}
 	if cfg.CheckpointStore.Type != "postgres" || cfg.CheckpointStore.DSN == "" {
 		return fmt.Errorf("production requires checkpoint_store.type=postgres with dsn")
+	}
+	// Auth validation
+	if !cfg.API.Middleware.Auth {
+		return fmt.Errorf("production requires authentication to be enabled. Set api.middleware.auth: true")
+	}
+	if cfg.API.Middleware.JWTKey == "" {
+		return fmt.Errorf("production requires JWT key to be set. Set api.middleware.jwt_key")
 	}
 	return nil
 }

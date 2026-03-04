@@ -384,3 +384,16 @@ func LoadWorkerConfigWithModel() (*Config, error) {
 func LoadModelConfig() (*Config, error) {
 	return LoadConfig("configs/model.yaml")
 }
+
+// ValidateProductionMode 检查生产模式配置是否安全
+func (c *Config) ValidateProductionMode() error {
+	if c.Runtime.Profile == "prod" {
+		if !c.API.Middleware.Auth {
+			return fmt.Errorf("production mode requires authentication to be enabled. Set api.middleware.auth: true in config")
+		}
+		if c.API.Middleware.JWTKey == "" {
+			return fmt.Errorf("production mode requires JWT key to be set. Set api.middleware.jwt_key in config")
+		}
+	}
+	return nil
+}
