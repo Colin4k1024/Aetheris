@@ -17,6 +17,7 @@ package job
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -47,6 +48,7 @@ type Scheduler struct {
 	runJob     RunJobFunc
 	config     SchedulerConfig
 	compensate CompensateFunc // optional; called on CompensatableFailure before marking job failed
+	logger     *slog.Logger
 	stopCh     chan struct{}
 	wg         sync.WaitGroup
 	limiter    chan struct{} // 信号量，限制并发
@@ -72,6 +74,11 @@ func (s *Scheduler) SetCompensate(fn CompensateFunc) {
 	s.compensate = fn
 }
 
+// SetLogger 设置日志记录器（可选）
+func (s *Scheduler) SetLogger(logger *slog.Logger) {
+	s.logger = logger
+}
+
 // Start 启动调度循环：最多 MaxConcurrency 个 worker 拉取 Pending、执行、成功则 UpdateStatus(Completed)，failed则按 RetryMax/Backoff 重试或 UpdateStatus(Failed)
 func (s *Scheduler) Start(ctx context.Context) {
 	s.wg.Add(1)
@@ -87,12 +94,16 @@ func (s *Scheduler) Start(ctx context.Context) {
 				tickStart := time.Now()
 				// 占一个槽位后拉取；若配置了 Queues 则按队列优先级依次尝试；Capabilities 非空时按能力派发
 				var j *Job
+				var err error
 				if len(s.config.Queues) > 0 {
 					for _, q := range s.config.Queues {
 						if len(s.config.Capabilities) > 0 {
-							j, _ = s.store.ClaimNextPendingForWorker(ctx, q, s.config.Capabilities, "")
+							j, err = s.store.ClaimNextPendingForWorker(ctx, q, s.config.Capabilities, "")
 						} else {
-							j, _ = s.store.ClaimNextPendingFromQueue(ctx, q)
+							j, err = s.store.ClaimNextPendingFromQueue(ctx, q)
+						}
+						if err != nil && s.logger != nil {
+							s.logger.Error("failed to claim job from queue", "queue", q, "error", err)
 						}
 						if j != nil {
 							break
@@ -100,9 +111,12 @@ func (s *Scheduler) Start(ctx context.Context) {
 					}
 				} else {
 					if len(s.config.Capabilities) > 0 {
-						j, _ = s.store.ClaimNextPendingForWorker(ctx, "", s.config.Capabilities, "")
+						j, err = s.store.ClaimNextPendingForWorker(ctx, "", s.config.Capabilities, "")
 					} else {
-						j, _ = s.store.ClaimNextPending(ctx)
+						j, err = s.store.ClaimNextPending(ctx)
+					}
+					if err != nil && s.logger != nil {
+						s.logger.Error("failed to claim job", "error", err)
 					}
 				}
 				metrics.SchedulerTickDurationSeconds.Observe(time.Since(tickStart).Seconds())
@@ -119,7 +133,8 @@ func (s *Scheduler) Start(ctx context.Context) {
 				metrics.LeaseAcquireTotal.WithLabelValues(tenant, "true").Inc()
 				go func(job *Job) {
 					defer func() { <-s.limiter }()
-					runCtx := context.Background()
+					// 使用 detached context，避免外层 ctx 取消影响已认领的 job
+					runCtx := context.WithoutCancel(ctx)
 					err := s.runJob(runCtx, job)
 					if err != nil {
 						var sf *agentexec.StepFailure

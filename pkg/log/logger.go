@@ -15,6 +15,7 @@
 package log
 
 import (
+	"context"
 	"log/slog"
 	"os"
 )
@@ -22,6 +23,49 @@ import (
 // Logger 简单封装，供 internal 使用
 type Logger struct {
 	*slog.Logger
+}
+
+// MultiHandler 同时向多个 handler 写日志
+type MultiHandler struct {
+	handlers []slog.Handler
+}
+
+func NewMultiHandler(handlers ...slog.Handler) *MultiHandler {
+	return &MultiHandler{handlers: handlers}
+}
+
+func (m *MultiHandler) Handle(ctx context.Context, r slog.Record) error {
+	for _, h := range m.handlers {
+		if err := h.Handle(ctx, r); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *MultiHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	for _, h := range m.handlers {
+		if h.Enabled(ctx, level) {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *MultiHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	handlers := make([]slog.Handler, len(m.handlers))
+	for i, h := range m.handlers {
+		handlers[i] = h.WithAttrs(attrs)
+	}
+	return NewMultiHandler(handlers...)
+}
+
+func (m *MultiHandler) WithGroup(name string) slog.Handler {
+	handlers := make([]slog.Handler, len(m.handlers))
+	for i, h := range m.handlers {
+		handlers[i] = h.WithGroup(name)
+	}
+	return NewMultiHandler(handlers...)
 }
 
 // Config 日志配置（可与 config 包对接）
@@ -49,5 +93,16 @@ func NewLogger(cfg *Config) (*Logger, error) {
 	if cfg != nil && cfg.Format == "text" {
 		h = slog.NewTextHandler(os.Stdout, opts)
 	}
+
+	// 支持文件输出
+	if cfg != nil && cfg.File != "" {
+		f, err := os.OpenFile(cfg.File, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			return nil, err
+		}
+		// 同时输出到 stdout 和文件
+		h = NewMultiHandler(h, slog.NewJSONHandler(f, opts))
+	}
+
 	return &Logger{Logger: slog.New(h)}, nil
 }

@@ -16,6 +16,8 @@ package memory
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"time"
 )
 
@@ -56,10 +58,16 @@ func (c *CompositeMemory) Recall(ctx context.Context, query string) ([]MemoryIte
 	return out, nil
 }
 
-// Store 写入所有 backend
+// Store 写入所有 backend，返回首个错误
 func (c *CompositeMemory) Store(ctx context.Context, item MemoryItem) error {
+	var errs []string
 	for _, b := range c.backends {
-		_ = b.Store(ctx, item)
+		if err := b.Store(ctx, item); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+	if len(errs) > 0 {
+		return errors.New("failed to store to backends: " + strings.Join(errs, "; "))
 	}
 	return nil
 }
