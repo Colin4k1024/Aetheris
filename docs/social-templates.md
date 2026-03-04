@@ -241,7 +241,7 @@ Documentation: docs.aetheris.ai
 
 ---
 
-Questions? Join us on Discord: discord.gg/aetheris
+Questions? Join us on Discord: https://discord.gg/PrrK2Mua
 ```
 
 ---

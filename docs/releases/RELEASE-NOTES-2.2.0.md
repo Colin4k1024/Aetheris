@@ -133,7 +133,7 @@ Thank you to all contributors who made this release possible!
 
 - **Documentation**: https://docs.aetheris.ai
 - **GitHub**: https://github.com/Colin4k1024/Aetheris
-- **Discord**: https://discord.gg/aetheris
+- **Discord**: https://discord.gg/PrrK2Mua
 - **Discussions**: https://github.com/Colin4k1024/Aetheris/discussions
 
 ---

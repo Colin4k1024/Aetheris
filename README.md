@@ -3,7 +3,7 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/Colin4k1024/Aetheris)](https://github.com/Colin4k1024/Aetheris)
 [![License](https://img.shields.io/github/license/Colin4k1024/Aetheris)](LICENSE)
 [![CI](https://github.com/Colin4k1024/Aetheris/actions/workflows/ci.yml/badge.svg)](https://github.com/Colin4k1024/Aetheris/actions)
-[![Discord](https://img.shields.io/discord/123456789)](https://discord.gg/aetheris)
+[![Discord](https://img.shields.io/discord/123456789)](https://discord.gg/PrrK2Mua)
 [![Twitter](https://img.shields.io/twitter/follow/AetherisIO)](https://twitter.com/AetherisIO)
 
 **Aetheris is an execution runtime for intelligent agents.**
@@ -464,7 +464,7 @@ Join our growing community:
 
 | Platform | Description |
 |----------|-------------|
-| [Discord](https://discord.gg/aetheris) | Real-time chat, help, discussions |
+| [Discord](https://discord.gg/PrrK2Mua) | Real-time chat, help, discussions |
 | [GitHub Discussions](https://github.com/Colin4k1024/Aetheris/discussions) | Q&A, feature ideas |
 | [Community Docs](docs/community.md) | Full community guide |
 

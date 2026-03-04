@@ -397,7 +397,7 @@ Helm Chart、Prometheus 告警、容量规划、性能基准。
 
 - **GitHub**: https://github.com/yourusername/aetheris
 - **文档**: https://aetheris.dev/docs
-- **社区**: https://discord.gg/aetheris
+- **社区**: https://discord.gg/PrrK2Mua
 - **邮件**: team@aetheris.dev
 
 ---

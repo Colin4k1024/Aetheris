@@ -10,7 +10,7 @@ Join our community to connect with other developers, get help, and share your pr
 
 Join our Discord server for real-time discussions:
 
-**[Join Discord](https://discord.gg/aetheris)**
+**[Join Discord](https://discord.gg/PrrK2Mua)**
 
 #### Channel Structure
 

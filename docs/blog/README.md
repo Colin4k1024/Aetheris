@@ -18,7 +18,7 @@ Welcome to the Aetheris blog! Here you'll find tutorials, guides, and insights a
 
 - [Documentation](../guides/get-started.md)
 - [GitHub Repository](https://github.com/aetheris-ai/CoRag)
-- [Discord Community](https://discord.gg/aetheris)
+- [Discord Community](https://discord.gg/PrrK2Mua)
 
 ---
 
