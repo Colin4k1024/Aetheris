@@ -22,16 +22,83 @@ Aetheris aims to be the standard runtime for production-grade AI agents.
 
 ## Upcoming Features
 
-### v2.3.0 - Performance & Scale
+### v2.3.0 - Performance & Scale (Q2 2026)
 
-- [ ] Performance optimization
-- [ ] Enhanced scalability features
+#### Performance Optimization
+- [ ] Connection pool optimization for PostgreSQL (jackc/pgx)
+- [ ] Redis caching layer for job metadata
+- [ ] gRPC communication between API and Worker
+- [ ] Async event write batching
+- [ ] Index optimization for job queries
 
-### v3.0.0 - Enterprise Scale
+#### Scalability Features
+- [ ] Horizontal worker scaling with Kubernetes HPA
+- [ ] Leader election for scheduler (Redis-based)
+- [ ] Distributed job locking with Redis
+- [ ] Worker affinity and topology awareness
+- [ ] Auto-scaling based on queue depth
 
-- [ ] Advanced multi-region deployment
-- [ ] Enterprise compliance features
-- [ ] Enhanced SLA guarantees
+#### Multi-Tenant Improvements
+- [ ] Tenant-specific connection pools
+- [ ] Per-tenant rate limiting
+- [ ] Tenant isolation verification tests
+- [ ] Cross-tenant query prevention
+
+#### Developer Experience
+- [ ] Enhanced CLI debugging tools
+- [ ] Local development mode with hot reload
+- [ ] Step-by-step execution trace viewer
+
+---
+
+### v3.0.0 - Enterprise Scale (Q3-Q4 2026)
+
+#### Multi-Region Deployment
+- [ ] Cross-region job replication
+- [ ] Global负载均衡 with GeoDNS
+- [ ] Region failover automation
+- [ ] Latency-based routing
+
+#### Enterprise Compliance
+- [ ] **Audit Log Signature** - Cryptographic signing of audit logs
+- [ ] Data residency controls (GDPR compliance)
+- [ ] SOC 2 Type II readiness
+- [ ] HIPAA compliance framework (optional)
+- [ ] PII masking in logs/traces
+
+#### Enhanced SLA Guarantees
+- [ ] Job deadline enforcement
+- [ ] Step-level SLA tracking
+- [ ] Automated failover on SLA breach
+- [ ] SLA reporting dashboard
+
+#### Advanced Security
+- [ ] mTLS for all internal communication
+- [ ] Secrets management integration (Vault, AWS Secrets Manager)
+- [ ] API request signing
+- [ ] IP allowlist support
+
+#### Enterprise Integrations
+- [ ] SAML/OIDC SSO
+- [ ] LDAP/Active Directory integration
+- [ ] Enterprise message queues (RabbitMQ, Amazon SQS)
+- [ ] Cloud storage backends (S3, GCS, Azure Blob)
+
+---
+
+### Future Considerations (Post-3.0)
+
+#### AI-Native Features
+- [ ] LLM-native task decomposition
+- [ ] Self-healing agent workflows
+- [ ] Predictive scaling based on workload patterns
+
+#### Developer Platform
+- [ ] Visual workflow builder (Web UI)
+- [ ] One-click deployment to cloud
+- [ ] Agent marketplace/community
+
+---
 
 ## Community Requests
 
