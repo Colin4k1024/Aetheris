@@ -48,6 +48,14 @@ func NewStore(config Config) (Store, error) {
 			Namespace:          getConfigString(config.Config, "namespace", "default"),
 			SecretsPath:        getConfigString(config.Config, "secrets_path", "/etc/secrets"),
 		})
+	case "aws":
+		return NewAWSSecretsManagerStore(AWSConfig{
+			Region:       getConfigString(config.Config, "region", "us-east-1"),
+			AccessKey:    getConfigString(config.Config, "access_key", ""),
+			SecretKey:    getConfigString(config.Config, "secret_key", ""),
+			Endpoint:     getConfigString(config.Config, "endpoint", ""),
+			SecretPrefix: getConfigString(config.Config, "secret_prefix", ""),
+		})
 	default:
 		return nil, fmt.Errorf("unsupported secret provider: %q", config.Provider)
 	}

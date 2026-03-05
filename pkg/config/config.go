@@ -38,6 +38,7 @@ type Config struct {
 	Log             LogConfig             `mapstructure:"log"`
 	Monitoring      MonitoringConfig      `mapstructure:"monitoring"`
 	RateLimits      RateLimitsConfig      `mapstructure:"rate_limits"`
+	Security        SecurityConfig        `mapstructure:"security"`
 }
 
 // RuntimeConfig 运行时环境配置
@@ -64,6 +65,47 @@ type LLMRateLimitConfig struct {
 	TokensPerMinute   int     `mapstructure:"tokens_per_minute"`
 	RequestsPerMinute float64 `mapstructure:"requests_per_minute"`
 	MaxConcurrent     int     `mapstructure:"max_concurrent"`
+}
+
+// SecurityConfig 安全配置
+type SecurityConfig struct {
+	MTLS        MTLSConfig        `mapstructure:"mtls"`
+	APISigning  APISigningConfig  `mapstructure:"api_signing"`
+	IPAllowList IPAllowListConfig `mapstructure:"ip_allowlist"`
+	Secrets     SecretsConfig     `mapstructure:"secrets"`
+}
+
+// MTLSConfig mTLS 配置
+type MTLSConfig struct {
+	Enabled            bool   `mapstructure:"enabled"`
+	CertFile           string `mapstructure:"cert_file"`
+	KeyFile            string `mapstructure:"key_file"`
+	CAFile             string `mapstructure:"ca_file"`
+	ClientCertFile     string `mapstructure:"client_cert_file"`
+	ClientKeyFile      string `mapstructure:"client_key_file"`
+	InsecureSkipVerify bool   `mapstructure:"insecure_skip_verify"`
+}
+
+// APISigningConfig API 签名配置
+type APISigningConfig struct {
+	Enabled       bool     `mapstructure:"enabled"`
+	Algorithm     string   `mapstructure:"algorithm"`
+	ClockSkew     string   `mapstructure:"clock_skew"`
+	RequiredPaths []string `mapstructure:"required_paths"`
+}
+
+// IPAllowListConfig IP 白名单配置
+type IPAllowListConfig struct {
+	Enabled        bool     `mapstructure:"enabled"`
+	AllowIPs       []string `mapstructure:"allow_ips"`
+	BlockIPs       []string `mapstructure:"block_ips"`
+	TrustedProxies []string `mapstructure:"trusted_proxies"`
+}
+
+// SecretsConfig Secrets 配置
+type SecretsConfig struct {
+	Provider string            `mapstructure:"provider"` // vault, aws, k8s, env
+	Config   map[string]string `mapstructure:"config"`
 }
 
 // JobStoreConfig 任务事件存储配置（事件流 + 租约）

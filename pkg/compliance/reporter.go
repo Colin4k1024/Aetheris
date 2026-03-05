@@ -75,10 +75,13 @@ type TimeRange struct {
 
 // ComplianceReport 合规报告
 type ComplianceReport struct {
-	TenantID       string    `json:"tenant_id"`
-	Standard       string    `json:"standard"`
-	TimeRange      TimeRange `json:"time_range"`
-	ComplianceRate float64   `json:"compliance_rate"`
+	TenantID       string          `json:"tenant_id"`
+	Standard       string          `json:"standard"`
+	TimeRange      TimeRange       `json:"time_range,omitempty"`
+	ComplianceRate float64         `json:"compliance_rate"`
+	GeneratedAt    time.Time       `json:"generated_at,omitempty"`
+	Controls       []ControlStatus `json:"controls,omitempty"`
+	Summary        map[string]int  `json:"summary,omitempty"`
 }
 
 func calculateComplianceRate(m Metrics) float64 {
