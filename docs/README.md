@@ -82,6 +82,10 @@ M1-M4 milestone feature guides.
 | [guides/m3-forensics-api-guide.md](guides/m3-forensics-api-guide.md) | Forensics API guide |
 | [guides/m3-ui-guide.md](guides/m3-ui-guide.md) | UI/UX implementation guide |
 | [guides/m4-signature-guide.md](guides/m4-signature-guide.md) | Digital signature guide |
+| [guides/multi-region-deployment.md](guides/multi-region-deployment.md) | Multi-region deployment guide |
+| [guides/enterprise-integrations.md](guides/enterprise-integrations.md) | LDAP, queue, storage integrations |
+| [guides/sla-management.md](guides/sla-management.md) | SLA management and enforcement |
+| [guides/security-advanced.md](guides/security-advanced.md) | Advanced security (mTLS, signing, secrets) |
 
 ## Reference
 
