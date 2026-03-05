@@ -1,4 +1,4 @@
-# Aetheris API Contract (v2.0)
+# Aetheris API Contract (v2.2)
 
 ## 1. Scope
 
@@ -18,7 +18,7 @@ Compatibility window:
 - Stable APIs are guaranteed across all `2.x`
 - Deprecated stable APIs are supported for at least 2 minor versions before removal
 
-## 3. Stable API Surface (2.0)
+## 3. Stable API Surface (v2.2)
 
 ### Job APIs
 
@@ -26,9 +26,22 @@ Compatibility window:
 - `GET /api/jobs/:id`
 - `POST /api/jobs/:id/stop`
 - `POST /api/jobs/:id/signal`
+- `POST /api/jobs/:id/message`
 - `GET /api/jobs/:id/events`
 - `GET /api/jobs/:id/trace`
+- `GET /api/jobs/:id/replay`
+- `GET /api/jobs/:id/verify`
 - `POST /api/jobs/:id/export`
+
+### Run APIs
+
+- `POST /api/runs`
+- `GET /api/runs/:id`
+- `GET /api/runs/:id/events`
+- `POST /api/runs/:id/tool-calls`
+- `POST /api/runs/:id/pause`
+- `POST /api/runs/:id/resume`
+- `POST /api/runs/:id/human-decisions`
 
 ### Agent APIs
 
@@ -36,11 +49,62 @@ Compatibility window:
 - `GET /api/agents`
 - `GET /api/agents/:id/state`
 - `POST /api/agents/:id/resume`
+- `POST /api/agents/:id/stop`
+- `GET /api/agents/:id/jobs`
+- `GET /api/agents/:id/jobs/:job_id`
 
-### Observability Pages
+### Document APIs
 
+- `POST /api/documents/upload`
+- `POST /api/documents/upload/async`
+- `GET /api/documents/upload/status/:task_id`
+- `GET /api/documents/`
+- `GET /api/documents/:id`
+- `DELETE /api/documents/:id`
+
+### Knowledge APIs
+
+- `GET /api/knowledge/collections`
+- `POST /api/knowledge/collections`
+- `DELETE /api/knowledge/collections/:id`
+
+### Observability APIs
+
+- `GET /api/observability/summary`
+- `GET /api/observability/stuck`
 - `GET /api/jobs/:id/trace/page`
+- `GET /api/jobs/:id/trace/cognition`
+- `GET /api/jobs/:id/nodes/:node_id`
 - `GET /api/trace/overview/page`
+
+### Forensics APIs
+
+- `POST /api/forensics/query`
+- `POST /api/forensics/batch-export`
+- `GET /api/forensics/export-status/:task_id`
+- `GET /api/forensics/consistency/:job_id`
+
+### Evidence & Audit APIs
+
+- `GET /api/jobs/:id/evidence-graph`
+- `GET /api/jobs/:id/audit-log`
+
+### RBAC APIs
+
+- `GET /api/rbac/role`
+- `POST /api/rbac/role`
+- `POST /api/rbac/check`
+
+### Tool APIs
+
+- `GET /api/tools`
+- `GET /api/tools/:name`
+
+### System APIs
+
+- `GET /api/system/status`
+- `GET /api/system/metrics`
+- `GET /api/system/workers`
 
 ## 4. Experimental Surface
 

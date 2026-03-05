@@ -156,6 +156,8 @@ Same as API for log; monitoring.prometheus port can be set per Worker; use env *
 | ANTHROPIC_API_KEY | Claude API key |
 | DASHSCOPE_API_KEY | Alibaba DashScope / Qwen |
 | COHERE_API_KEY | Cohere Embedding |
+| AWS_ACCESS_KEY_ID | AWS credentials for Bedrock |
+| AWS_SECRET_ACCESS_KEY | AWS credentials for Bedrock |
 | JWT_SECRET | API auth JWT secret (when middleware.auth is true) |
 | JOBSTORE_DSN | Postgres DSN; overrides jobstore.dsn in api.yaml / worker.yaml |
 | OTEL_EXPORTER_OTLP_ENDPOINT | Tracing OTLP endpoint (when export_endpoint is unset) |
@@ -163,5 +165,7 @@ Same as API for log; monitoring.prometheus port can be set per Worker; use env *
 | AETHERIS_API_URL | CLI API base URL, default http://localhost:8080 |
 | AETHERIS_AGENT_ID | Used by CLI `chat` when agent_id is not passed |
 | AETHERIS_WORKER_METRICS_PORT | Worker Prometheus port (when running multiple instances) |
+| AETHERIS_ENV | Environment mode: development, staging, production |
+| AETHERIS_REGION | Region for regional scheduling (v2.2.0+) |
 
 For more on startup and typical flows see the "Environment variables and configuration" section in [usage.md](usage.md).

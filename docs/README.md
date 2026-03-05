@@ -90,7 +90,7 @@ API and configuration reference documentation.
 | Document | Description |
 |----------|-------------|
 | [reference/config.md](reference/config.md) | api.yaml, model.yaml, worker.yaml field reference and env vars |
-| [reference/api-contract.md](reference/api-contract.md) | 2.0 stable/experimental API boundaries, compatibility and deprecation strategy |
+| [reference/api-contract.md](reference/api-contract.md) | v2.2 stable/experimental API boundaries, compatibility and deprecation strategy |
 
 ## Releases
 
