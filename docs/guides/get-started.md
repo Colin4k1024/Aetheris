@@ -1,6 +1,6 @@
 # Get Started — 核心功能完整测试指南
 
-> **版本提示**：本文档适用于 **v2.2.0+**，包含可观测性增强、多适配器支持与企业级功能。
+> **版本提示**：本文档适用于 **v2.3.0+**，包含性能优化、规模化特性与本地开发模式。
 
 本文档帮助你在本地快速跑通 Aetheris 的主要能力，并按需完成「完整运行时」测试（崩溃恢复、多 Worker、Trace、取消等）。
 
@@ -10,13 +10,13 @@
 
 - **Go**：1.25.7+（与 [go.mod](../go.mod) 一致）
 
-### v2.2.0 新特性概览
+### v2.3.0 新特性概览
 
 | 特性 | 说明 |
 |------|------|
-| **可观测性增强** | Jaeger 分布式追踪、OpenTelemetry 默认启用、Grafana Dashboard |
-| **多适配器** | LlamaIndex、Vertex AI Agent Engine、AWS Bedrock Agents |
-| **企业级功能** | RBAC 角色管理、Region 感知调度、SLA/Quota 管理 |
+| **性能优化** | PostgreSQL 连接池优化、Redis 缓存层、gRPC API-Worker 通信 |
+| **规模化** | Redis Leader Election、分布式锁、租户限流 |
+| **开发体验** | 本地开发模式 (`--dev` 标志)、租户级别限流 |
 
 使用 `make docker-run` 可一键启动完整栈（Postgres + Redis + API + Workers + Jaeger + Grafana）。
 

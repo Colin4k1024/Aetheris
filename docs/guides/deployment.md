@@ -1,6 +1,6 @@
 # Deployment
 
-This document summarizes the deployment options and prerequisites for Aetheris v2.2.0+.
+This document summarizes the deployment options and prerequisites for Aetheris v2.3.0+.
 
 ## Prerequisites
 

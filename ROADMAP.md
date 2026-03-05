@@ -12,7 +12,15 @@ Aetheris aims to be the standard runtime for production-grade AI agents.
 
 ## Version History
 
-- **v2.2.0** (Current) - Enhanced Observability & Multi-Adapter Release
+- **v2.3.0** (Current) - Performance & Scale
+  - PostgreSQL connection pool optimization (PoolManager)
+  - Redis caching layer for job metadata
+  - gRPC API-Worker communication
+  - Per-tenant rate limiting
+  - Redis-based leader election
+  - Local development mode (--dev flag)
+
+- **v2.2.0** - Enhanced Observability & Multi-Adapter Release
   - OpenTelemetry integration with Jaeger
   - Grafana metrics dashboard
   - LlamaIndex, Vertex AI, Bedrock, AgentScope adapters
@@ -22,12 +30,12 @@ Aetheris aims to be the standard runtime for production-grade AI agents.
 
 ## Upcoming Features
 
-### v2.3.0 - Performance & Scale (Q2 2026)
+### v3.0.0 - Enterprise Scale (Q3-Q4 2026)
 
-#### Performance Optimization
-- [ ] Connection pool optimization for PostgreSQL (jackc/pgx)
-- [ ] Redis caching layer for job metadata
-- [ ] gRPC communication between API and Worker
+#### Multi-Region Deployment
+- [ ] Cross-region job replication
+- [ ] Global load balancing with GeoDNS
+- [ ] Region failover automation
 - [ ] Async event write batching
 - [ ] Index optimization for job queries
 

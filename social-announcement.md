@@ -20,7 +20,7 @@ Install: go install github.com/Colin4k1024/Aetheris/cmd/cli@latest
 ## LinkedIn
 
 ```
-🚀 Announcing Aetheris v2.1.0 - Open Source Release
+🚀 Announcing Aetheris v2.3.0 - Enhanced Observability & Multi-Adapter Release
 
 After months of development, we're thrilled to open source Aetheris - the agent hosting runtime that brings production-grade reliability to AI agents.
 
@@ -44,7 +44,7 @@ Get started:
 ```
 🎉 Aetheris is now open source!
 
-Aetheris v2.1.0 is live! This is the first OSS release of our agent hosting runtime.
+Aetheris v2.3.0 is live! This is the first OSS release of our agent hosting runtime.
 
 ✨ Key Features:
 - Durable, recoverable agent execution

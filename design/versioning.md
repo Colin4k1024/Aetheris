@@ -183,7 +183,7 @@ Job 创建时记录执行代码版本：
 ```json
 {
   "task_graph": {...},
-  "planner_version": "v2.1.0",
+  "planner_version": "v2.3.0",
   "schema_version": "taskgraph-v1"
 }
 ```

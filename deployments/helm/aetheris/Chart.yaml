@@ -2,8 +2,8 @@ apiVersion: v2
 name: aetheris
 description: Aetheris Agent Runtime - Deterministic execution for production agents
 type: application
-version: 2.2.0
-appVersion: "2.2.0"
+version: 2.3.0
+appVersion: "2.3.0"
 keywords:
   - agent
   - runtime

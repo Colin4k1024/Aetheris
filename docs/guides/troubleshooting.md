@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-> **版本**: v2.2.0+
+> **版本**: v2.3.0+
 
 本指南帮助您诊断和解决使用 Aetheris 过程中遇到的常见问题。
 

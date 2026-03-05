@@ -12,7 +12,7 @@ A clear and concise description of what the bug is.
 
 ## Environment
 
-- **Aetheris Version**: <!-- e.g., v2.2.0 -->
+- **Aetheris Version**: <!-- e.g., v2.3.0 -->
 - **Go Version**: <!-- go version output -->
 - **OS**: <!-- macOS, Linux, Windows -->
 - **Deployment**: <!-- Docker, Binary, Source -->

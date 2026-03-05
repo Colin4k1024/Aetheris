@@ -2,7 +2,7 @@
 
 > Last updated: 2026-03-05
 > Scope: repository status, release lane, and post-2.0 evolution policy.
-> Current Version: **v2.2.0+**
+> Current Version: **v2.3.0+**
 
 ## 1. Purpose
 
