@@ -28,14 +28,14 @@ import (
 
 // Event represents an event in the event store
 type Event struct {
-	ID           string                 `json:"id"`
-	JobID        string                 `json:"job_id"`
-	StepID       string                 `json:"step_id,omitempty"`
-	Type         string                 `json:"type"`
-	Payload      map[string]interface{} `json:"payload"`
-	PrevHash     string                 `json:"prev_hash"`
-	Hash         string                 `json:"hash"`
-	Timestamp    time.Time              `json:"timestamp"`
+	ID        string                 `json:"id"`
+	JobID     string                 `json:"job_id"`
+	StepID    string                 `json:"step_id,omitempty"`
+	Type      string                 `json:"type"`
+	Payload   map[string]interface{} `json:"payload"`
+	PrevHash  string                 `json:"prev_hash"`
+	Hash      string                 `json:"hash"`
+	Timestamp time.Time              `json:"timestamp"`
 }
 
 // EventStore simulates the event store for replay testing

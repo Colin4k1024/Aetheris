@@ -17,12 +17,13 @@ Make Aetheris the go-to solution for production-grade agent execution runtime.
 
 ### Phase 1: Launch (Week 1-2)
 
-- [ ] Publish v2.1.0 release on GitHub
+- [x] Publish v2.1.0 release on GitHub
+- [x] Publish v2.2.0 release on GitHub
 - [ ] Announce on Twitter/X
 - [ ] Post on Hacker News
 - [ ] Submit to:
-  - [ ] awesome-go
-  - [ ] awesome-ai-agents
+  - [x] awesome-go
+  - [x] awesome-ai-agents
   - [ ] Product Hunt
 
 ### Phase 2: Content (Month 1)

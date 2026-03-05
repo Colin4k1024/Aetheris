@@ -26,10 +26,10 @@ import (
 
 // Lease represents a job lease
 type Lease struct {
-	JobID       string
-	WorkerID    string
-	ExpiresAt   time.Time
-	Token       string
+	JobID     string
+	WorkerID  string
+	ExpiresAt time.Time
+	Token     string
 }
 
 // LeaseManager simulates lease fencing for job execution
