@@ -289,7 +289,6 @@ func (s *Signer) verify(hash, signature string) error {
 func generateKey(algo Algorithm) (*SigningKey, error) {
 	var privateKey crypto.PrivateKey
 	var publicKey crypto.PublicKey
-	var err error
 
 	switch algo {
 	case AlgorithmECDSA:

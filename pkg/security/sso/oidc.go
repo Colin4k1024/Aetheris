@@ -28,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/go-oidc/v3"
+	"github.com/coreos/go-oidc"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 )
@@ -233,9 +233,13 @@ func (c *OIDCClient) GetLogoutURL(redirectURL string) string {
 	}
 
 	// 默认使用 OIDC end_session_endpoint
-	endSessionEndpoint, _ := c.provider.Claims(&struct {
+	var claims struct {
 		EndSessionEndpoint string `json:"end_session_endpoint"`
-	}{})
+	}
+	if err := c.provider.Claims(&claims); err != nil {
+		return redirectURL
+	}
+	endSessionEndpoint := claims.EndSessionEndpoint
 
 	if endSessionEndpoint != "" {
 		logoutURL, _ := url.Parse(endSessionEndpoint)

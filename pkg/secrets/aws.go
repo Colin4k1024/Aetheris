@@ -16,6 +16,7 @@ package secrets
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
@@ -84,7 +85,7 @@ func (s *AWSSecretsManagerStore) Get(ctx context.Context, key string) (string, e
 	result, err := s.client.GetSecretValue(ctx, input)
 	if err != nil {
 		var resourceNotFound *types.ResourceNotFoundException
-		if err.As(&resourceNotFound) {
+		if errors.As(err, &resourceNotFound) {
 			return "", fmt.Errorf("secret %q not found", key)
 		}
 		return "", fmt.Errorf("failed to get secret %q: %w", key, err)
@@ -130,7 +131,7 @@ func (s *AWSSecretsManagerStore) Delete(ctx context.Context, key string) error {
 	_, err := s.client.DeleteSecret(ctx, input)
 	if err != nil {
 		var resourceNotFound *types.ResourceNotFoundException
-		if err.As(&resourceNotFound) {
+		if errors.As(err, &resourceNotFound) {
 			// Secret 不存在，视为删除成功
 			return nil
 		}

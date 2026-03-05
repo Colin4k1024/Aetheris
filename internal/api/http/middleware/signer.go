@@ -17,7 +17,6 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"path"
 	"strings"
 	"time"
 
