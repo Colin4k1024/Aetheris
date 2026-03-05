@@ -41,12 +41,12 @@ type Message struct {
 
 // Config 队列配置
 type Config struct {
-	Provider      string // sqs, rabbitmq, kafka
-	Region        string
-	Endpoint      string
-	QueuePrefix   string
-	AccessKey     string
-	SecretKey     string
+	Provider    string // sqs, rabbitmq, kafka
+	Region      string
+	Endpoint    string
+	QueuePrefix string
+	AccessKey   string
+	SecretKey   string
 }
 
 // NewMessageQueue 根据配置创建消息队列
@@ -101,8 +101,8 @@ type sqsClient struct{}
 
 // RabbitMQQueue RabbitMQ 实现
 type RabbitMQQueue struct {
-	conn     *rabbitConn
-	queue    string
+	conn  *rabbitConn
+	queue string
 }
 
 // NewRabbitMQQueue 创建 RabbitMQ 队列
@@ -140,8 +140,8 @@ type rabbitConn struct{}
 // QueueStats 队列统计信息
 type QueueStats struct {
 	MessagesAvailable int64
-	MessagesInFlight int64
-	OldestMessageAge time.Duration
+	MessagesInFlight  int64
+	OldestMessageAge  time.Duration
 }
 
 // GetStats 获取队列统计

@@ -23,25 +23,25 @@ import (
 
 // SLAReport SLA 报告
 type SLAReport struct {
-	TenantID     string         `json:"tenant_id"`
-	PeriodStart  time.Time      `json:"period_start"`
-	PeriodEnd    time.Time      `json:"period_end"`
-	TotalJobs    int64          `json:"total_jobs"`
-	CompletedJobs int64         `json:"completed_jobs"`
-	FailedJobs   int64          `json:"failed_jobs"`
-	BreachedJobs int64          `json:"breached_jobs"`
-	SLOs         []SLOReportItem `json:"slos"`
-	GeneratedAt  time.Time      `json:"generated_at"`
+	TenantID      string          `json:"tenant_id"`
+	PeriodStart   time.Time       `json:"period_start"`
+	PeriodEnd     time.Time       `json:"period_end"`
+	TotalJobs     int64           `json:"total_jobs"`
+	CompletedJobs int64           `json:"completed_jobs"`
+	FailedJobs    int64           `json:"failed_jobs"`
+	BreachedJobs  int64           `json:"breached_jobs"`
+	SLOs          []SLOReportItem `json:"slos"`
+	GeneratedAt   time.Time       `json:"generated_at"`
 }
 
 // SLOReportItem SLO 报告项
 type SLOReportItem struct {
-	Name        string  `json:"name"`
-	Type        SLOType `json:"type"`
-	Target      float64 `json:"target"`
-	Actual      float64 `json:"actual"`
-	Status      string  `json:"status"` // met, breached, unknown
-	Breaches    int     `json:"breaches"`
+	Name     string  `json:"name"`
+	Type     SLOType `json:"type"`
+	Target   float64 `json:"target"`
+	Actual   float64 `json:"actual"`
+	Status   string  `json:"status"` // met, breached, unknown
+	Breaches int     `json:"breaches"`
 }
 
 // Reporter SLA 报告生成器

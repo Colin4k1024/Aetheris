@@ -26,7 +26,7 @@ import (
 // 优化：共享相同 DSN 的连接池，减少数据库连接数
 type PoolManager struct {
 	pools map[string]*pgxpool.Pool
-	mu     sync.RWMutex
+	mu    sync.RWMutex
 }
 
 // NewPoolManager 创建新的连接池管理器

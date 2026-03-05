@@ -46,12 +46,12 @@ type ObjectInfo struct {
 
 // Config 存储配置
 type Config struct {
-	Provider   string // s3, gcs, azure
-	Region     string
-	Endpoint   string
-	Bucket     string
-	AccessKey  string
-	SecretKey  string
+	Provider  string // s3, gcs, azure
+	Region    string
+	Endpoint  string
+	Bucket    string
+	AccessKey string
+	SecretKey string
 }
 
 // NewObjectStore 根据配置创建对象存储

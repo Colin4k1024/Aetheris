@@ -27,14 +27,14 @@ type LDAPStore struct {
 
 // Config LDAP 配置
 type Config struct {
-	URL          string   // ldap://localhost:389 or ldaps://localhost:636
-	BaseDN       string   // dc=example,dc=com
-	BindDN       string   // cn=admin,dc=example,dc=com
+	URL          string // ldap://localhost:389 or ldaps://localhost:636
+	BaseDN       string // dc=example,dc=com
+	BindDN       string // cn=admin,dc=example,dc=com
 	BindPassword string
-	UserFilter   string   // (uid=%s) for LDAP, (sAMAccountName=%s) for AD
-	GroupFilter  string   // (member=%s)
-	UseSSL      bool
-	SkipVerify  bool
+	UserFilter   string // (uid=%s) for LDAP, (sAMAccountName=%s) for AD
+	GroupFilter  string // (member=%s)
+	UseSSL       bool
+	SkipVerify   bool
 }
 
 // User LDAP 用户

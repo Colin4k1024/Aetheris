@@ -242,16 +242,16 @@ func (m *Middleware) RateLimit(rps int) app.HandlerFunc {
 
 // TenantRateLimiterPerTenant 租户级别速率限制
 type TenantRateLimiterPerTenant struct {
-	mu        sync.RWMutex
-	limiters  map[string]*tenantLimiter
+	mu         sync.RWMutex
+	limiters   map[string]*tenantLimiter
 	defaultRPS int
 }
 
 type tenantLimiter struct {
-	mu        sync.Mutex
-	lastTime  time.Time
-	count     int
-	rps       int
+	mu       sync.Mutex
+	lastTime time.Time
+	count    int
+	rps      int
 }
 
 // NewTenantRateLimiter 创建租户速率限制器

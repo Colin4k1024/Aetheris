@@ -23,19 +23,19 @@ import (
 
 // JobDeadlineManager Job 截止日期管理器
 type JobDeadlineManager struct {
-	mu           sync.RWMutex
-	deadlines    map[string]JobDeadline // jobID -> deadline
-	breachChan   chan BreachEvent
+	mu            sync.RWMutex
+	deadlines     map[string]JobDeadline // jobID -> deadline
+	breachChan    chan BreachEvent
 	checkInterval time.Duration
 }
 
 // JobDeadline Job 截止日期
 type JobDeadline struct {
-	JobID       string        `json:"job_id"`
-	TenantID    string        `json:"tenant_id"`
-	Deadline    time.Time     `json:"deadline"`
-	StepIDs     []string      `json:"step_ids"` // 需要追踪的步骤
-	CreatedAt   time.Time     `json:"created_at"`
+	JobID       string          `json:"job_id"`
+	TenantID    string          `json:"tenant_id"`
+	Deadline    time.Time       `json:"deadline"`
+	StepIDs     []string        `json:"step_ids"` // 需要追踪的步骤
+	CreatedAt   time.Time       `json:"created_at"`
 	Enforcement EnforcementMode `json:"enforcement"`
 }
 
@@ -43,30 +43,30 @@ type JobDeadline struct {
 type EnforcementMode string
 
 const (
-	EnforcementModeNone       EnforcementMode = "none"       // 不强制
-	EnforcementModeWarn       EnforcementMode = "warn"       // 仅警告
-	EnforcementModeCancel     EnforcementMode = "cancel"     // 取消任务
-	EnforcementModeFailover   EnforcementMode = "failover"   // 故障转移
+	EnforcementModeNone     EnforcementMode = "none"     // 不强制
+	EnforcementModeWarn     EnforcementMode = "warn"     // 仅警告
+	EnforcementModeCancel   EnforcementMode = "cancel"   // 取消任务
+	EnforcementModeFailover EnforcementMode = "failover" // 故障转移
 )
 
 // BreachEvent SLA 违约事件
 type BreachEvent struct {
-	JobID      string    `json:"job_id"`
-	TenantID   string    `json:"tenant_id"`
-	Type       string    `json:"type"`       // job_deadline, step_deadline
-	StepID     string    `json:"step_id"`   // 如果是步骤级别
-	Deadline   time.Time `json:"deadline"`
-	ActualTime time.Time `json:"actual_time"`
-	Overdue    time.Duration `json:"overdue"`
+	JobID      string          `json:"job_id"`
+	TenantID   string          `json:"tenant_id"`
+	Type       string          `json:"type"`    // job_deadline, step_deadline
+	StepID     string          `json:"step_id"` // 如果是步骤级别
+	Deadline   time.Time       `json:"deadline"`
+	ActualTime time.Time       `json:"actual_time"`
+	Overdue    time.Duration   `json:"overdue"`
 	Action     EnforcementMode `json:"action"`
-	Timestamp  time.Time `json:"timestamp"`
+	Timestamp  time.Time       `json:"timestamp"`
 }
 
 // NewJobDeadlineManager 创建 Job 截止日期管理器
 func NewJobDeadlineManager() *JobDeadlineManager {
 	return &JobDeadlineManager{
-		deadlines:    make(map[string]JobDeadline),
-		breachChan:   make(chan BreachEvent, 1000),
+		deadlines:     make(map[string]JobDeadline),
+		breachChan:    make(chan BreachEvent, 1000),
 		checkInterval: 1 * time.Second,
 	}
 }
@@ -136,7 +136,7 @@ func (m *JobDeadlineManager) Subscribe() <-chan BreachEvent {
 
 // StepSLATracker 步骤级别 SLA 追踪器
 type StepSLATracker struct {
-	mu           sync.RWMutex
+	mu            sync.RWMutex
 	stepDeadlines map[string]StepDeadline // jobID:stepID -> deadline
 	measurements  map[string]*StepMeasurement
 	breachChan    chan BreachEvent
@@ -144,21 +144,21 @@ type StepSLATracker struct {
 
 // StepDeadline 步骤截止日期
 type StepDeadline struct {
-	JobID       string        `json:"job_id"`
-	StepID      string        `json:"step_id"`
-	TenantID    string        `json:"tenant_id"`
-	Deadline    time.Time     `json:"deadline"`
-	CreatedAt   time.Time     `json:"created_at"`
+	JobID     string    `json:"job_id"`
+	StepID    string    `json:"step_id"`
+	TenantID  string    `json:"tenant_id"`
+	Deadline  time.Time `json:"deadline"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // StepMeasurement 步骤测量数据
 type StepMeasurement struct {
-	StepID      string        `json:"step_id"`
-	JobID       string        `json:"job_id"`
-	StartTime   time.Time     `json:"start_time"`
-	EndTime     time.Time     `json:"end_time"`
-	Duration    time.Duration `json:"duration"`
-	Status      string        `json:"status"` // success, failure, timeout
+	StepID    string        `json:"step_id"`
+	JobID     string        `json:"job_id"`
+	StartTime time.Time     `json:"start_time"`
+	EndTime   time.Time     `json:"end_time"`
+	Duration  time.Duration `json:"duration"`
+	Status    string        `json:"status"` // success, failure, timeout
 }
 
 // NewStepSLATracker 创建步骤 SLA 追踪器
