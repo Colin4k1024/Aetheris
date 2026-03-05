@@ -1,47 +1,140 @@
 # Deployment
 
-This document summarizes the three deployment options and prerequisites. See each directory’s README for step-by-step instructions.
+This document summarizes the deployment options and prerequisites for Aetheris v2.2.0+.
 
 ## Prerequisites
 
 - **Go**: 1.25.7+ (aligned with [go.mod](../go.mod) and CI).
 - **Postgres** (for jobstore): If using `jobstore.type=postgres`, prepare the database and apply the schema. Schema: [internal/runtime/jobstore/schema.sql](../internal/runtime/jobstore/schema.sql); Compose can mount it for init.
+- **Docker** (for containerized deployment): Docker 20.10+
 
-## Compose (recommended for single-node)
+## Quick Start (Docker Compose)
 
-**Single node: API + 2 Workers + Postgres**, suitable for v1.0 deployability and local integration.
+**Recommended for local development and testing.**
 
-- **Details**: [deployments/compose/README.md](../deployments/compose/README.md)
-- **Start** (from repo root):
-  ```bash
-  docker compose -f deployments/compose/docker-compose.yml up -d --build
-  ```
-  or:
-  ```bash
-  ./scripts/local-2.0-stack.sh start
-  ```
-- **Services**: postgres (5432), api (8080), worker1, worker2.
-- **Check**: Health check, create agent, send message; after restarting API/Worker, jobs remain in Postgres and continue.
-- **Stop**:
-  ```bash
-  ./scripts/local-2.0-stack.sh stop
-  ```
-- **Schema upgrade**: If the DB already exists and is missing `cancel_requested_at`:
-  ```sql
-  ALTER TABLE jobs ADD COLUMN IF NOT EXISTS cancel_requested_at TIMESTAMPTZ;
-  ```
+### Full Stack (API + 2 Workers + Postgres + Monitoring)
 
-## Docker
+```bash
+# Start complete stack with monitoring (Jaeger, Grafana)
+make docker-run
 
-Placeholder; single-image Dockerfile and build scripts can be added here later.
+# Or use the script directly
+./scripts/local-2.0-stack.sh start
+```
 
-- **Details**: [deployments/docker/README.md](../deployments/docker/README.md)
+**Services**:
+| Service | Port | Description |
+|---------|------|-------------|
+| API | 8080 | HTTP API server |
+| Worker1 | - | Background job processor |
+| Worker2 | - | Background job processor |
+| PostgreSQL | 5432 | Job store and event persistence |
+| Redis | 6379 | Cache and RAG |
+| Jaeger | 16686 | Distributed tracing |
+| Grafana | 3000 | Metrics dashboard |
+
+### Basic Stack (API + Worker + Postgres)
+
+```bash
+docker compose -f deployments/compose/docker-compose.yml up -d --build
+```
+
+### Verify Deployment
+
+```bash
+# Health check
+curl http://localhost:8080/api/health
+
+# Create agent
+curl -X POST http://localhost:8080/api/agents \
+  -H "Content-Type: application/json" \
+  -d '{"name":"test-agent"}'
+
+# View workers
+curl http://localhost:8080/api/system/workers
+```
+
+### Stop Services
+
+```bash
+./scripts/local-2.0-stack.sh stop
+```
+
+## Production Deployment
+
+### Production Requirements
+
+For production environments, ensure:
+
+1. **PostgreSQL** - Required for durable job storage
+2. **Authentication** - Enable JWT and configure secrets
+3. **TLS/SSL** - Enable HTTPS for API endpoints
+4. **CORS** - Configure specific allowed origins (not `*`)
+5. **Monitoring** - Enable OpenTelemetry and metrics
+
+### Production Config Example
+
+```yaml
+# configs/api.yaml
+app:
+  env: "production"
+
+auth:
+  jwt:
+    secret: "${JWT_SECRET}"  # Use environment variable
+    enabled: true
+    jwt_key: "${JWT_KEY}"
+
+jobstore:
+  type: "postgres"
+  postgres:
+    dsn: "${POSTGRES_DSN}?sslmode=require"
+
+cors:
+  enabled: true
+  allowed_origins:
+    - "https://your-domain.com"
+
+monitoring:
+  prometheus:
+    enable: true
+    port: 9092
+  tracing:
+    enable: true
+    export_endpoint: "localhost:4317"
+```
+
+### Scaling Workers
+
+Scale workers horizontally for higher throughput:
+
+```bash
+# Scale workers
+docker compose -f deployments/compose/docker-compose.yml up -d --scale worker=4
+```
+
+## Database Schema
+
+### Initial Setup
+
+```bash
+# Run schema on startup (automatic with Compose)
+# Or manually apply:
+psql -h localhost -U aetheris -d aetheris -f internal/runtime/jobstore/schema.sql
+```
+
+### Schema Updates
+
+If upgrading from an older version:
+
+```sql
+-- Add missing columns
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS cancel_requested_at TIMESTAMPTZ;
+```
 
 ## Kubernetes
 
-Placeholder; Deployment, Service, etc. manifests can be added here later.
-
-- **Details**: [deployments/k8s/README.md](../deployments/k8s/README.md)
+For production Kubernetes deployment, see [deployments/k8s/README.md](../deployments/k8s/README.md).
 
 ## Multi-Environment Deployment
 
@@ -65,7 +158,8 @@ Use the same runtime contract across `dev`, `staging`, and `prod`, with differen
 - Postgres integration tests green
 - Runtime forensics checks pass (`export` + `verify`, consistency API)
 - Rollback plan verified (previous image/tag ready)
+- Security baseline checklist completed
 
 ---
 
-For config (api.yaml, worker.yaml, model.yaml) and env vars see [config.md](../reference/config.md); for API and CLI usage see [usage.md](usage.md) and [cli.md](cli.md).
+For config (api.yaml, worker.yaml, model.yaml) and env vars see [config.md](../reference/config.md); for API and CLI usage see [usage.md](usage.md), [cli.md](cli.md), and [troubleshooting.md](troubleshooting.md).

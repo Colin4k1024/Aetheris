@@ -1,7 +1,8 @@
 # Aetheris Status (Single Source of Truth)
 
-> Last updated: 2026-02-17  
+> Last updated: 2026-03-05
 > Scope: repository status, release lane, and post-2.0 evolution policy.
+> Current Version: **v2.2.0+**
 
 ## 1. Purpose
 
@@ -26,6 +27,7 @@ Every capability must be labeled with one of these states:
 - Deterministic replay + at-most-once tool execution: `production-ready`
 - Signal + human-in-the-loop (at-least-once delivery): `production-ready`
 - Observability summary/stuck endpoints: `integrated` (UI/SRE workflows still strengthening)
+- Multi-Adapter Support: `production-ready` (LangGraph, AutoGen, CrewAI, LlamaIndex, Vertex AI, Bedrock, AgentScope)
 
 ### 3.2 Forensics and compliance lane (M1-M3)
 
