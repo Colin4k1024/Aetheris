@@ -67,6 +67,7 @@ User guides and tutorials for getting started and daily operations.
 | [guides/security.md](guides/security.md) | Security baseline and release checklist |
 | [guides/capacity-planning.md](guides/capacity-planning.md) | Capacity planning guide |
 | [guides/runtime-guarantees.md](guides/runtime-guarantees.md) | Runtime guarantees and semantics |
+| [guides/troubleshooting.md](guides/troubleshooting.md) | Troubleshooting guide and FAQ |
 
 ### Feature Guides
 

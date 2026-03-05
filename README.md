@@ -228,6 +228,10 @@ Aetheris integrates with popular agent frameworks:
 | [LangGraph](examples/langgraph_agent/) | ✅ Stable | Run LangGraph flows on Aetheris |
 | [AutoGen](examples/autogen_agent/) | ✅ Stable | Microsoft AutoGen multi-agent support |
 | [CrewAI](examples/crewai_agent/) | ✅ Stable | CrewAI crew orchestration |
+| [LlamaIndex](examples/llamaindex_agent/) | ✅ Stable | LlamaIndex agent integration |
+| [Vertex AI](examples/vertex_agent/) | ✅ Stable | Google Vertex AI Agent Engine |
+| [AWS Bedrock](examples/bedrock_agent/) | ✅ Stable | AWS Bedrock Agents |
+| [AgentScope](examples/agentscope_agent/) | ✅ Stable | AgentScope multi-agent framework |
 
 Already have agents? Migrate them to Aetheris:
 
@@ -239,6 +243,7 @@ Already have agents? Migrate them to Aetheris:
 
 - [Human Approval](examples/human_approval_agent/) — Approval workflows with human-in-the-loop
 - [Multi-Agent Collaboration](examples/multi_agent_collaboration/) — Complex multi-agent systems
+- [LangGraph Complete](examples/langgraph_complete/) — Full LangGraph workflow example
 
 ---
 
@@ -476,6 +481,10 @@ Aetheris includes production-ready security features:
   - Validates default credentials are changed
 
 See [Security Guide](docs/guides/security.md) for security settings.
+
+## Troubleshooting
+
+Having issues? Check the [Troubleshooting Guide](docs/guides/troubleshooting.md) for common problems and solutions.
 
 ---
 

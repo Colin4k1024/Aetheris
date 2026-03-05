@@ -125,6 +125,18 @@ curl -X POST http://localhost:8080/api/query/batch \
 | GET | /api/agents/:id/state | Agent state (status, current_task, last_checkpoint) |
 | GET | /api/agents/:id/jobs | List jobs for this agent (?status=, ?limit=) |
 | GET | /api/agents/:id/jobs/:job_id | Single job (poll status) |
+| **Runs** | | |
+| POST | /api/runs | Create a new run |
+| GET | /api/runs/:id | Get run details |
+| GET | /api/runs/:id/events | Get run events |
+| POST | /api/runs/:id/tool-calls | Upsert tool call result |
+| POST | /api/runs/:id/pause | Pause a run |
+| POST | /api/runs/:id/resume | Resume a run |
+| POST | /api/runs/:id/human-decisions | Inject human decision |
+| **Agent legacy** | | |
+| POST | /api/agent/run | Run agent (legacy) |
+| POST | /api/agent/resume | Resume agent checkpoint (legacy) |
+| POST | /api/agent/stream | Run agent with streaming |
 | **Execution trace** | | |
 | GET | /api/jobs/:id/events | Raw event stream (id, type, payload, created_at) |
 | GET | /api/jobs/:id/trace | Timeline and execution_tree, node timings |
@@ -140,6 +152,9 @@ curl -X POST http://localhost:8080/api/query/batch \
 | GET | /api/knowledge/collections | List collections |
 | POST | /api/knowledge/collections | Create collection |
 | DELETE | /api/knowledge/collections/:id | Delete collection |
+| **Documents (async)** | | |
+| POST | /api/documents/upload/async | Upload document asynchronously |
+| GET | /api/documents/upload/status/:task_id | Get upload task status |
 | **Query (deprecated)** | | |
 | POST | /api/query | Single query (prefer Agent message) |
 | POST | /api/query/batch | Batch query |
@@ -148,6 +163,34 @@ curl -X POST http://localhost:8080/api/query/batch \
 | **System** | | |
 | GET | /api/system/status | System status (workflows, agents) |
 | GET | /api/system/metrics | Metrics |
+| GET | /api/system/workers | Worker status and info |
+| **Observability** | | |
+| GET | /api/observability/summary | Observability summary |
+| GET | /api/observability/stuck | Stuck jobs list |
+| GET | /api/trace/overview/page | Trace overview HTML page |
+| **RBAC** | | |
+| GET | /api/rbac/role | Get current user role |
+| POST | /api/rbac/role | Assign role to user |
+| POST | /api/rbac/check | Check user permissions |
+
+| **Jobs** | | |
+| POST | /api/jobs/:id/stop | Stop a running job |
+| POST | /api/jobs/:id/signal | Send signal to job |
+| POST | /api/jobs/:id/message | Send message to job |
+| POST | /api/jobs/:id/export | Export job forensics data |
+| GET | /api/jobs/:id/verify | Verify job execution consistency |
+| GET | /api/jobs/:id/trace/cognition | Get cognition trace for job |
+| GET | /api/jobs/:id/nodes/:node_id | Get specific node details |
+| GET | /api/jobs/:id/evidence-graph | Get job evidence graph (M3) |
+| GET | /api/jobs/:id/audit-log | Get job audit log (M3) |
+| **Forensics** | | |
+| POST | /api/forensics/query | Query forensics data |
+| POST | /api/forensics/batch-export | Batch export forensics |
+| GET | /api/forensics/export-status/:task_id | Get export task status |
+| GET | /api/forensics/consistency/:job_id | Check job consistency |
+| **Tools** | | |
+| GET | /api/tools | List available tools |
+| GET | /api/tools/:name | Get tool definition |
 
 Document, knowledge, agent, and query routes may have auth middleware; see `internal/api/http/router.go`.
 
@@ -172,5 +215,13 @@ Event semantics and tree derivation are in [design/execution-trace.md](../design
 - **Memory storage**: Default metadata and vector are in-memory; data is lost on restart. Configure and implement a persistent store for production.
 - **Config not applied**: Ensure the API uses `LoadAPIConfigWithModel` (cmd/api does) and that `configs/model.yaml` has `defaults.llm`, `defaults.embedding` and the matching provider/model keys.
 - **Tracing**: Set `monitoring.tracing.enable: true` and `export_endpoint` in `configs/api.yaml` (or `OTEL_EXPORTER_OTLP_ENDPOINT`); otherwise no traces are sent. Use Jaeger or another OTLP backend; see [tracing.md](tracing.md).
+- **Authentication required**: In production mode (`AETHERIS_ENV=production`), JWT authentication is required. Set `auth.jwt.secret` in `configs/api.yaml` and include `Authorization: Bearer <token>` in requests. See [security.md](security.md).
+- **Worker not processing jobs**: Ensure Worker is running and connected to the same PostgreSQL database as the API. Check Worker logs for connection errors. With `jobstore.type=postgres`, jobs must be claimed by a Worker.
+- **Job stuck in pending**: If using Postgres jobstore, at least one Worker must be running to claim and process jobs. Without Workers, jobs remain pending indefinitely.
+- **Multiple Workers same job**: Aetheris uses lease fencing to prevent duplicate execution. Each job has a lease token that expires; only the Worker with the valid lease can execute. See [design/scheduler-correctness.md](../design/scheduler-correctness.md).
+- **Resume after crash**: Aetheris automatically resumes jobs from the last checkpoint after Worker or API crash. The event stream provides full replay capability.
+- **Human-in-the-loop**: Use `POST /api/jobs/:id/stop` to pause, then inject human decision via `POST /api/runs/:id/human-decisions` before resuming.
+- **Evidence graph (M3)**: Access via `GET /api/jobs/:id/evidence-graph` to get the complete decision provenance graph. Requires M3 features enabled.
+- **Forensics export**: Use `POST /api/forensics/query` for advanced queries or `POST /api/jobs/:id/export` to export complete job data for auditing.
 
 Architecture and module roles are in [design/](design/); deployment steps are in each [deployments/](../deployments/) README.
