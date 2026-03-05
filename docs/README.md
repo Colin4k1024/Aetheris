@@ -167,6 +167,7 @@ Architecture and design documents in the `design/` directory.
 | [design/core.md](../design/core.md) | Overall architecture, layers, Agent Runtime and task execution, Pipeline and eino orchestration |
 | [design/struct.md](../design/struct.md) | Repo structure and module roles (internal/agent, internal/runtime/jobstore) |
 | [design/runtime-core-diagrams.md](../design/runtime-core-diagrams.md) | Runtime core: Runner–Ledger–JobStore sequence and StepOutcome state diagram |
+| [design/fatal-correctness-tests.md](../design/fatal-correctness-tests.md) | Fatal correctness test suite (At-Most-Once, Crash Recovery, Replay) |
 | [design/services.md](../design/services.md) | Multi-service architecture (api / agent / index) |
 | [design/jobstore_postgres.md](../design/jobstore_postgres.md) | JobStore event model and Postgres design |
 
