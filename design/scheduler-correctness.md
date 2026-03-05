@@ -61,3 +61,15 @@ Replay/恢复时：若事件流无 command_committed 但 Effect Store 有该 ste
 | **事件 Append** | Event store 层按 attempt_id 校验；非当前 attempt 返回 `ErrStaleAttempt`。 |
 | **Ledger Commit** | InvocationLedger 可选配置 `AttemptValidator`；Commit 前校验 context 中 job 的 attempt 仍为当前持有者（[ledger_store.go](../internal/agent/runtime/executor/ledger_store.go)）。 |
 | **Cursor 更新** | Runner 仅由持有该 job 租约的 Worker 调用（Worker 在 ClaimJob 成功后执行 RunForJob）；失去租约的 Worker 必须停止执行并不再调用 Runner，因此 UpdateCursor 仅在租约有效时发生。JobStore 接口未扩展 attempt_id 参数，依赖 Worker 契约。 |
+
+## v2.2.0 实现状态总结
+
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| Job 级租约 | ✅ 已实现 | Claim/Heartbeat/Reclaim 完整 |
+| Attempt_id 校验 | ✅ 已实现 | 防止旧 Worker 写入 |
+| Lease fencing | ✅ 已实现 | Event Append + Ledger Commit |
+| Step timeout | ✅ 已实现 | Runner.StepTimeout |
+| Step heartbeat | ⚠️ 可选 | 当前为 Job 级，Step 级可选 |
+| Worker epoch 强制 | ⚠️ 文档约束 | 依赖 Worker 合约，非程序化强制 |
+| Effect Store 两阶段提交 | ✅ 已实现 | PutEffect → Append |

@@ -1,8 +1,9 @@
 # Fatal Correctness Test Suite
 
-> **Version**: 1.0
+> **Version**: 1.1
 > **Purpose**: 确保 Aetheris 的核心保证（At-Most-Once、Crash Recovery、Deterministic Replay）在生产环境中真正成立
 > **Reference**: 基于 CTO 架构分析文档
+> **Last Updated**: 2026-03-05
 
 ---
 
@@ -10,24 +11,37 @@
 
 ### 1.1 核心保证目标
 
-| 保证 | 描述 | 测试覆盖 |
-|------|------|----------|
-| **At-Most-Once** | 外部副作用（Tool 调用）不会重复执行 | F1-F4 |
-| **Crash Recovery** | Worker/API 崩溃后 Job 能恢复继续执行 | F5-F7 |
-| **Deterministic Replay** | 回放能准确恢复执行状态 | F8-F10 |
-| **Lease Fencing** | 多 Worker 不会同时执行同一 Job | F11-F12 |
+| 保证 | 描述 | 测试覆盖 | 状态 |
+|------|------|----------|------|
+| **At-Most-Once** | 外部副作用（Tool 调用）不会重复执行 | F1-F5 | ✅ 已实现 |
+| **Crash Recovery** | Worker/API 崩溃后 Job 能恢复继续执行 | F5-F7 | ⚠️ 集成测试 (release-p0-drill.sh) |
+| **Deterministic Replay** | 回放能准确恢复执行状态 | F8-F11 | ✅ 已实现 |
+| **Lease Fencing** | 多 Worker 不会同时执行同一 Job | F11-F12 | ✅ 已实现 |
 
-### 1.2 测试分类
+### 1.2 测试分类与实现状态
 
 ```
 fatal_tests/
-├── correctness/        # 正确性测试 (必须通过)
-│   ├── at_most_once/   # At-Most-Once 保证
-│   ├── crash_recovery/ # 崩溃恢复
-│   └── replay/         # 回放验证
-├── performance/         # 性能测试 (可选)
-│   └── benchmarks/
-└── integration/        # 集成测试
+├── correctness/          # 正确性测试 (必须通过)
+│   ├── at_most_once/    # ✅ 已实现 (5 tests)
+│   ├── lease_fencing/   # ✅ 已实现 (5 tests)
+│   └── replay/          # ✅ 已实现 (4 tests)
+├── performance/          # 性能测试 (可选)
+│   └── benchmarks/      # ⏳ 待实现
+└── integration/         # 集成测试
+    └── p0_drills/       # ⚠️ 使用 scripts/release-p0-drill.sh 代替
+```
+
+### 1.3 测试矩阵
+
+| 测试 | 类型 | 实现状态 | 说明 |
+|------|------|----------|------|
+| F1-F5 | At-Most-Once | ✅ 已实现 | 单元测试 |
+| F5-F7 | Crash Recovery | ⚠️ Shell 脚本 | scripts/release-p0-drill.sh |
+| F8-F11 | Replay | ✅ 已实现 | 单元测试 |
+| F11-F12 | Lease Fencing | ✅ 已实现 | 单元测试 |
+| S1-S4 | Step Contract | ⏳ 待实现 | 需静态分析工具 |
+| E1-E4 | Event Model | ⏳ 待实现 | 需 schema 测试 |
     └── multi_worker/
 ```
 
