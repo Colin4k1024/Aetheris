@@ -18,11 +18,15 @@ import "fmt"
 
 // Region 区域配置
 type Region struct {
-	ID        string `yaml:"id"`         // 区域 ID，如 "us-east-1"
-	Name      string `yaml:"name"`       // 区域名称
-	Endpoint  string `yaml:"endpoint"`   // API 端点
-	Priority  int    `yaml:"priority"`   // 优先级（越小越高）
-	IsPrimary bool   `yaml:"is_primary"` // 是否为主区域
+	ID          string `yaml:"id"`           // 区域 ID，如 "us-east-1"
+	Name        string `yaml:"name"`         // 区域名称
+	Endpoint    string `yaml:"endpoint"`     // API 端点
+	Priority    int    `yaml:"priority"`     // 优先级（越小越高）
+	IsPrimary   bool   `yaml:"is_primary"`   // 是否为主区域
+	Continent   string `yaml:"continent"`    // 所属大陆
+	Disabled    bool   `yaml:"disabled"`     // 是否禁用
+	Weight      int    `yaml:"weight"`       // 权重（用于负载均衡）
+	LatencyBase int64  `yaml:"latency_base"` // 基础延迟（毫秒）
 }
 
 // Config 多区域配置
