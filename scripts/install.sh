@@ -6,7 +6,7 @@
 
 set -e
 
-VERSION="v2.1.0"
+VERSION="v2.2.0"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.aetheris}"
 BIN_DIR="$INSTALL_DIR/bin"
 
