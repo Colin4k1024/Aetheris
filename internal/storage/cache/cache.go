@@ -25,6 +25,8 @@ func NewCache(cfg config.CacheConfig) (Store, error) {
 	switch cfg.Type {
 	case "", "memory":
 		return NewMemoryStore(), nil
+	case "redis":
+		return NewRedisStore(cfg.Addr, cfg.Password, cfg.DB, "")
 	default:
 		return nil, fmt.Errorf("unsupported input type缓存类型: %s", cfg.Type)
 	}

@@ -240,6 +240,80 @@ func (m *Middleware) RateLimit(rps int) app.HandlerFunc {
 	}
 }
 
+// TenantRateLimiterPerTenant 租户级别速率限制
+type TenantRateLimiterPerTenant struct {
+	mu        sync.RWMutex
+	limiters  map[string]*tenantLimiter
+	defaultRPS int
+}
+
+type tenantLimiter struct {
+	mu        sync.Mutex
+	lastTime  time.Time
+	count     int
+	rps       int
+}
+
+// NewTenantRateLimiter 创建租户速率限制器
+func NewTenantRateLimiter(defaultRPS int) *TenantRateLimiterPerTenant {
+	if defaultRPS <= 0 {
+		defaultRPS = 100
+	}
+	return &TenantRateLimiterPerTenant{
+		limiters:   make(map[string]*tenantLimiter),
+		defaultRPS: defaultRPS,
+	}
+}
+
+// SetTenantRate 设置租户速率限制
+func (t *TenantRateLimiterPerTenant) SetTenantRate(tenantID string, rps int) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.limiters[tenantID] = &tenantLimiter{rps: rps}
+}
+
+// Middleware 返回 Hertz 中间件
+func (t *TenantRateLimiterPerTenant) Middleware() app.HandlerFunc {
+	return func(ctx context.Context, c *app.RequestContext) {
+		tenantID := auth.GetTenantID(ctx)
+		if tenantID == "" {
+			tenantID = "default"
+		}
+
+		t.mu.RLock()
+		limiter, exists := t.limiters[tenantID]
+		if !exists {
+			// 使用默认限制器
+			t.mu.RUnlock()
+			t.mu.Lock()
+			limiter = &tenantLimiter{rps: t.defaultRPS}
+			t.limiters[tenantID] = limiter
+			t.mu.Unlock()
+		} else {
+			t.mu.RUnlock()
+		}
+
+		limiter.mu.Lock()
+		now := time.Now()
+		if now.Sub(limiter.lastTime) > time.Second {
+			limiter.lastTime = now
+			limiter.count = 0
+		}
+		limiter.count++
+		if limiter.count > limiter.rps {
+			limiter.mu.Unlock()
+			c.JSON(consts.StatusTooManyRequests, map[string]string{
+				"error":  "租户请求过于频繁，请稍后再试",
+				"tenant": tenantID,
+			})
+			c.Abort()
+			return
+		}
+		limiter.mu.Unlock()
+		c.Next(ctx)
+	}
+}
+
 // AccessLog 访问日志中间件（使用 hlog）
 func (m *Middleware) AccessLog() app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {

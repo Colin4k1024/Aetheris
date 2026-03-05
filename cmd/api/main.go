@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -29,10 +30,22 @@ import (
 	"rag-platform/pkg/config"
 )
 
+var devMode = flag.Bool("dev", false, "Enable development mode (in-memory stores, no auth)")
+
 func main() {
-	cfg, err := config.LoadAPIConfigWithModel()
-	if err != nil {
-		log.Fatalf("加载配置失败: %v", err)
+	flag.Parse()
+
+	var cfg *config.Config
+	var err error
+
+	if *devMode {
+		log.Println("Running in development mode")
+		cfg = config.DefaultDevConfig()
+	} else {
+		cfg, err = config.LoadAPIConfigWithModel()
+		if err != nil {
+			log.Fatalf("加载配置失败: %v", err)
+		}
 	}
 
 	bootstrap, err := app.NewBootstrap(cfg)

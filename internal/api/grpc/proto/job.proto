@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package rag.v1;
+
+option go_package = "rag-platform/internal/api/grpc/pb";
+
+// JobService Job 服务用于 API 与 Worker 之间的通信
+service JobService {
+  // SubmitJob 提交新任务
+  rpc SubmitJob(SubmitJobRequest) returns (SubmitJobResponse);
+
+  // GetJob 获取任务状态
+  rpc GetJob(GetJobRequest) returns (GetJobResponse);
+
+  // CancelJob 取消任务
+  rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
+
+  // Heartbeat Worker 心跳
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+  // ListJobs 列出任务
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
+}
+
+message SubmitJobRequest {
+  string agent_id = 1;
+  string input = 2;
+  map<string, string> metadata = 3;
+  string tenant_id = 4;
+}
+
+message SubmitJobResponse {
+  string job_id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetJobRequest {
+  string job_id = 1;
+}
+
+message JobInfo {
+  string job_id = 1;
+  string agent_id = 2;
+  string status = 3;
+  string input = 4;
+  string output = 5;
+  int64 created_at = 6;
+  int64 updated_at = 7;
+  int32 attempt = 8;
+  string error = 9;
+}
+
+message GetJobResponse {
+  JobInfo job = 1;
+}
+
+message CancelJobRequest {
+  string job_id = 1;
+}
+
+message CancelJobResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message HeartbeatRequest {
+  string worker_id = 1;
+  string job_id = 2;
+  int64 timestamp = 3;
+}
+
+message HeartbeatResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListJobsRequest {
+  string agent_id = 1;
+  string status = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+  string tenant_id = 5;
+}
+
+message ListJobsResponse {
+  repeated JobInfo jobs = 1;
+  int32 total = 2;
+}

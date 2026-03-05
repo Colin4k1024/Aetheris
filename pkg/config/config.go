@@ -278,6 +278,42 @@ type PrometheusConfig struct {
 	Port   int  `mapstructure:"port"`
 }
 
+// DefaultDevConfig 返回开发模式默认配置
+func DefaultDevConfig() *Config {
+	return &Config{
+		Runtime: RuntimeConfig{
+			Profile: "dev",
+		},
+		API: APIConfig{
+			Port: 8080,
+			Middleware: MiddlewareConfig{
+				Auth: false, // 开发模式不需要认证
+			},
+			CORS: CORSConfig{
+				Enable:       true,
+				AllowOrigins: []string{"*"},
+			},
+		},
+		JobStore: JobStoreConfig{
+			Type: "memory",
+		},
+		EffectStore: EffectStoreConfig{
+			Type: "memory",
+		},
+		CheckpointStore: CheckpointStoreConfig{
+			Type: "memory",
+		},
+		Storage: StorageConfig{
+			Vector: VectorConfig{
+				Type: "memory",
+			},
+			Cache: CacheConfig{
+				Type: "memory",
+			},
+		},
+	}
+}
+
 // LoadConfig 加载配置文件
 func LoadConfig(configPath string) (*Config, error) {
 	viper.SetConfigFile(configPath)
