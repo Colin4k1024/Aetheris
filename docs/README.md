@@ -149,26 +149,15 @@ Milestone implementation summaries (M1-M4, 2.0).
 
 ## Roadmaps
 
-Roadmap and planning documents.
+Current roadmap and planning documents. Historical documents are archived in [roadmaps/archive/](roadmaps/archive/).
 
-| Document                                                                                       | Description                                      |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| [roadmaps/2.0-roadmap.md](roadmaps/2.0-roadmap.md)                                             | 2.0 upgrade guide and roadmap                    |
-| [roadmaps/2.0-roadmap-detailed.md](roadmaps/2.0-roadmap-detailed.md)                           | Detailed 2.0 roadmap                             |
-| [roadmaps/2.0-roadmap-timeline.md](roadmaps/2.0-roadmap-timeline.md)                           | 2.0 roadmap timeline                             |
-| [roadmaps/2.0-task-breakdown.md](roadmaps/2.0-task-breakdown.md)                               | 2.0 task breakdown                               |
-| [roadmaps/2.x-ENGINEERING-BREAKDOWN-MAPPING.md](roadmaps/2.x-ENGINEERING-BREAKDOWN-MAPPING.md) | 2.x engineering breakdown mapping                |
-| [roadmaps/2.0-capability-matrix.md](roadmaps/2.0-capability-matrix.md)                         | 2.0 capability matrix                            |
-| [roadmaps/2.1-execution-plan.md](roadmaps/2.1-execution-plan.md)                               | 8-week execution plan (2026-02-23 to 2026-04-17) |
-| [roadmaps/2026-Q1-ACTION-PLAN.md](roadmaps/2026-Q1-ACTION-PLAN.md)                             | 2026 Q1 action plan                              |
-| [roadmaps/COMPLETE-ROADMAP-SUMMARY.md](roadmaps/COMPLETE-ROADMAP-SUMMARY.md)                   | Complete roadmap summary                         |
-| [roadmaps/aetheris-2.0-complete.md](roadmaps/aetheris-2.0-complete.md)                         | Aetheris 2.0 complete summary                    |
-| [roadmaps/aetheris-3.0-complete.md](roadmaps/aetheris-3.0-complete.md)                         | Aetheris 3.0 complete summary                    |
-| [roadmaps/CURRENT-STATUS-AND-FOCUS.md](roadmaps/CURRENT-STATUS-AND-FOCUS.md)                   | Current status and focus                         |
-| [roadmaps/FINAL-STATUS-2026-02.md](roadmaps/FINAL-STATUS-2026-02.md)                           | Final status 2026-02                             |
-| [roadmaps/IMPLEMENTATION-COMPLETE-SUMMARY.md](roadmaps/IMPLEMENTATION-COMPLETE-SUMMARY.md)     | Implementation complete summary                  |
-| [roadmaps/DEPLOYMENT-PRODUCTION.md](roadmaps/DEPLOYMENT-PRODUCTION.md)                         | Production deployment guide                      |
-| [roadmaps/EVIDENCE-PACKAGE-FOR-AUDITORS.md](roadmaps/EVIDENCE-PACKAGE-FOR-AUDITORS.md)         | Evidence package for auditors                    |
+| Document                                                                               | Description                                |
+| -------------------------------------------------------------------------------------- | ------------------------------------------ |
+| [roadmaps/2.1-execution-plan.md](roadmaps/2.1-execution-plan.md)                       | 8-week execution plan (2026-02 to 2026-04) |
+| [roadmaps/2026-Q1-ACTION-PLAN.md](roadmaps/2026-Q1-ACTION-PLAN.md)                     | 2026 Q1 action plan                        |
+| [roadmaps/CURRENT-STATUS-AND-FOCUS.md](roadmaps/CURRENT-STATUS-AND-FOCUS.md)           | Current status and focus                   |
+| [roadmaps/DEPLOYMENT-PRODUCTION.md](roadmaps/DEPLOYMENT-PRODUCTION.md)                 | Production deployment guide                |
+| [roadmaps/EVIDENCE-PACKAGE-FOR-AUDITORS.md](roadmaps/EVIDENCE-PACKAGE-FOR-AUDITORS.md) | Evidence package for auditors              |
 
 ## Concepts
 
