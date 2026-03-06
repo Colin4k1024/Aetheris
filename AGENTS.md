@@ -7,6 +7,7 @@ This document provides guidelines for AI agents working with the Aetheris codeba
 **Aetheris** (CoRag) is an execution runtime for intelligent agents — a durable, replayable, and observable environment where AI agents can plan, execute, pause, resume, and recover long-running tasks.
 
 Key technologies:
+
 - **Go 1.25.7** (see `go.mod` and CI)
 - **Go module**: `rag-platform` (import path for all internal packages)
 - **Cloudwego eino**: Workflow/DAG execution, Agent scheduling, Pipeline orchestration
@@ -18,6 +19,7 @@ Key technologies:
 ## Build, Lint, and Test Commands
 
 ### Build
+
 ```bash
 # Build all binaries
 go build ./...
@@ -32,6 +34,7 @@ go build -race ./...
 ```
 
 ### Run
+
 ```bash
 # API service (default :8080)
 go run ./cmd/api
@@ -47,6 +50,7 @@ CONFIG_PATH=/path/to/config.yaml go run ./cmd/api
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 go test ./...
@@ -71,6 +75,7 @@ go test -v ./internal/agent/runtime/executor ./internal/api/http
 ```
 
 ### Vet and Lint
+
 ```bash
 # Go vet
 go vet ./...
@@ -84,6 +89,7 @@ go run golang.org/x/tools/go/analysis/cmd/vet@latest ./...
 ```
 
 ### Dependencies
+
 ```bash
 # Download dependencies
 go mod download
@@ -99,6 +105,7 @@ go list -m all
 ```
 
 ### Makefile Commands
+
 The project provides a Makefile for convenient build and startup:
 
 ```bash
@@ -122,7 +129,9 @@ make tidy              # go mod tidy
 ## Code Style Guidelines
 
 ### Imports
+
 Organize imports in three groups with blank lines between:
+
 1. Standard library
 2. External packages (github.com/xxx)
 3. Internal packages (rag-platform/xxx)
@@ -142,12 +151,14 @@ import (
 ```
 
 ### Formatting
+
 - Use `gofmt` for automatic formatting
 - Indent with tabs, not spaces
 - No trailing whitespace
 - Max line length: ~120 characters (soft limit)
 
 ### Naming Conventions
+
 - **Packages**: lowercase, concise, meaningful (e.g., `app`, `pipeline`, `storage`)
 - **Files**: lowercase with underscores only if needed for naming (e.g., `workflow.go`)
 - **Exported types/functions**: PascalCase (e.g., `Workflow`, `CreateWorkflow`)
@@ -157,6 +168,7 @@ import (
 - **Variables**: camelCase, avoid single letters except loop indices
 
 ### Error Handling
+
 - Use `pkg/errors` for error wrapping: `errors.Wrap(err, "message")`
 - Use `errors.Wrapf` for formatted error messages
 - Sentinel errors in `pkg/errors/errors.go`: `ErrNotFound`, `ErrInvalidArg`
@@ -174,6 +186,7 @@ return nil, errors.Wrap(err, "failed to create client")
 ```
 
 ### Structs and Types
+
 - Use struct tags for JSON serialization
 - Use `binding` tags for Hertz request validation
 - Keep structs focused and small
@@ -188,6 +201,7 @@ type Query struct {
 ```
 
 ### Context Usage
+
 - Pass `context.Context` as first parameter
 - Use named context variables for clarity
 - Check context cancellation in long-running operations
@@ -199,6 +213,7 @@ func (h *Handler) Query(ctx context.Context, c *app.RequestContext) error {
 ```
 
 ### Comments
+
 - Use Chinese or English comments for public APIs and documentation (team preference)
 - Comment exported types and functions
 - Use sentence case for comments
@@ -217,6 +232,7 @@ func CreateWorkflow(name, description string) *Workflow {
 ```
 
 ### HTTP Handlers (Hertz)
+
 - Use `consts.StatusXXX` for status codes
 - Return consistent JSON response format
 - Log errors with `hlog.CtxErrorf`
@@ -240,6 +256,7 @@ func (h *Handler) Query(ctx context.Context, c *app.RequestContext) {
 ```
 
 ### Testing
+
 - Use table-driven tests when appropriate
 - Test file naming: `xxx_test.go`
 - Test function naming: `TestXxx`
@@ -247,6 +264,7 @@ func (h *Handler) Query(ctx context.Context, c *app.RequestContext) {
 - Prefer `require` over `assert` for clarity on failures
 
 ### Project Structure
+
 ```
 cmd/              # Entry points (api, worker, cli, devops)
 internal/         # Private application code
@@ -268,23 +286,26 @@ pkg/              # Public libraries
   tracing/        # Tracing utilities
 configs/          # Configuration files
 examples/         # Example code
-design/           # Design documentation
+design/           # Design documentation (public in root; internal/ for implementation details)
 deployments/      # Docker, K8s configurations
 ```
 
 ### Configuration
+
 - Use Viper for configuration management
 - YAML configuration files in `configs/`
 - Support environment variable overrides
 - Use `${VAR_NAME}` syntax in config for env var substitution
 
 ### Workflows and Pipelines
+
 - All pipelines orchestrated via eino
 - Workflows: DAG-based execution with nodes and edges
 - Use `compose.NewGraph` for workflow definition
 - Register workflows with the Engine
 
 ### Important Files
+
 - `go.mod`: Module definition and dependencies
 - `configs/*.yaml`: Configuration files
 - `internal/runtime/eino/workflow.go`: Workflow implementation
@@ -297,17 +318,20 @@ deployments/      # Docker, K8s configurations
 ## Common Tasks
 
 ### Adding a New Pipeline
+
 1. Create `internal/pipeline/newpipeline/`
 2. Implement `NewPipeline()` function
 3. Register with Engine in `internal/app/bootstrap.go`
 4. Add handler in `internal/api/http/handler.go`
 
 ### Adding a New Model Provider
+
 1. Implement interface in `internal/model/llm/` or similar
 2. Register provider in config
 3. Use `NewLLMClientFromConfig` pattern
 
 ### Adding a New API Endpoint
+
 1. Define request/response types in handler
 2. Implement handler method
 3. Register route in `internal/api/http/router.go`

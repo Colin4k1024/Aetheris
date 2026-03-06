@@ -117,4 +117,4 @@ Agent Runtime
 - Tool-Using Agent
 - 多 Workflow 协同
 - 人工干预（Human-in-the-loop）
-- 多 Worker 与持久化 JobStore（如 Postgres）：接口与设计已具备，见 [jobstore_postgres.md](jobstore_postgres.md)
+- 多 Worker 与持久化 JobStore（如 Postgres）：接口与设计已具备，见 [internal/jobstore_postgres.md](internal/jobstore_postgres.md)

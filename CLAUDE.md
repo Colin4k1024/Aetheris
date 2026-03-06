@@ -53,18 +53,18 @@ Aetheris treats agents as **virtual processes** — workers schedule and host pr
 
 ### Core Components
 
-| Component | Path | Purpose |
-|-----------|------|---------|
-| **API Server** | `cmd/api/` | HTTP server (Hertz), creates/interacts with agents |
-| **Worker** | `cmd/worker/` | Background execution worker, schedules and executes jobs |
-| **CLI** | `cmd/cli/` | Command-line tool (`aetheris init`, `chat`, `jobs`, `trace`, `replay`, etc.) |
-| **Agent Runtime** | `internal/agent/runtime/` | Core execution engine |
-| **Job Store** | `internal/agent/runtime/job/` | Event-sourced durable execution history (PostgreSQL) |
-| **Scheduler** | `internal/agent/runtime/job/scheduler.go` | Leases and retries tasks with lease fencing |
-| **Runner** | `internal/agent/runtime/runner/` | Step-level execution with checkpointing |
-| **Planner** | `internal/agent/planner/` | Produces TaskGraph from goals |
-| **Executor** | `internal/agent/runtime/executor/` | Executes DAG nodes using eino framework |
-| **Effects** | `internal/agent/effects/` | At-most-once tool execution guarantee via Ledger |
+| Component         | Path                                      | Purpose                                                                      |
+| ----------------- | ----------------------------------------- | ---------------------------------------------------------------------------- |
+| **API Server**    | `cmd/api/`                                | HTTP server (Hertz), creates/interacts with agents                           |
+| **Worker**        | `cmd/worker/`                             | Background execution worker, schedules and executes jobs                     |
+| **CLI**           | `cmd/cli/`                                | Command-line tool (`aetheris init`, `chat`, `jobs`, `trace`, `replay`, etc.) |
+| **Agent Runtime** | `internal/agent/runtime/`                 | Core execution engine                                                        |
+| **Job Store**     | `internal/agent/runtime/job/`             | Event-sourced durable execution history (PostgreSQL)                         |
+| **Scheduler**     | `internal/agent/runtime/job/scheduler.go` | Leases and retries tasks with lease fencing                                  |
+| **Runner**        | `internal/agent/runtime/runner/`          | Step-level execution with checkpointing                                      |
+| **Planner**       | `internal/agent/planner/`                 | Produces TaskGraph from goals                                                |
+| **Executor**      | `internal/agent/runtime/executor/`        | Executes DAG nodes using eino framework                                      |
+| **Effects**       | `internal/agent/effects/`                 | At-most-once tool execution guarantee via Ledger                             |
 
 ### Execution Flow
 
@@ -74,11 +74,12 @@ User → Agent API → Job → Scheduler → Runner → Planner → TaskGraph �
 
 ### Key Design Documents
 
+- `design/core.md` — Overall architecture
 - `design/runtime-core-diagrams.md` — Runtime flow and StepOutcome semantics
-- `design/1.0-runtime-semantics.md` — Three mechanisms and Execution Proof Chain
-- `design/scheduler-correctness.md` — Lease fencing, step timeout guarantees
-- `design/step-contract.md` — Contract for writing correct steps (deterministic, side effects through Tools)
 - `design/execution-guarantees.md` — Formal guarantees table
+- `design/internal/1.0-runtime-semantics.md` — Three mechanisms and Execution Proof Chain
+- `design/internal/scheduler-correctness.md` — Lease fencing, step timeout guarantees
+- `design/internal/step-contract.md` — Contract for writing correct steps (deterministic, side effects through Tools)
 
 ### Storage
 

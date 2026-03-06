@@ -1,6 +1,6 @@
 # Aetheris Runtime — Core sequence and StepOutcome
 
-High-level execution flow and Step outcome world semantics. For the detailed execution-proof sequence (Adapter, Ledger Acquire/Commit, single tool path) see [execution-proof-sequence.md](execution-proof-sequence.md). For Ledger state machine and Confirmation Replay see [1.0-runtime-semantics.md](1.0-runtime-semantics.md).
+High-level execution flow and Step outcome world semantics. For the detailed execution-proof sequence (Adapter, Ledger Acquire/Commit, single tool path) see [internal/execution-proof-sequence.md](internal/execution-proof-sequence.md). For Ledger state machine and Confirmation Replay see [internal/1.0-runtime-semantics.md](internal/1.0-runtime-semantics.md).
 
 ---
 
@@ -64,15 +64,15 @@ stateDiagram-v2
     Compensated --> [*]
 ```
 
-| Outcome | Meaning |
-|--------|---------|
-| **Pure** | No side effects; safe to replay. |
-| **SideEffectCommitted** | World changed; must not re-execute. |
-| **Retryable** | Failure, world unchanged; retry allowed. |
-| **PermanentFailure** | Failure; job cannot continue. |
-| **Compensated** | Rollback applied; terminal. |
+| Outcome                 | Meaning                                  |
+| ----------------------- | ---------------------------------------- |
+| **Pure**                | No side effects; safe to replay.         |
+| **SideEffectCommitted** | World changed; must not re-execute.      |
+| **Retryable**           | Failure, world unchanged; retry allowed. |
+| **PermanentFailure**    | Failure; job cannot continue.            |
+| **Compensated**         | Rollback applied; terminal.              |
 
 ---
 
-- **Detailed sequence (proof view):** [execution-proof-sequence.md](execution-proof-sequence.md)  
-- **Semantics and Ledger state machine:** [1.0-runtime-semantics.md](1.0-runtime-semantics.md)
+- **Detailed sequence (proof view):** [internal/execution-proof-sequence.md](internal/execution-proof-sequence.md)
+- **Semantics and Ledger state machine:** [internal/1.0-runtime-semantics.md](internal/1.0-runtime-semantics.md)
