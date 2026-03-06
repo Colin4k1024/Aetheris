@@ -5,6 +5,7 @@ This example demonstrates a complete integration of LangGraph with Aetheris for 
 ## Overview
 
 The example implements a **Research Agent** that:
+
 - Uses LangGraph for reasoning and workflow orchestration
 - Leverages Aetheris for durability, replay, and audit
 - Supports human-in-the-loop approval workflows
@@ -43,7 +44,7 @@ The example implements a **Research Agent** that:
 ### Run the Demo
 
 ```bash
-cd examples/langgraph_complete
+cd examples/langgraph-complete
 go run main.go
 ```
 

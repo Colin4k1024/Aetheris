@@ -27,34 +27,34 @@ Instead of treating LLM calls as stateless requests, Aetheris treats an agent as
 
 ## What Aetheris Actually Is
 
-**Aetheris is an Agent Hosting Runtime — Temporal for Agents.** You don’t use it to *write* agents; you use it to *run* them. Durable, recoverable, and auditable.
+**Aetheris is an Agent Hosting Runtime — Temporal for Agents.** You don’t use it to _write_ agents; you use it to _run_ them. Durable, recoverable, and auditable.
 
 Aetheris is closer to **Temporal / workflow engine / distributed runtime** than to a traditional AI framework.
 
-It is *not*:
+It is _not_:
 
-* a chatbot framework
-* a prompt wrapper
-* a RAG library
-* a tool for *authoring* agent logic (use LangGraph, AutoGen, CrewAI, etc. for that)
+- a chatbot framework
+- a prompt wrapper
+- a RAG library
+- a tool for _authoring_ agent logic (use LangGraph, AutoGen, CrewAI, etc. for that)
 
-It *is*:
+It _is_:
 
-* an **agent execution runtime** — you host long-running, recoverable agent jobs on it
-* a long-running task orchestrator
-* a recoverable planning & execution engine
-* a durable memory of agent actions
+- an **agent execution runtime** — you host long-running, recoverable agent jobs on it
+- a long-running task orchestrator
+- a recoverable planning & execution engine
+- a durable memory of agent actions
 
 Aetheris turns agent behavior into a deterministic execution history.
 
 ### Where Aetheris sits in the stack
 
-| Layer | Role | Examples |
-|-------|------|----------|
-| **Agent authoring** | Define plans, tools, prompts | LangGraph, AutoGen, CrewAI |
-| **Agent runtime** | Run agents: durability, lease, replay, signal, forensics | **Aetheris** |
-| **Capabilities** | RAG, search, APIs | Vector DBs, RAG pipelines |
-| **Compute** | LLM, embedding, inference | OpenAI, local models |
+| Layer               | Role                                                     | Examples                   |
+| ------------------- | -------------------------------------------------------- | -------------------------- |
+| **Agent authoring** | Define plans, tools, prompts                             | LangGraph, AutoGen, CrewAI |
+| **Agent runtime**   | Run agents: durability, lease, replay, signal, forensics | **Aetheris**               |
+| **Capabilities**    | RAG, search, APIs                                        | Vector DBs, RAG pipelines  |
+| **Compute**         | LLM, embedding, inference                                | OpenAI, local models       |
 
 You build agents with your favorite framework; you **host** them on Aetheris for production-grade execution.
 
@@ -64,20 +64,20 @@ You build agents with your favorite framework; you **host** them on Aetheris for
 
 Modern agent frameworks assume that:
 
-* requests are short
-* failures are rare
-* memory is ephemeral
-* execution is synchronous
+- requests are short
+- failures are rare
+- memory is ephemeral
+- execution is synchronous
 
 Real agent workloads break all of these assumptions.
 
 Agents need to:
 
-* run for minutes or hours
-* call tools and external systems
-* survive crashes and restarts
-* be inspectable and debuggable
-* resume from the middle of a task
+- run for minutes or hours
+- call tools and external systems
+- survive crashes and restarts
+- be inspectable and debuggable
+- resume from the middle of a task
 
 Without a runtime, an agent is just a fragile script.
 
@@ -93,19 +93,19 @@ Aetheris introduces a different execution model:
 
 Every action becomes an event:
 
-* planning
-* tool calls
-* intermediate reasoning steps
-* retries
-* failures
-* recovery
+- planning
+- tool calls
+- intermediate reasoning steps
+- retries
+- failures
+- recovery
 
 Because execution is event-sourced, Aetheris can:
 
-* resume after crash
-* run across multiple workers
-* audit every decision
-* deterministically replay an agent run
+- resume after crash
+- run across multiple workers
+- audit every decision
+- deterministically replay an agent run
 
 **Important**: These guarantees require developers to follow the [Step Contract](design/step-contract.md) — steps must be deterministic and side effects must go through Tools. See the contract for how to write correct steps.
 
@@ -120,6 +120,7 @@ Aetheris is designed for **three core scenarios**:
 Approval flows, customer service tickets, operational decisions — agents wait for human input (possibly for days) and resume from the checkpoint.
 
 **Why Aetheris**:
+
 - **StatusParked**: Long waits do not consume Scheduler resources
 - **Continuation**: On resume, full state is bound (reasoning continuity)
 - **Signal**: External trigger to resume (at-least-once delivery)
@@ -133,6 +134,7 @@ Approval flows, customer service tickets, operational decisions — agents wait 
 SaaS operation agents, data pipelines, batch processing — agents call multiple external APIs (possibly for an hour).
 
 **Why Aetheris**:
+
 - **At-most-once**: Tool calls are not repeated (Ledger + Effect Store)
 - **Crash recovery**: After worker crash, execution continues from Checkpoint
 - **Step timeout**: Timeout triggers automatic retry or failure
@@ -146,6 +148,7 @@ SaaS operation agents, data pipelines, batch processing — agents call multiple
 Financial transactions, medical prescriptions, government systems — must record who did what, when, and why.
 
 **Why Aetheris**:
+
 - **Evidence Graph**: Records RAG doc IDs, tool invocations, LLM model/version
 - **Execution Proof Chain**: Tamper-evident decision history
 - **Replay deterministic**: Proven “decision is reproducible”
@@ -155,6 +158,7 @@ Financial transactions, medical prescriptions, government systems — must recor
 ---
 
 **Don't use Aetheris** for:
+
 - Stateless chatbots (single request/response, no persistence needed)
 - Prototype/demo agents (crashes acceptable, no audit requirements)
 - Pure in-memory tasks (<1 min, no side effects)
@@ -213,6 +217,7 @@ curl http://localhost:8080/api/health
 **Scaffold a minimal agent project**: From an empty directory, run `aetheris init` (or `aetheris init <dir>`) to copy a minimal template with config and a sample agent. Then see [Getting Started with Agents](docs/guides/getting-started-agents.md) to build your first production agent in 15 minutes.
 
 See a real business scenario (refund approval agent with human-in-the-loop) running on Aetheris, including:
+
 - Tool definition (at-most-once side effects)
 - Wait node (StatusParked for long waits)
 - Signal (human approval)
@@ -223,15 +228,15 @@ See a real business scenario (refund approval agent with human-in-the-loop) runn
 
 Aetheris integrates with popular agent frameworks:
 
-| Framework | Status | Description |
-|-----------|--------|-------------|
-| [LangGraph](examples/langgraph_agent/) | ✅ Stable | Run LangGraph flows on Aetheris |
-| [AutoGen](examples/autogen_agent/) | ✅ Stable | Microsoft AutoGen multi-agent support |
-| [CrewAI](examples/crewai_agent/) | ✅ Stable | CrewAI crew orchestration |
-| [LlamaIndex](examples/llamaindex_agent/) | ✅ Stable | LlamaIndex agent integration |
-| [Vertex AI](examples/vertex_agent/) | ✅ Stable | Google Vertex AI Agent Engine |
-| [AWS Bedrock](examples/bedrock_agent/) | ✅ Stable | AWS Bedrock Agents |
-| [AgentScope](examples/agentscope_agent/) | ✅ Stable | AgentScope multi-agent framework |
+| Framework                                | Status    | Description                           |
+| ---------------------------------------- | --------- | ------------------------------------- |
+| [LangGraph](examples/langgraph-agent/)   | ✅ Stable | Run LangGraph flows on Aetheris       |
+| [AutoGen](examples/autogen_agent/)       | ✅ Stable | Microsoft AutoGen multi-agent support |
+| [CrewAI](examples/crewai_agent/)         | ✅ Stable | CrewAI crew orchestration             |
+| [LlamaIndex](examples/llamaindex_agent/) | ✅ Stable | LlamaIndex agent integration          |
+| [Vertex AI](examples/vertex_agent/)      | ✅ Stable | Google Vertex AI Agent Engine         |
+| [AWS Bedrock](examples/bedrock_agent/)   | ✅ Stable | AWS Bedrock Agents                    |
+| [AgentScope](examples/agentscope_agent/) | ✅ Stable | AgentScope multi-agent framework      |
 
 Already have agents? Migrate them to Aetheris:
 
@@ -243,7 +248,7 @@ Already have agents? Migrate them to Aetheris:
 
 - [Human Approval](examples/human_approval_agent/) — Approval workflows with human-in-the-loop
 - [Multi-Agent Collaboration](examples/multi_agent_collaboration/) — Complex multi-agent systems
-- [LangGraph Complete](examples/langgraph_complete/) — Full LangGraph workflow example
+- [LangGraph Complete](examples/langgraph-complete/) — Full LangGraph workflow example
 
 ---
 
@@ -321,18 +326,18 @@ Already have agents? Migrate them to Aetheris:
 
 ### Key Components
 
-| Component | Description |
-|-----------|-------------|
-| **Agent API** | HTTP endpoints for agent management |
-| **Job Manager** | Creates and tracks agent jobs |
-| **Scheduler** | Lease management & retry logic |
-| **Runner** | Step execution with checkpointing |
-| **Planner** | Converts goals to TaskGraph DAG |
-| **Execution Engine (eino)** | DAG execution with node adapters |
-| **JobStore** | Event-sourced durable history |
-| **Tool Ledger** | Ensures at-most-once execution |
-| **Effect Store** | Records side effects for replay |
-| **Checkpoint Store** | Enables crash recovery |
+| Component                   | Description                         |
+| --------------------------- | ----------------------------------- |
+| **Agent API**               | HTTP endpoints for agent management |
+| **Job Manager**             | Creates and tracks agent jobs       |
+| **Scheduler**               | Lease management & retry logic      |
+| **Runner**                  | Step execution with checkpointing   |
+| **Planner**                 | Converts goals to TaskGraph DAG     |
+| **Execution Engine (eino)** | DAG execution with node adapters    |
+| **JobStore**                | Event-sourced durable history       |
+| **Tool Ledger**             | Ensures at-most-once execution      |
+| **Effect Store**            | Records side effects for replay     |
+| **Checkpoint Store**        | Enables crash recovery              |
 
 ### Execution Flow
 
@@ -371,6 +376,7 @@ RAG is one capability that agents can use via pipelines or tools; it is **plugga
 Detailed documentation (configuration, CLI, deployment) is in [docs/](docs/).
 
 Common CLI operations:
+
 - `aetheris replay <job_id>` inspect event stream and trace URL
 - `aetheris monitor --watch --interval 5` watch queue/stuck-job observability snapshot
 - `aetheris migrate m1-sql` print incremental M1 schema SQL
@@ -382,25 +388,25 @@ Common CLI operations:
 
 The project provides a Makefile for one-command build and startup of all services.
 
-| Command | Description |
-|---------|-------------|
-| `make` / `make help` | Show help |
-| `make build` | Build api, worker, and cli into `bin/` |
-| `make run` | **Build and start API + Worker in background** (one-command startup) |
-| `make run-api` | Build and start only API in background |
-| `make run-worker` | Build and start only Worker in background |
-| `make run-all` | Alias of `make run` |
-| `make stop` | Stop API and Worker started by `make run` |
-| `make clean` | Remove `bin/` |
-| `make test` | Run tests |
-| `make test-integration` | Run key integration suites (runtime + http) |
-| `make docker-build` | Build runtime container image (`aetheris/runtime:local`) |
-| `make docker-run` | Start local 2.0 stack via Compose script |
-| `make docker-stop` | Stop local 2.0 stack via Compose script |
-| `make release-2.0` | Run 2.0 release preflight checks |
-| `make vet` | go vet |
-| `make fmt` | gofmt -w |
-| `make tidy` | go mod tidy |
+| Command                 | Description                                                          |
+| ----------------------- | -------------------------------------------------------------------- |
+| `make` / `make help`    | Show help                                                            |
+| `make build`            | Build api, worker, and cli into `bin/`                               |
+| `make run`              | **Build and start API + Worker in background** (one-command startup) |
+| `make run-api`          | Build and start only API in background                               |
+| `make run-worker`       | Build and start only Worker in background                            |
+| `make run-all`          | Alias of `make run`                                                  |
+| `make stop`             | Stop API and Worker started by `make run`                            |
+| `make clean`            | Remove `bin/`                                                        |
+| `make test`             | Run tests                                                            |
+| `make test-integration` | Run key integration suites (runtime + http)                          |
+| `make docker-build`     | Build runtime container image (`aetheris/runtime:local`)             |
+| `make docker-run`       | Start local 2.0 stack via Compose script                             |
+| `make docker-stop`      | Stop local 2.0 stack via Compose script                              |
+| `make release-2.0`      | Run 2.0 release preflight checks                                     |
+| `make vet`              | go vet                                                               |
+| `make fmt`              | gofmt -w                                                             |
+| `make tidy`             | go mod tidy                                                          |
 
 **One-command run**: From the repo root, run `make run` to build and then start the API (default :8080) and Worker in the background; PIDs and logs are under `bin/`. Use `make stop` to stop. If using Postgres as jobstore, start Postgres first (see [docs/guides/deployment.md](docs/guides/deployment.md)). For a full walkthrough of core features (quick trial vs full runtime), see [docs/guides/get-started.md](docs/guides/get-started.md).
 
@@ -424,8 +430,8 @@ Aetheris is an attempt to provide the missing layer:
 
 That claim holds only when the runtime can **prove** that agent steps do not repeat external side effects. Aetheris 1.0 provides:
 
-* **At-most-once tool execution** — Every tool invocation is a persistent fact (Tool Invocation Ledger). On replay, the runner looks up the ledger and restores results instead of calling the tool again.
-* **World-consistent replay** — Replay is not “run the step again”; it is “verify the external world still matches the event stream, then restore memory and skip execution” (Confirmation Replay). If verification fails, the job fails rather than silently re-executing.
+- **At-most-once tool execution** — Every tool invocation is a persistent fact (Tool Invocation Ledger). On replay, the runner looks up the ledger and restores results instead of calling the tool again.
+- **World-consistent replay** — Replay is not “run the step again”; it is “verify the external world still matches the event stream, then restore memory and skip execution” (Confirmation Replay). If verification fails, the job fails rather than silently re-executing.
 
 So: **external side effects are executed at most once**. 1.0 proof: the four fatal tests (worker crash before tool, crash after tool before commit, two workers same step, replay restore output) pass — no step repeats external side effects under crash, restart, or duplicate worker. High-level runtime flow and StepOutcome semantics: [design/runtime-core-diagrams.md](design/runtime-core-diagrams.md). See [design/1.0-runtime-semantics.md](design/1.0-runtime-semantics.md) for the three mechanisms and the Execution Proof Chain; [design/execution-proof-sequence.md](design/execution-proof-sequence.md) for the detailed Runner–Ledger–JobStore sequence diagram. For 2.0 feature modules and roadmap: [design/aetheris-2.0-overview.md](design/aetheris-2.0-overview.md).
 
@@ -433,12 +439,12 @@ So: **external side effects are executed at most once**. 1.0 proof: the four fat
 
 ## Auditability & Forensics
 
-Aetheris is built not only to **trace** execution but to **audit** and **attribute** it. You can answer: *"Who had the AI send that email, at which step, and based on which LLM output or tool result?"*
+Aetheris is built not only to **trace** execution but to **audit** and **attribute** it. You can answer: _"Who had the AI send that email, at which step, and based on which LLM output or tool result?"_
 
-* **Decision timeline** — The event stream is the source of truth; every step has node_started/node_finished, command_emitted/command_committed, and tool_invocation_* events.
-* **Reasoning snapshot** — Per-step context (goal, state_before, state_after, and optionally llm_request/llm_response for LLM nodes) is written as `reasoning_snapshot` events for causal debugging.
-* **Step causality** — The execution tree (plan → node → tool) and Trace API let you see which step’s input/output led to the next.
-* **Tool provenance** — Every tool call’s input and output is recorded; you can trace side effects back to the exact step and command.
+- **Decision timeline** — The event stream is the source of truth; every step has node*started/node_finished, command_emitted/command_committed, and tool_invocation*\* events.
+- **Reasoning snapshot** — Per-step context (goal, state_before, state_after, and optionally llm_request/llm_response for LLM nodes) is written as `reasoning_snapshot` events for causal debugging.
+- **Step causality** — The execution tree (plan → node → tool) and Trace API let you see which step’s input/output led to the next.
+- **Tool provenance** — Every tool call’s input and output is recorded; you can trace side effects back to the exact step and command.
 
 See [design/execution-forensics.md](design/execution-forensics.md) and [design/causal-debugging.md](design/causal-debugging.md).
 
@@ -452,11 +458,11 @@ Projects and companies using Aetheris in production.
 
 ### Featured Case Studies
 
-| Company | Industry | Use Case | Results |
-|---------|----------|----------|---------|
-| [AutoFinance](./docs/showcase/01-autofinance.md) | Fintech | AI Portfolio Rebalancing | 99.9% reliability |
-| [HealthAI](./docs/showcase/02-healthai.md) | Healthcare | Patient Triage | 40% faster |
-| [LogiShip](./docs/showcase/03-logiship.md) | Logistics | Inventory Optimization | $2M savings |
+| Company                                          | Industry   | Use Case                 | Results           |
+| ------------------------------------------------ | ---------- | ------------------------ | ----------------- |
+| [AutoFinance](./docs/showcase/01-autofinance.md) | Fintech    | AI Portfolio Rebalancing | 99.9% reliability |
+| [HealthAI](./docs/showcase/02-healthai.md)       | Healthcare | Patient Triage           | 40% faster        |
+| [LogiShip](./docs/showcase/03-logiship.md)       | Logistics  | Inventory Optimization   | $2M savings       |
 
 [View all case studies →](./docs/showcase/README.md)
 
@@ -500,11 +506,11 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 Join our growing community:
 
-| Platform | Description |
-|----------|-------------|
-| [Discord](https://discord.gg/PrrK2Mua) | Real-time chat, help, discussions |
-| [GitHub Discussions](https://github.com/Colin4k1024/Aetheris/discussions) | Q&A, feature ideas |
-| [Community Docs](docs/community.md) | Full community guide |
+| Platform                                                                  | Description                       |
+| ------------------------------------------------------------------------- | --------------------------------- |
+| [Discord](https://discord.gg/PrrK2Mua)                                    | Real-time chat, help, discussions |
+| [GitHub Discussions](https://github.com/Colin4k1024/Aetheris/discussions) | Q&A, feature ideas                |
+| [Community Docs](docs/community.md)                                       | Full community guide              |
 
 ---
 
