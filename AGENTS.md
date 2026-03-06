@@ -279,11 +279,11 @@ internal/         # Private application code
   splitter/       # Text splitting implementations
   storage/        # Data storage implementations
   tool/           # Tool definitions and implementations
-pkg/              # Public libraries
+pkg/              # Public libraries (errors moved to experimental/)
   config/         # Configuration
-  errors/         # Error utilities
   log/            # Logging
   tracing/        # Tracing utilities
+  experimental/   # Unused packages pending 3.0 or removal
 configs/          # Configuration files
 examples/         # Example code
 design/           # Design documentation (public in root; internal/ for implementation details)

@@ -17,36 +17,42 @@ k6 run --vus=10 --duration=30s simple_job.lua
 
 Expected: 10-20 jobs/minute per worker
 
-### 2. Complex Job Latency
+### 2. Complex Job Latency (TBD)
 
 Multi-tool calls + reasoning.
 
 ```bash
-k6 run --vus=5 --duration=60s complex_job.lua
+# TODO: Implement complex_job.lua
+# k6 run --vus=5 --duration=60s complex_job.lua
 ```
 
 Expected: 2-5 jobs/minute per worker
 
-### 3. Long-Running Job (HITL)
+### 3. Long-Running Job (HITL) (TBD)
 
 Simulate park/resume cycles.
 
 ```bash
-k6 run --vus=2 --duration=120s hitl_job.lua
+# TODO: Implement hitl_job.lua
+# k6 run --vus=2 --duration=120s hitl_job.lua
 ```
 
 Expected: 1-2 concurrent per worker
 
-### 4. Multi-Worker Scaling
+### 4. Multi-Worker Scaling (TBD)
 
 Test horizontal scaling with 1/2/4/8 workers.
 
 ```bash
-./run_scaling_test.sh
+# TODO: Implement run_scaling_test.sh
+# ./run_scaling_test.sh
 ```
 
 ## Results
 
-Results are saved to `benchmark/results/` directory.
+> Note: Results directory and analysis documentation pending implementation of benchmark scenarios.
 
-See `benchmark/results.md` for analysis.
+```bash
+# mkdir -p benchmark/results
+# Results will be saved to benchmark/results/ directory
+```

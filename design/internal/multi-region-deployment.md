@@ -63,10 +63,10 @@ region:
 
 #### Replication Modes
 
-| Mode | Consistency | Latency | Use Case |
-|------|-------------|---------|----------|
-| sync | Strong | High | Critical jobs |
-| async | Eventual | Low | Batch jobs |
+| Mode  | Consistency | Latency | Use Case      |
+| ----- | ----------- | ------- | ------------- |
+| sync  | Strong      | High    | Critical jobs |
+| async | Eventual    | Low     | Batch jobs    |
 
 #### Replication Protocol
 
@@ -124,8 +124,8 @@ region:
 
 ## Implementation Status
 
-- [x] Region configuration (`pkg/region/region.go`)
-- [x] Region-aware scheduler (`pkg/region/scheduler.go`)
+- [x] Region configuration (`pkg/experimental/region/region.go`)
+- [x] Region-aware scheduler (`pkg/experimental/region/scheduler.go`)
 - [ ] Cross-region replication protocol
 - [ ] Global load balancer
 - [ ] Data residency enforcement
