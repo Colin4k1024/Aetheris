@@ -33,18 +33,39 @@ docs/
 ├── README.md          # This file
 ├── STATUS.md          # Current release status (authoritative)
 ├── guides/            # User guides and tutorials
-├── reference/        # API and configuration reference
-├── releases/         # Release notes and checklists
-├── milestones/       # Milestone implementation summaries
+├── reference/         # API and configuration reference
+├── releases/          # Release notes and checklists
+├── milestones/        # Milestone implementation summaries
 ├── roadmaps/         # Roadmap and planning documents
 ├── concepts/         # Concept and design discussions
+├── blog/             # Technical blog articles
 └── adapters/         # Integration adapters
 ```
 
+## Blog
+
+Technical blog articles covering Aetheris core concepts, use cases, and deep dives.
+
+| Article                                                                        | Description                   |
+| ------------------------------------------------------------------------------ | ----------------------------- |
+| [blog/01-quick-start.md](blog/01-quick-start.md)                               | 5 分钟快速开始                |
+| [blog/02-production-agents.md](blog/02-production-agents.md)                   | 生产级 AI Agent 构建指南      |
+| [blog/03-observability.md](blog/03-observability.md)                           | 可观测性实战                  |
+| [blog/04-enterprise-features.md](blog/04-enterprise-features.md)               | 企业级功能指南                |
+| [blog/05-human-in-the-loop.md](blog/05-human-in-the-loop.md)                   | 审批流与 Wait/Signal          |
+| [blog/06-at-most-once-ledger.md](blog/06-at-most-once-ledger.md)               | Invocation Ledger 原理        |
+| [blog/07-event-sourcing-replay.md](blog/07-event-sourcing-replay.md)           | 事件溯源与 Replay 恢复        |
+| [blog/08-multi-worker-lease-fencing.md](blog/08-multi-worker-lease-fencing.md) | 多 Worker 与 Lease Fencing    |
+| [blog/09-compliance-evidence-chain.md](blog/09-compliance-evidence-chain.md)   | 合规审计与 Evidence Chain     |
+| [blog/10-long-running-checkpoint.md](blog/10-long-running-checkpoint.md)       | 长任务与 Checkpoint 恢复      |
+| [blog/11-when-to-choose-aetheris.md](blog/11-when-to-choose-aetheris.md)       | 选型对比：LangGraph、Temporal |
+
 ## Recommended reading order
 
-- **Getting started**: This README → [guides/get-started.md](guides/get-started.md) → [guides/usage.md](guides/usage.md) → [design/core.md](../design/core.md)
-- **Advanced**: [design/services.md](../design/services.md), [design/execution-guarantees.md](../design/execution-guarantees.md), [design/runtime-core-diagrams.md](../design/runtime-core-diagrams.md)
+- **Getting started**: This README → [blog/01-quick-start.md](blog/01-quick-start.md) → [guides/usage.md](guides/usage.md) → [design/core.md](../design/core.md)
+- **Core concepts**: [blog/11-when-to-choose-aetheris.md](blog/11-when-to-choose-aetheris.md) (选型) → [blog/05-human-in-the-loop.md](blog/05-human-in-the-loop.md) (人机协同) → [blog/06-at-most-once-ledger.md](blog/06-at-most-once-ledger.md) (执行保证)
+- **Recovery & Fault Tolerance**: [blog/07-event-sourcing-replay.md](blog/07-event-sourcing-replay.md) → [blog/10-long-running-checkpoint.md](blog/10-long-running-checkpoint.md) → [blog/08-multi-worker-lease-fencing.md](blog/08-multi-worker-lease-fencing.md)
+- **Advanced**: [design/services.md](../design/services.md), [design/execution-guarantees.md](../design/execution-guarantees.md), [blog/09-compliance-evidence-chain.md](blog/09-compliance-evidence-chain.md)
 - **Operations**: [guides/tracing.md](guides/tracing.md), [reference/config.md](reference/config.md), [guides/deployment.md](guides/deployment.md)
 
 ## Guides
