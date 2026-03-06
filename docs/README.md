@@ -119,20 +119,16 @@ API and configuration reference documentation.
 
 ## Releases
 
-Release notes, checklists, and upgrade guides.
+Release notes, checklists, and upgrade guides. Historical documents are archived in [archives/](archives/).
 
-| Document                                                                       | Description                                                                         |
-| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| [releases/2.0-RELEASE-NOTES.md](releases/2.0-RELEASE-NOTES.md)                 | 2.0 release notes                                                                   |
-| [releases/2.1-RELEASE-READY.md](releases/2.1-RELEASE-READY.md)                 | 2.1 release readiness                                                               |
-| [releases/AETHERIS-2.1-RELEASE.md](releases/AETHERIS-2.1-RELEASE.md)           | Aetheris 2.1 release announcement                                                   |
-| [releases/release-acceptance-v0.9.md](releases/release-acceptance-v0.9.md)     | v0.9 runtime correctness (Worker crash recovery, API restart, multi-Worker, Replay) |
-| [releases/release-certification-1.0.md](releases/release-certification-1.0.md) | 1.0 release gate checklist                                                          |
-| [releases/release-checklist-v1.0.md](releases/release-checklist-v1.0.md)       | Post-release checklist (core features, distributed, CLI/API, logging and docs)      |
-| [releases/release-checklist-2.0.md](releases/release-checklist-2.0.md)         | 2.0 release checklist                                                               |
-| [releases/upgrade-1.x-to-2.0.md](releases/upgrade-1.x-to-2.0.md)               | Upgrade and rollback guide                                                          |
-| [releases/performance-baseline-2.0.md](releases/performance-baseline-2.0.md)   | Release performance baseline                                                        |
-| [releases/runbook-failure-drills.md](releases/runbook-failure-drills.md)       | Failure drill runbook                                                               |
+| Document                                                                     | Description                       |
+| ---------------------------------------------------------------------------- | --------------------------------- |
+| [releases/2.0-RELEASE-NOTES.md](releases/2.0-RELEASE-NOTES.md)               | 2.0 release notes                 |
+| [releases/2.1-RELEASE-READY.md](releases/2.1-RELEASE-READY.md)               | 2.1 release readiness             |
+| [releases/AETHERIS-2.1-RELEASE.md](releases/AETHERIS-2.1-RELEASE.md)         | Aetheris 2.1 release announcement |
+| [releases/release-checklist-2.0.md](releases/release-checklist-2.0.md)       | 2.0 release checklist             |
+| [releases/performance-baseline-2.0.md](releases/performance-baseline-2.0.md) | Release performance baseline      |
+| [releases/runbook-failure-drills.md](releases/runbook-failure-drills.md)     | Failure drill runbook             |
 
 ## Milestones
 
@@ -161,16 +157,15 @@ Current roadmap and planning documents. Historical documents are archived in [ro
 
 ## Concepts
 
-Concept and design discussion documents.
+Concept and design discussion documents. Historical documents are archived in [archives/](archives/).
 
-| Document                                                                                     | Description                                             |
-| -------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| [concepts/devops.md](concepts/devops.md)                                                     | Eino Dev IDE plugin, visual orchestration and debugging |
-| [concepts/adk.md](concepts/adk.md)                                                           | ADK integration                                         |
-| [concepts/evidence-package.md](concepts/evidence-package.md)                                 | Evidence package documentation                          |
-| [concepts/migration-to-m1.md](concepts/migration-to-m1.md)                                   | Migration guide to M1                                   |
-| [concepts/next_plan.md](concepts/next_plan.md)                                               | Next plan discussion                                    |
-| [concepts/improvement-checklist-1.0-to-2.0.md](concepts/improvement-checklist-1.0-to-2.0.md) | Improvement checklist from 1.0 to 2.0                   |
+| Document                                                     | Description                                             |
+| ------------------------------------------------------------ | ------------------------------------------------------- |
+| [concepts/devops.md](concepts/devops.md)                     | Eino Dev IDE plugin, visual orchestration and debugging |
+| [concepts/adk.md](concepts/adk.md)                           | ADK integration                                         |
+| [concepts/evidence-package.md](concepts/evidence-package.md) | Evidence package documentation                          |
+| [concepts/migration-to-m1.md](concepts/migration-to-m1.md)   | Migration guide to M1                                   |
+| [concepts/next_plan.md](concepts/next_plan.md)               | Next plan discussion                                    |
 
 ## Design Docs
 
