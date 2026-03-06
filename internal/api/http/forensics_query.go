@@ -31,6 +31,7 @@ import (
 
 	"rag-platform/internal/agent/job"
 	"rag-platform/internal/runtime/jobstore"
+	"rag-platform/pkg/ai_forensics"
 	"rag-platform/pkg/auth"
 	"rag-platform/pkg/evidence"
 	"rag-platform/pkg/forensics"
@@ -532,4 +533,109 @@ func matchEventFilter(eventType string, filters []string) bool {
 		}
 	}
 	return false
+}
+
+// AIForensicsDetectAnomalies AI 异常检测（3.0-M4）
+// POST /api/forensics/ai/detect-anomalies
+func (h *Handler) AIForensicsDetectAnomalies(c context.Context, ctx *app.RequestContext) {
+	var req struct {
+		JobID     string   `json:"job_id"`
+		JobIDs    []string `json:"job_ids"`
+		Threshold float64  `json:"threshold"`
+	}
+
+	if err := ctx.BindJSON(&req); err != nil {
+		ctx.JSON(consts.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	if h.jobEventStore == nil {
+		ctx.JSON(consts.StatusServiceUnavailable, map[string]string{"error": "job event store is not configured"})
+		return
+	}
+
+	// 设置默认阈值
+	threshold := req.Threshold
+	if threshold <= 0 || threshold > 1 {
+		threshold = 0.8
+	}
+
+	detector := ai_forensics.NewAnomalyDetector(threshold)
+	detector = detector.WithSignalSource(h)
+
+	// 检测单个 job
+	if req.JobID != "" {
+		anomalies, err := detector.DetectAnomalies(c, req.JobID)
+		if err != nil {
+			ctx.JSON(consts.StatusInternalServerError, map[string]string{
+				"error": fmt.Sprintf("detect anomalies failed: %v", err),
+			})
+			return
+		}
+
+		result := map[string]interface{}{
+			"job_id":    req.JobID,
+			"anomalies": anomalies,
+		}
+		ctx.JSON(consts.StatusOK, result)
+		return
+	}
+
+	// 批量检测
+	if len(req.JobIDs) > 0 {
+		results := make([]map[string]interface{}, 0, len(req.JobIDs))
+		for _, jobID := range req.JobIDs {
+			anomalies, err := detector.DetectAnomalies(c, jobID)
+			if err != nil {
+				continue
+			}
+			results = append(results, map[string]interface{}{
+				"job_id":    jobID,
+				"anomalies": anomalies,
+			})
+		}
+		ctx.JSON(consts.StatusOK, map[string]interface{}{
+			"results": results,
+		})
+		return
+	}
+
+	ctx.JSON(consts.StatusBadRequest, map[string]string{"error": "job_id or job_ids is required"})
+}
+
+// ListDecisionSignals 实现 ai_forensics.DecisionSignalSource 接口
+func (h *Handler) ListDecisionSignals(ctx context.Context, jobID string) ([]ai_forensics.DecisionSignal, error) {
+	signals := make([]ai_forensics.DecisionSignal, 0)
+
+	if h.jobEventStore == nil {
+		return signals, nil
+	}
+
+	// 从 JobStore 获取 job 事件
+	events, _, err := h.jobEventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 遍历事件，构建决策信号
+	for _, evt := range events {
+		signal := ai_forensics.DecisionSignal{
+			StepID: evt.ID,
+		}
+
+		// 检查是否有 tool 调用
+		if strings.Contains(string(evt.Type), "tool_invocation") {
+			signal.EvidenceCount = 1
+			signal.Consistent = true
+		}
+
+		// 检查是否有失败
+		if strings.Contains(string(evt.Type), "failed") || strings.Contains(string(evt.Type), "error") {
+			signal.Failed = true
+		}
+
+		signals = append(signals, signal)
+	}
+
+	return signals, nil
 }

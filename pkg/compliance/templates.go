@@ -4,7 +4,7 @@
 package compliance
 
 import (
-	"rag-platform/pkg/experimental/redaction"
+	"rag-platform/pkg/redaction"
 )
 
 // ComplianceTemplate 合规模板

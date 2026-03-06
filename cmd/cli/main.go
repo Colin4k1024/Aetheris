@@ -16,6 +16,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -29,6 +30,7 @@ import (
 
 	"rag-platform/pkg/config"
 	"rag-platform/pkg/proof"
+	"rag-platform/pkg/signature"
 )
 
 //go:embed templates/agent-minimal
@@ -133,6 +135,8 @@ func main() {
 		} else {
 			runVerifyJob(args[0])
 		}
+	case "sign":
+		runSign(args)
 	case "export":
 		if len(args) < 1 {
 			fmt.Fprintf(os.Stderr, "Usage: aetheris export <job_id> [--output evidence.zip]\n")
@@ -170,6 +174,7 @@ func printUsage() {
 	fmt.Println("  debug <job_id> [--compare-replay] - Agent 调试器：timeline + evidence + replay verification")
 	fmt.Println("  verify <job_id> - 执行验证：输出 execution_hash、event_chain_root、ledger proof、replay proof")
 	fmt.Println("  verify <evidence.zip> - 离线验证证据包完整性")
+	fmt.Println("  sign <evidence.zip> [--key key_id] - 对证据包进行数字签名 (3.0-M4)")
 	fmt.Println("  export <job_id> [--output evidence.zip] - 导出 Job 证据包（2.0-M1）")
 	fmt.Println("  init [dir]      - Scaffold a minimal agent project (templates + config) into current dir or dir")
 }
@@ -841,4 +846,57 @@ func verifyEvidenceZip(zipPath string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "  - %s\n", e)
 	}
 	return 1
+}
+
+// runSign 对证据包进行数字签名 (3.0-M4)
+func runSign(args []string) {
+	if len(args) < 1 {
+		fmt.Fprintf(os.Stderr, "Usage: aetheris sign <evidence.zip> [--key key_id]\n")
+		os.Exit(1)
+	}
+
+	zipPath := args[0]
+	keyID := "default"
+	for i := 1; i < len(args); i++ {
+		if args[i] == "--key" && i+1 < len(args) {
+			keyID = args[i+1]
+			break
+		}
+	}
+
+	// 读取证据包
+	zipBytes, err := os.ReadFile(zipPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading file: %v\n", err)
+		os.Exit(1)
+	}
+
+	// 创建签名器
+	ctx := context.Background()
+	keyStore := signature.NewMemoryKeyStore()
+	if err := keyStore.GenerateKey(ctx, keyID); err != nil {
+		fmt.Fprintf(os.Stderr, "Error generating key: %v\n", err)
+		os.Exit(1)
+	}
+
+	signer := signature.NewSigner(keyStore, keyID)
+	sig, err := signer.SignPackage(zipBytes)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error signing: %v\n", err)
+		os.Exit(1)
+	}
+
+	// 输出签名结果
+	sigPath := strings.TrimSuffix(zipPath, ".zip") + ".sig"
+
+	if err := os.WriteFile(sigPath, []byte(sig), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing signature: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("✓ Evidence package signed\n")
+	fmt.Printf("  - Key ID: %s\n", keyID)
+	fmt.Printf("  - Signature: %s\n", sig)
+	fmt.Printf("  - Signature saved to: %s\n", sigPath)
+	fmt.Printf("  To verify: aetheris verify %s\n", zipPath)
 }

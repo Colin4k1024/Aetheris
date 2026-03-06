@@ -15,11 +15,12 @@
 package http
 
 import (
+	"rag-platform/internal/api/http/middleware"
+	"rag-platform/pkg/auth"
+
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/common/config"
-	"rag-platform/internal/api/http/middleware"
-	"rag-platform/pkg/auth"
 )
 
 // Router HTTP 路由器（Hertz）
@@ -177,6 +178,16 @@ func (r *Router) Build(addr string, opts ...config.Option) *server.Hertz {
 			forensics.POST("/batch-export", r.authChainWith(auth.PermissionJobExport, r.handler.ForensicsBatchExport)...)
 			forensics.GET("/export-status/:task_id", r.authChainWith(auth.PermissionJobExport, r.handler.ForensicsExportStatus)...)
 			forensics.GET("/consistency/:job_id", r.authChainWith(auth.PermissionJobView, r.handler.ForensicsConsistencyCheck)...)
+			// 3.0-M4: AI 取证
+			forensics.POST("/ai/detect-anomalies", r.authChainWith(auth.PermissionJobView, r.handler.AIForensicsDetectAnomalies)...)
+		}
+
+		// 3.0-M4: Compliance API
+		compliance := api.Group("/compliance")
+		{
+			compliance.GET("/templates", r.authChainWith(auth.PermissionJobView, r.handler.ComplianceTemplates)...)
+			compliance.POST("/apply", r.authChainWith(auth.PermissionJobExport, r.handler.ComplianceApply)...)
+			compliance.POST("/report", r.authChainWith(auth.PermissionJobExport, r.handler.ComplianceReport)...)
 		}
 	}
 
