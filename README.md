@@ -256,72 +256,105 @@ Already have agents? Migrate them to Aetheris:
 
 **Aetheris treats agents as virtual processes, not tasks.** Workers schedule and host processes; processes can pause, wait for signals, receive messages, and resume across different workers.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                                     Aetheris Architecture                              │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    %% =========================
+    %% Clients
+    %% =========================
+    C[Clients<br/>CLI / HTTP / SDK]
 
-                              ┌─────────────────────┐
-                              │      Clients        │
-                              │  (CLI / HTTP / SDK) │
-                              └──────────┬──────────┘
-                                         │
-                                         ▼
-┌──────────────────────────────────────────────────────────────────────────────────────┐
-│                                  API Layer (Hertz)                                   │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐               │
-│  │  Agent API  │  │   Job API   │  │  Runs API   │  │  Trace API  │               │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘               │
-└─────────┼───────────────┼────────────────┼───────────────┼─────────────────────────┘
-          │               │                │               │
-          ▼               ▼                ▼               ▼
-┌──────────────────────────────────────────────────────────────────────────────────────┐
-│                              Agent Runtime Core                                       │
-│                                                                                      │
-│    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐       │
-│    │    Job     │───▶│  Scheduler  │───▶│   Runner    │───▶│  Planner    │       │
-│    │  Manager   │    │  (Lease &   │    │(Checkpoint) │    │ (TaskGraph) │       │
-│    │            │    │   Retry)    │    │             │    │             │       │
-│    └──────┬────┘    └──────┬──────┘    └──────┬──────┘    └──────┬──────┘       │
-│           │                │                  │                  │                │
-│           ▼                ▼                  ▼                  ▼                │
-│    ┌──────────────────────────────────────────────────────────────────────┐        │
-│    │                      Execution Engine (eino)                         │        │
-│    │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │        │
-│    │   │  LLM Node    │  │  Tool Node   │  │  Wait Node   │  ...      │        │
-│    │   └──────────────┘  └──────────────┘  └──────────────┘            │        │
-│    │         │                  │                  │                      │        │
-│    │         └──────────────────┼──────────────────┘                      │        │
-│    │                            ▼                                       │        │
-│    │                  ┌──────────────────┐                              │        │
-│    │                  │  Node Adapter   │                              │        │
-│    │                  │  (LangGraph/    │                              │        │
-│    │                  │   AutoGen/      │                              │        │
-│    │                  │   CrewAI)      │                              │        │
-│    │                  └──────────────────┘                              │        │
-│    └──────────────────────────────────────────────────────────────────────┘        │
-└───────────────────────────────────────────────────────────────────────────────────────┘
-          │
-          ▼
-┌──────────────────────────────────────────────────────────────────────────────────────┐
-│                              Event & State Layer                                     │
-│                                                                                      │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌────────────────┐ │
-│  │   JobStore     │  │  Tool Ledger   │  │ Effect Store   │  │Checkpoint Store│ │
-│  │ (Event Source) │  │(Idempotency)   │  │ (Side Effects)│  │  (Recovery)    │ │
-│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘  └───────┬────────┘ │
-└───────────┼───────────────────┼───────────────────┼────────────────────┼───────────┘
-            │                   │                   │                    │
-            ▼                   ▼                   ▼                    ▼
-┌──────────────────────────────────────────────────────────────────────────────────────┐
-│                                   Storage Layer                                      │
-│                                                                                      │
-│    ┌──────────────────────┐              ┌──────────────────────┐                   │
-│    │     PostgreSQL       │              │       Redis          │                   │
-│    │  (Jobs, Events,      │              │  (Cache, RAG,       │                   │
-│    │   State, Sessions)   │              │   Vector Index)     │                   │
-│    └──────────────────────┘              └──────────────────────┘                   │
-└───────────────────────────────────────────────────────────────────────────────────────┘
+    %% =========================
+    %% API Layer
+    %% =========================
+    subgraph API["API Layer (Hertz)"]
+        A1[Agent API]
+        A2[Job API]
+        A3[Runs API]
+        A4[Trace API]
+    end
+
+    %% =========================
+    %% Runtime Core
+    %% =========================
+    subgraph CORE["Agent Runtime Core"]
+        JM[Job Manager]
+        SCH[Scheduler<br/>Lease & Retry]
+        RUN[Runner<br/>Checkpoint]
+        PLAN[Planner<br/>TaskGraph]
+
+        JM --> SCH
+        SCH --> RUN
+        RUN --> PLAN
+
+        subgraph ENG["Execution Engine (eino)"]
+            N1[LLM Node]
+            N2[Tool Node]
+            N3[Wait Node]
+            NAD[Node Adapter<br/>LangGraph / AutoGen / CrewAI]
+            N1 --> NAD
+            N2 --> NAD
+            N3 --> NAD
+        end
+
+        PLAN --> ENG
+    end
+
+    %% =========================
+    %% Event & State Layer
+    %% =========================
+    subgraph STATE["Event & State Layer"]
+        JS[JobStore<br/>Event Source]
+        TL[Tool Ledger<br/>Idempotency]
+        ES[Effect Store<br/>Side Effects]
+        CS[Checkpoint Store<br/>Recovery]
+    end
+
+    %% =========================
+    %% Storage Layer
+    %% =========================
+    subgraph STORAGE["Storage Layer"]
+        PG[(PostgreSQL<br/>Jobs / Events / State / Sessions)]
+        RD[(Redis<br/>Cache / RAG / Vector Index)]
+    end
+
+    %% =========================
+    %% Main Flow
+    %% =========================
+    C --> A1
+    C --> A2
+    C --> A3
+    C --> A4
+
+    A1 --> JM
+    A2 --> JM
+    A3 --> RUN
+    A4 --> JS
+
+    ENG --> JS
+    ENG --> TL
+    ENG --> ES
+    RUN --> CS
+
+    JS --> PG
+    CS --> PG
+    TL --> PG
+    ES --> PG
+    ES -. optional cache/index .-> RD
+
+    %% =========================
+    %% Styling
+    %% =========================
+    classDef api fill:#E8F0FE,stroke:#4A6CF7,stroke-width:1px,color:#111;
+    classDef core fill:#EAF7EE,stroke:#2E8B57,stroke-width:1px,color:#111;
+    classDef state fill:#FFF4E5,stroke:#D97706,stroke-width:1px,color:#111;
+    classDef store fill:#F3E8FF,stroke:#7C3AED,stroke-width:1px,color:#111;
+    classDef client fill:#F9FAFB,stroke:#6B7280,stroke-width:1px,color:#111;
+
+    class C client;
+    class A1,A2,A3,A4 api;
+    class JM,SCH,RUN,PLAN,N1,N2,N3,NAD core;
+    class JS,TL,ES,CS state;
+    class PG,RD store;
 ```
 
 ### Key Components
@@ -341,12 +374,18 @@ Already have agents? Migrate them to Aetheris:
 
 ### Execution Flow
 
-```
-User Request → Agent API → Job Created → Scheduler (Lease)
-    → Runner (Checkpoint) → Planner (TaskGraph)
-    → Eino (DAG Execute) → Tool/LLM/Wait Nodes
-    → Events Written → Job Complete
-```
+User Request → API Layer → Job Created → Scheduler (Lease)
+→ Runner (Checkpoint) → Planner (TaskGraph)
+→ Execution Engine (LLM / Tool / Wait Nodes)
+→ Events Written → Job Complete
+
+### Notes
+
+- **Aetheris treats agents as virtual processes, not one-shot tasks**
+- **Execution is event-sourced and recoverable**
+- **Tool Ledger ensures at-most-once tool execution**
+- **Checkpoint Store enables crash recovery**
+- **Framework adapters map LangGraph / AutoGen / CrewAI flows into the runtime**
 
 ### Framework Adapters
 
