@@ -84,6 +84,7 @@ type mockTool struct {
 	execute   func(ctx context.Context, input map[string]any) (map[string]any, error)
 	callCount atomic.Int32
 	callLog   []map[string]any
+	mu        sync.Mutex
 }
 
 func (m *mockTool) Name() string {
@@ -92,7 +93,9 @@ func (m *mockTool) Name() string {
 
 func (m *mockTool) Execute(ctx context.Context, input map[string]any) (map[string]any, error) {
 	m.callCount.Add(1)
+	m.mu.Lock()
 	m.callLog = append(m.callLog, input)
+	m.mu.Unlock()
 	return m.execute(ctx, input)
 }
 
