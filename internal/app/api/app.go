@@ -543,8 +543,11 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 			schedulerConfig.Queues = sc.Queues
 		}
 	}
-	jobScheduler := job.NewScheduler(jobStore, runJob, schedulerConfig)
+	// 创建唤醒队列，用于 Parked/Waiting Job 的事件驱动唤醒
+	wakeupQueue := job.NewWakeupQueueMem(256)
+	jobScheduler := job.NewScheduler(jobStore, runJob, schedulerConfig, wakeupQueue)
 	handler.SetJobStore(jobStore)
+	handler.SetWakeupQueue(wakeupQueue)
 	if pgStore, ok := jobStore.(*job.JobStorePg); ok {
 		handler.SetObservabilityReader(pgStore)
 	}

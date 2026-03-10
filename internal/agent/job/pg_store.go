@@ -453,6 +453,14 @@ func (s *JobStorePg) ReclaimOrphanedJobs(ctx context.Context, olderThan time.Dur
 	return int(cmd.RowsAffected()), nil
 }
 
+// Wakeup 将 Parked 或 Waiting 的 Job 唤醒为 Pending
+func (s *JobStorePg) Wakeup(ctx context.Context, jobID string) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE jobs SET status = $1, updated_at = now() WHERE id = $2 AND (status = $3 OR status = $4)`,
+		pgStatusPending, jobID, pgStatusParked, pgStatusWaiting)
+	return err
+}
+
 // CountPending 实现 ObservabilityReader；queue 当前未按列过滤，返回全部 Pending 数
 func (s *JobStorePg) CountPending(ctx context.Context, queue string) (int, error) {
 	var n int

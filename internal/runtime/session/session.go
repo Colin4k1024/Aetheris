@@ -21,13 +21,26 @@ import (
 	"github.com/google/uuid"
 )
 
+// MemoryBlock 长期记忆块
+type MemoryBlock struct {
+	ID        string
+	Type      string // working, long_term, episodic
+	Key       string
+	Value     []byte
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 // Session AI 任务进程：唯一状态载体
 type Session struct {
 	ID        string
+	tenantID  string // 多租户隔离
+	agentID   string // 关联的 Agent ID
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
 	Messages     []*Message       // 对话历史（short-term）
+	MemoryBlocks []*MemoryBlock   // 长期记忆
 	WorkingState map[string]any   // 当前推理中间态
 	ToolCalls    []ToolCallRecord // 工具调用记录
 
@@ -47,6 +60,7 @@ func New(id string) *Session {
 		CreatedAt:    now,
 		UpdatedAt:    now,
 		Messages:     nil,
+		MemoryBlocks: nil,
 		WorkingState: make(map[string]any),
 		ToolCalls:    nil,
 		Metadata:     make(map[string]any),
@@ -117,5 +131,94 @@ func (s *Session) CopyToolCalls() []ToolCallRecord {
 	}
 	out := make([]ToolCallRecord, len(s.ToolCalls))
 	copy(out, s.ToolCalls)
+	return out
+}
+
+// TenantID 返回租户 ID
+func (s *Session) TenantID() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.tenantID
+}
+
+// SetTenantID 设置租户 ID
+func (s *Session) SetTenantID(tenantID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.tenantID = tenantID
+	s.UpdatedAt = time.Now()
+}
+
+// AgentID 返回关联的 Agent ID
+func (s *Session) AgentID() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.agentID
+}
+
+// SetAgentID 设置关联的 Agent ID
+func (s *Session) SetAgentID(agentID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.agentID = agentID
+	s.UpdatedAt = time.Now()
+}
+
+// AddMemoryBlock 添加记忆块
+func (s *Session) AddMemoryBlock(block *MemoryBlock) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.UpdatedAt = time.Now()
+	s.MemoryBlocks = append(s.MemoryBlocks, block)
+}
+
+// GetMemoryBlock 根据 ID 获取记忆块
+func (s *Session) GetMemoryBlock(id string) *MemoryBlock {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, b := range s.MemoryBlocks {
+		if b.ID == id {
+			return b
+		}
+	}
+	return nil
+}
+
+// RemoveMemoryBlock 移除记忆块
+func (s *Session) RemoveMemoryBlock(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, b := range s.MemoryBlocks {
+		if b.ID == id {
+			s.MemoryBlocks = append(s.MemoryBlocks[:i], s.MemoryBlocks[i+1:]...)
+			s.UpdatedAt = time.Now()
+			return true
+		}
+	}
+	return false
+}
+
+// ListMemoryBlocksByType 按类型列出记忆块
+func (s *Session) ListMemoryBlocksByType(memType string) []*MemoryBlock {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var result []*MemoryBlock
+	for _, b := range s.MemoryBlocks {
+		if b.Type == memType {
+			result = append(result, b)
+		}
+	}
+	return result
+}
+
+// CopyMemoryBlocks 返回记忆块副本
+func (s *Session) CopyMemoryBlocks() []*MemoryBlock {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if len(s.MemoryBlocks) == 0 {
+		return nil
+	}
+	out := make([]*MemoryBlock, len(s.MemoryBlocks))
+	copy(out, s.MemoryBlocks)
 	return out
 }
