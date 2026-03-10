@@ -45,6 +45,20 @@ type JobStore interface {
 	RequestCancel(ctx context.Context, jobID string) error
 	// ReclaimOrphanedJobs 将 status=Running 且 updated_at 早于 (now - olderThan) 的 Job 置回 Pending，供其他 Worker 认领；返回回收数量（design/job-state-machine.md）
 	ReclaimOrphanedJobs(ctx context.Context, olderThan time.Duration) (int, error)
+
+	// --- Parked/Waiting 状态管理 ---
+
+	// SetWaiting 将 Job 设置为 Waiting 状态（短暂等待 <1min）
+	// correlationKey 用于后续 signal 匹配唤醒
+	SetWaiting(ctx context.Context, jobID, correlationKey, waitType, reason string) error
+	// SetParked 将 Job 设置为 Parked 状态（长时间等待 >1min）
+	// Parked 的 Job 不参与正常调度轮询，仅通过 WakeupQueue 唤醒
+	SetParked(ctx context.Context, jobID, correlationKey, waitType, reason string) error
+	// WakeupJob 通过 correlationKey 唤醒 Parked/Waiting 的 Job，转换回 Pending 状态
+	// 返回被唤醒的 Job，若无匹配则返回 nil
+	WakeupJob(ctx context.Context, correlationKey string) (*Job, error)
+	// ClaimParkedJob 认领一个 Parked 的 Job（通过 WakeupQueue 收到 jobID 后调用）
+	ClaimParkedJob(ctx context.Context, jobID string) (*Job, error)
 }
 
 // jobMatchesCapabilities 判断 Job 的 RequiredCapabilities 是否被 workerCapabilities 覆盖；jobRequired 为空表示任意 Worker 可执行；workerCapabilities 为空表示不按能力过滤
@@ -67,19 +81,35 @@ func jobMatchesCapabilities(jobRequired, workerCapabilities []string) bool {
 	return true
 }
 
+// waitingInfo 等待信息，用于 Parked/Waiting 状态
+type waitingInfo struct {
+	jobID          string
+	correlationKey string
+	waitType       string // webhook, human, timer, signal, message
+	reason         string
+	status         JobStatus // StatusWaiting 或 StatusParked
+	setAt          time.Time
+}
+
 // JobStoreMem 内存实现：map + Pending 队列，Create 时入队，ClaimNextPending 取队首并置 Running
 type JobStoreMem struct {
 	mu      sync.Mutex
 	byID    map[string]*Job
 	pending []string
 	cond    *sync.Cond
+
+	// waiting 和 parked 状态的 Job 跟踪
+	waiting      map[string]*waitingInfo // jobID -> waitingInfo
+	waitingByKey map[string]*waitingInfo // correlationKey -> waitingInfo
 }
 
 // NewJobStoreMem 创建内存 JobStore
 func NewJobStoreMem() *JobStoreMem {
 	j := &JobStoreMem{
-		byID:    make(map[string]*Job),
-		pending: nil,
+		byID:         make(map[string]*Job),
+		pending:      nil,
+		waiting:      make(map[string]*waitingInfo),
+		waitingByKey: make(map[string]*waitingInfo),
 	}
 	j.cond = sync.NewCond(&j.mu)
 	return j
@@ -284,4 +314,121 @@ func (s *JobStoreMem) WaitNextPending(ctx context.Context) (*Job, error) {
 		s.mu.Unlock()
 		return &cp, nil
 	}
+}
+
+// SetWaiting 将 Job 设置为 Waiting 状态（短暂等待 <1min）
+func (s *JobStoreMem) SetWaiting(ctx context.Context, jobID, correlationKey, waitType, reason string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	j, ok := s.byID[jobID]
+	if !ok {
+		return nil
+	}
+	j.Status = StatusWaiting
+	j.UpdatedAt = time.Now()
+
+	info := &waitingInfo{
+		jobID:          jobID,
+		correlationKey: correlationKey,
+		waitType:       waitType,
+		reason:         reason,
+		status:         StatusWaiting,
+		setAt:          time.Now(),
+	}
+	s.waiting[jobID] = info
+	if correlationKey != "" {
+		s.waitingByKey[correlationKey] = info
+	}
+	return nil
+}
+
+// SetParked 将 Job 设置为 Parked 状态（长时间等待 >1min）
+// Parked 的 Job 不参与正常调度轮询，仅通过 WakeupQueue 唤醒
+func (s *JobStoreMem) SetParked(ctx context.Context, jobID, correlationKey, waitType, reason string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	j, ok := s.byID[jobID]
+	if !ok {
+		return nil
+	}
+	j.Status = StatusParked
+	j.UpdatedAt = time.Now()
+
+	info := &waitingInfo{
+		jobID:          jobID,
+		correlationKey: correlationKey,
+		waitType:       waitType,
+		reason:         reason,
+		status:         StatusParked,
+		setAt:          time.Now(),
+	}
+	s.waiting[jobID] = info
+	if correlationKey != "" {
+		s.waitingByKey[correlationKey] = info
+	}
+	return nil
+}
+
+// WakeupJob 通过 correlationKey 唤醒 Parked/Waiting 的 Job，转换回 Pending 状态
+func (s *JobStoreMem) WakeupJob(ctx context.Context, correlationKey string) (*Job, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	info, ok := s.waitingByKey[correlationKey]
+	if !ok {
+		return nil, nil
+	}
+
+	j, ok := s.byID[info.jobID]
+	if !ok {
+		delete(s.waitingByKey, correlationKey)
+		delete(s.waiting, info.jobID)
+		return nil, nil
+	}
+
+	// 从 waiting 跟踪中移除
+	delete(s.waitingByKey, correlationKey)
+	delete(s.waiting, info.jobID)
+
+	// 转换回 Pending 状态
+	j.Status = StatusPending
+	j.UpdatedAt = time.Now()
+
+	// 加入 pending 队列
+	s.pending = append(s.pending, j.ID)
+	s.cond.Signal()
+
+	cp := *j
+	return &cp, nil
+}
+
+// ClaimParkedJob 认领一个 Parked 的 Job（通过 WakeupQueue 收到 jobID 后调用）
+func (s *JobStoreMem) ClaimParkedJob(ctx context.Context, jobID string) (*Job, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	j, ok := s.byID[jobID]
+	if !ok {
+		return nil, nil
+	}
+
+	// 只能认领 Parked 或 Waiting 状态的 Job
+	if j.Status != StatusParked && j.Status != StatusWaiting {
+		return nil, nil
+	}
+
+	// 从 waiting 跟踪中移除
+	if info, ok := s.waiting[jobID]; ok {
+		delete(s.waiting, jobID)
+		if info.correlationKey != "" {
+			delete(s.waitingByKey, info.correlationKey)
+		}
+	}
+
+	// 设置为 Running 状态
+	j.Status = StatusRunning
+	j.UpdatedAt = time.Now()
+
+	cp := *j
+	return &cp, nil
 }

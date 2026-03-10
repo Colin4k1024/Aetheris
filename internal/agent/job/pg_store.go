@@ -497,3 +497,42 @@ func (s *JobStorePg) CountByStatus(ctx context.Context) (map[string]int64, error
 	}
 	return out, rows.Err()
 }
+
+// SetWaiting PostgreSQL 实现：TODO - 需要 waiting_info 表支持
+func (s *JobStorePg) SetWaiting(ctx context.Context, jobID, correlationKey, waitType, reason string) error {
+	// TODO: 实现 waiting_info 表写入
+	_, err := s.pool.Exec(ctx,
+		`UPDATE jobs SET status = $1, updated_at = now() WHERE id = $2`,
+		pgStatusWaiting, jobID)
+	return err
+}
+
+// SetParked PostgreSQL 实现：TODO - 需要 waiting_info 表支持
+func (s *JobStorePg) SetParked(ctx context.Context, jobID, correlationKey, waitType, reason string) error {
+	// TODO: 实现 waiting_info 表写入
+	_, err := s.pool.Exec(ctx,
+		`UPDATE jobs SET status = $1, updated_at = now() WHERE id = $2`,
+		pgStatusParked, jobID)
+	return err
+}
+
+// WakeupJob PostgreSQL 实现：TODO - 需要 waiting_info 表支持
+func (s *JobStorePg) WakeupJob(ctx context.Context, correlationKey string) (*Job, error) {
+	// TODO: 实现 waiting_info 表查询和状态更新
+	return nil, nil
+}
+
+// ClaimParkedJob PostgreSQL 实现
+func (s *JobStorePg) ClaimParkedJob(ctx context.Context, jobID string) (*Job, error) {
+	// 尝试将 Parked/Waiting 状态的 Job 置为 Running
+	result, err := s.pool.Exec(ctx,
+		`UPDATE jobs SET status = $1, updated_at = now() WHERE id = $2 AND status IN ($3, $4) RETURNING id`,
+		pgStatusRunning, jobID, pgStatusParked, pgStatusWaiting)
+	if err != nil {
+		return nil, err
+	}
+	if result.RowsAffected() == 0 {
+		return nil, nil
+	}
+	return s.Get(ctx, jobID)
+}

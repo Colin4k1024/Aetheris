@@ -28,19 +28,33 @@ type Message struct {
 	Time    time.Time `json:"time"`
 }
 
+// MemoryBlock 记忆块 - 用于长期记忆管理
+type MemoryBlock struct {
+	ID        string         `json:"id"`         // 记忆块唯一标识
+	Type      string         `json:"type"`       // 记忆类型: working, long_term, episodic
+	Key       string         `json:"key"`        // 记忆键
+	Content   string         `json:"content"`    // 记忆内容
+	Metadata  map[string]any `json:"metadata"`   // 元数据
+	CreatedAt time.Time      `json:"created_at"` // 创建时间
+	UpdatedAt time.Time      `json:"updated_at"` // 更新时间
+}
+
 // Session v1：归属某 Agent，承载当前对话与任务状态
 type Session struct {
-	ID      string
-	AgentID string
+	ID       string
+	AgentID  string
+	TenantID string // 租户 ID，用于多租户隔离
 
-	Messages   []Message
-	Variables  map[string]any
-	ToolCalls  []ToolCallRecord
-	Scratchpad string
+	Messages     []Message
+	MemoryBlocks []*MemoryBlock // 长期记忆块
+	Variables    map[string]any
+	ToolCalls    []ToolCallRecord
+	Scratchpad   string
 
 	CurrentTask    string
 	LastCheckpoint string
 
+	CreatedAt time.Time
 	UpdatedAt time.Time
 
 	mu sync.RWMutex
@@ -53,11 +67,35 @@ func NewSession(id, agentID string) *Session {
 		id = "session-" + uuid.New().String()
 	}
 	return &Session{
-		ID:        id,
-		AgentID:   agentID,
-		Messages:  nil,
-		Variables: make(map[string]any),
-		UpdatedAt: now,
+		ID:           id,
+		AgentID:      agentID,
+		TenantID:     "default",
+		Messages:     nil,
+		MemoryBlocks: nil,
+		Variables:    make(map[string]any),
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+}
+
+// NewSessionWithTenant 创建带租户 ID 的新 Session
+func NewSessionWithTenant(id, agentID, tenantID string) *Session {
+	now := time.Now()
+	if id == "" {
+		id = "session-" + uuid.New().String()
+	}
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	return &Session{
+		ID:           id,
+		AgentID:      agentID,
+		TenantID:     tenantID,
+		Messages:     nil,
+		MemoryBlocks: nil,
+		Variables:    make(map[string]any),
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 }
 
@@ -151,4 +189,87 @@ func (s *Session) CopyMessages() []Message {
 	out := make([]Message, len(s.Messages))
 	copy(out, s.Messages)
 	return out
+}
+
+// AddMemoryBlock 添加记忆块
+func (s *Session) AddMemoryBlock(block *MemoryBlock) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.UpdatedAt = time.Now()
+	block.CreatedAt = s.UpdatedAt
+	block.UpdatedAt = s.UpdatedAt
+	s.MemoryBlocks = append(s.MemoryBlocks, block)
+}
+
+// GetMemoryBlock 获取指定记忆块
+func (s *Session) GetMemoryBlock(id string) *MemoryBlock {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, block := range s.MemoryBlocks {
+		if block.ID == id {
+			return block
+		}
+	}
+	return nil
+}
+
+// GetMemoryBlocksByType 获取指定类型的记忆块
+func (s *Session) GetMemoryBlocksByType(memType string) []*MemoryBlock {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var result []*MemoryBlock
+	for _, block := range s.MemoryBlocks {
+		if block.Type == memType {
+			result = append(result, block)
+		}
+	}
+	return result
+}
+
+// RemoveMemoryBlock 移除记忆块
+func (s *Session) RemoveMemoryBlock(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, block := range s.MemoryBlocks {
+		if block.ID == id {
+			s.MemoryBlocks = append(s.MemoryBlocks[:i], s.MemoryBlocks[i+1:]...)
+			s.UpdatedAt = time.Now()
+			return true
+		}
+	}
+	return false
+}
+
+// CopyMemoryBlocks 返回 MemoryBlocks 副本
+func (s *Session) CopyMemoryBlocks() []*MemoryBlock {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if len(s.MemoryBlocks) == 0 {
+		return nil
+	}
+	out := make([]*MemoryBlock, len(s.MemoryBlocks))
+	copy(out, s.MemoryBlocks)
+	return out
+}
+
+// GetAgentID 返回 AgentID（并发安全）
+func (s *Session) GetAgentID() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.AgentID
+}
+
+// GetTenantID 返回 TenantID（并发安全）
+func (s *Session) GetTenantID() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.TenantID
+}
+
+// SetTenantID 设置 TenantID
+func (s *Session) SetTenantID(tenantID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.TenantID = tenantID
+	s.UpdatedAt = time.Now()
 }

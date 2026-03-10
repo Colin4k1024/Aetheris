@@ -40,6 +40,8 @@ type SchedulerConfig struct {
 	Queues []string
 	// Capabilities 调度器（Worker）能力列表；非空时仅认领 Job.RequiredCapabilities 满足的 Job
 	Capabilities []string
+	// WakeupQueueTimeout WakeupQueue Receive 超时时间，默认 1 秒
+	WakeupQueueTimeout time.Duration
 }
 
 // Scheduler 在 JobStore 之上提供排队、并发限制与重试；形态为 API→Job Queue→Scheduler→Worker→Executor
@@ -52,6 +54,7 @@ type Scheduler struct {
 	stopCh     chan struct{}
 	wg         sync.WaitGroup
 	limiter    chan struct{} // 信号量，限制并发
+	wakeup     WakeupQueue   // 事件驱动唤醒队列
 }
 
 // NewScheduler 创建调度器；config 为并发与重试策略
@@ -60,13 +63,23 @@ func NewScheduler(store JobStore, runJob RunJobFunc, config SchedulerConfig) *Sc
 	if max <= 0 {
 		max = 1
 	}
+	timeout := config.WakeupQueueTimeout
+	if timeout <= 0 {
+		timeout = time.Second
+	}
 	return &Scheduler{
 		store:   store,
 		runJob:  runJob,
 		config:  config,
 		stopCh:  make(chan struct{}),
 		limiter: make(chan struct{}, max),
+		wakeup:  nil,
 	}
+}
+
+// SetWakeupQueue 设置唤醒队列（可选，用于事件驱动唤醒 Parked/Waiting 的 Job）
+func (s *Scheduler) SetWakeupQueue(wakeup WakeupQueue) {
+	s.wakeup = wakeup
 }
 
 // SetCompensate 设置 CompensatableFailure 时的补偿回调（可选）
@@ -80,6 +93,7 @@ func (s *Scheduler) SetLogger(logger *slog.Logger) {
 }
 
 // Start 启动调度循环：最多 MaxConcurrency 个 worker 拉取 Pending、执行、成功则 UpdateStatus(Completed)，failed则按 RetryMax/Backoff 重试或 UpdateStatus(Failed)
+// 若配置了 WakeupQueue，则优先从 WakeupQueue 接收唤醒事件，实现事件驱动唤醒 Parked/Waiting Job
 func (s *Scheduler) Start(ctx context.Context) {
 	s.wg.Add(1)
 	go func() {
@@ -92,33 +106,54 @@ func (s *Scheduler) Start(ctx context.Context) {
 				return
 			case s.limiter <- struct{}{}:
 				tickStart := time.Now()
-				// 占一个槽位后拉取；若配置了 Queues 则按队列优先级依次尝试；Capabilities 非空时按能力派发
 				var j *Job
 				var err error
-				if len(s.config.Queues) > 0 {
-					for _, q := range s.config.Queues {
-						if len(s.config.Capabilities) > 0 {
-							j, err = s.store.ClaimNextPendingForWorker(ctx, q, s.config.Capabilities, "")
-						} else {
-							j, err = s.store.ClaimNextPendingFromQueue(ctx, q)
-						}
+
+				// 优先尝试从 WakeupQueue 获取唤醒的 Job（事件驱动）
+				if s.wakeup != nil {
+					timeout := s.config.WakeupQueueTimeout
+					if timeout <= 0 {
+						timeout = time.Second
+					}
+					jobID, ok := s.wakeup.Receive(ctx, timeout)
+					if ok && jobID != "" {
+						// 收到唤醒事件，认领该 Parked/Waiting Job
+						j, err = s.store.ClaimParkedJob(ctx, jobID)
 						if err != nil && s.logger != nil {
-							s.logger.Error("failed to claim job from queue", "queue", q, "error", err)
+							s.logger.Error("failed to claim parked job from wakeup", "job_id", jobID, "error", err)
 						}
-						if j != nil {
-							break
-						}
-					}
-				} else {
-					if len(s.config.Capabilities) > 0 {
-						j, err = s.store.ClaimNextPendingForWorker(ctx, "", s.config.Capabilities, "")
-					} else {
-						j, err = s.store.ClaimNextPending(ctx)
-					}
-					if err != nil && s.logger != nil {
-						s.logger.Error("failed to claim job", "error", err)
 					}
 				}
+
+				// 如果没有从 WakeupQueue 获取到 Job，则从普通队列拉取
+				// 注意：Parked 状态的 Job 不会出现在 pending 队列中，只能通过 WakeupQueue 唤醒
+				if j == nil {
+					if len(s.config.Queues) > 0 {
+						for _, q := range s.config.Queues {
+							if len(s.config.Capabilities) > 0 {
+								j, err = s.store.ClaimNextPendingForWorker(ctx, q, s.config.Capabilities, "")
+							} else {
+								j, err = s.store.ClaimNextPendingFromQueue(ctx, q)
+							}
+							if err != nil && s.logger != nil {
+								s.logger.Error("failed to claim job from queue", "queue", q, "error", err)
+							}
+							if j != nil {
+								break
+							}
+						}
+					} else {
+						if len(s.config.Capabilities) > 0 {
+							j, err = s.store.ClaimNextPendingForWorker(ctx, "", s.config.Capabilities, "")
+						} else {
+							j, err = s.store.ClaimNextPending(ctx)
+						}
+						if err != nil && s.logger != nil {
+							s.logger.Error("failed to claim job", "error", err)
+						}
+					}
+				}
+
 				metrics.SchedulerTickDurationSeconds.Observe(time.Since(tickStart).Seconds())
 				if j == nil {
 					metrics.LeaseAcquireTotal.WithLabelValues("default", "false").Inc()

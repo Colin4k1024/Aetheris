@@ -39,13 +39,23 @@ const (
 	JobCancelled           EventType = "job_cancelled"
 
 	// Job 状态机事件（见 design/job-state-machine.md）：驱动状态迁移，写入后应更新 metadata status
-	JobQueued  EventType = "job_queued"
-	JobLeased  EventType = "job_leased"
-	JobRunning EventType = "job_running"
-	// JobWaiting 表示 Job 在 Wait 节点挂起；payload 必须含 correlation_key、wait_type（design/runtime-contract.md）
-	JobWaiting    EventType = "job_waiting"
+	JobQueued     EventType = "job_queued"
+	JobLeased     EventType = "job_leased"
+	JobRunning    EventType = "job_running"
+	JobWaiting    EventType = "job_waiting" // Job 在 Wait 节点挂起
 	JobRequeued   EventType = "job_requeued"
 	WaitCompleted EventType = "wait_completed"
+
+	// DDD 领域事件补充：Job 生命周期事件
+	JobParked  EventType = "job_parked"  // Job 进入 Parked 状态（长时间等待）
+	JobResumed EventType = "job_resumed" // Job 从 Parked/Waiting 恢复执行
+
+	// DDD 领域事件补充：执行过程事件（Step 级别）
+	StepStarted     EventType = "step_started"     // Step 开始执行
+	StepFinished    EventType = "step_finished"    // Step 执行完成
+	StepFailed      EventType = "step_failed"      // Step 执行失败
+	StepRetried     EventType = "step_retried"     // Step 重试
+	CheckpointSaved EventType = "checkpoint_saved" // Checkpoint 已保存
 
 	// 以上事件中参与 Replay 的 Effect 事件（见 design/effect-system.md）：
 	// PlanGenerated, CommandCommitted, ToolInvocationFinished, NodeFinished 用于重建 ReplayContext；
@@ -160,4 +170,218 @@ type JobEvent struct {
 	// 2.0-M1: Proof chain for tamper detection
 	PrevHash string // 上一个事件的 hash（SHA256）
 	Hash     string // 当前事件 hash（SHA256(JobID|Type|Payload|Timestamp|PrevHash)）
+}
+
+// UnmarshalPayload 解码事件 Payload 到目标结构体
+func (e *JobEvent) UnmarshalPayload(v any) error {
+	if e.Payload == nil {
+		return nil
+	}
+	return json.Unmarshal(e.Payload, v)
+}
+
+// DDD 领域事件 Payloads
+
+// JobParkedPayload job_parked 事件 payload
+type JobParkedPayload struct {
+	Reason         string     `json:"reason"`               // 停放原因
+	CorrelationKey string     `json:"correlation_key"`      // 用于唤醒的关联键
+	WaitType       string     `json:"wait_type"`            // webhook, human, timer, signal, message
+	ExpiresAt      *time.Time `json:"expires_at,omitempty"` // 过期时间（可选）
+}
+
+// JobResumedPayload job_resumed 事件 payload
+type JobResumedPayload struct {
+	CorrelationKey string `json:"correlation_key"` // 唤醒时使用的关联键
+	ResumedBy      string `json:"resumed_by"`      // signal, webhook, timer, manual
+}
+
+// StepStartedPayload step_started 事件 payload
+type StepStartedPayload struct {
+	StepID    string `json:"step_id"`         // Step 唯一标识
+	NodeID    string `json:"node_id"`         // 关联的 Node ID
+	StepIndex int    `json:"step_index"`      // Step 在 TaskGraph 中的索引
+	Input     string `json:"input,omitempty"` // Step 输入（可选，用于调试）
+}
+
+// StepFinishedPayload step_finished 事件 payload
+type StepFinishedPayload struct {
+	StepID     string `json:"step_id"`          // Step 唯一标识
+	NodeID     string `json:"node_id"`          // 关联的 Node ID
+	StepIndex  int    `json:"step_index"`       // Step 在 TaskGraph 中的索引
+	Output     string `json:"output,omitempty"` // Step 输出（可选）
+	DurationMs int64  `json:"duration_ms"`      // 执行耗时（毫秒）
+}
+
+// StepFailedPayload step_failed 事件 payload
+type StepFailedPayload struct {
+	StepID    string     `json:"step_id"`            // Step 唯一标识
+	NodeID    string     `json:"node_id"`            // 关联的 Node ID
+	StepIndex int        `json:"step_index"`         // Step 在 TaskGraph 中的索引
+	Error     string     `json:"error"`              // 错误信息
+	Retryable bool       `json:"retryable"`          // 是否可重试
+	RetryAt   *time.Time `json:"retry_at,omitempty"` // 计划重试时间（可选）
+}
+
+// StepRetriedPayload step_retried 事件 payload
+type StepRetriedPayload struct {
+	StepID     string `json:"step_id"`     // Step 唯一标识
+	NodeID     string `json:"node_id"`     // 关联的 Node ID
+	StepIndex  int    `json:"step_index"`  // Step 在 TaskGraph 中的索引
+	RetryCount int    `json:"retry_count"` // 当前重试次数
+	PrevError  string `json:"prev_error"`  // 上次错误信息
+	MaxRetries int    `json:"max_retries"` // 最大重试次数
+}
+
+// CheckpointSavedPayload checkpoint_saved 事件 payload
+type CheckpointSavedPayload struct {
+	CheckpointID string `json:"checkpoint_id"` // Checkpoint 唯一标识
+	JobID        string `json:"job_id"`        // 所属 Job ID
+	SessionID    string `json:"session_id"`    // 关联的 Session ID
+	Cursor       string `json:"cursor"`        // 恢复游标
+	StepIndex    int    `json:"step_index"`    // Checkpoint 时的 Step 索引
+	SnapshotSize int    `json:"snapshot_size"` // 快照大小（字节）
+}
+
+// NewJobParkedEvent 创建 job_parked 事件
+func NewJobParkedEvent(jobID, reason, correlationKey, waitType string) (*JobEvent, error) {
+	payload := JobParkedPayload{
+		Reason:         reason,
+		CorrelationKey: correlationKey,
+		WaitType:       waitType,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return &JobEvent{
+		JobID:     jobID,
+		Type:      JobParked,
+		Payload:   data,
+		CreatedAt: time.Now(),
+	}, nil
+}
+
+// NewJobResumedEvent 创建 job_resumed 事件
+func NewJobResumedEvent(jobID, correlationKey, resumedBy string) (*JobEvent, error) {
+	payload := JobResumedPayload{
+		CorrelationKey: correlationKey,
+		ResumedBy:      resumedBy,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return &JobEvent{
+		JobID:     jobID,
+		Type:      JobResumed,
+		Payload:   data,
+		CreatedAt: time.Now(),
+	}, nil
+}
+
+// NewStepStartedEvent 创建 step_started 事件
+func NewStepStartedEvent(jobID, stepID, nodeID string, stepIndex int, input string) (*JobEvent, error) {
+	payload := StepStartedPayload{
+		StepID:    stepID,
+		NodeID:    nodeID,
+		StepIndex: stepIndex,
+		Input:     input,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return &JobEvent{
+		JobID:     jobID,
+		Type:      StepStarted,
+		Payload:   data,
+		CreatedAt: time.Now(),
+	}, nil
+}
+
+// NewStepFinishedEvent 创建 step_finished 事件
+func NewStepFinishedEvent(jobID, stepID, nodeID string, stepIndex int, output string, durationMs int64) (*JobEvent, error) {
+	payload := StepFinishedPayload{
+		StepID:     stepID,
+		NodeID:     nodeID,
+		StepIndex:  stepIndex,
+		Output:     output,
+		DurationMs: durationMs,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return &JobEvent{
+		JobID:     jobID,
+		Type:      StepFinished,
+		Payload:   data,
+		CreatedAt: time.Now(),
+	}, nil
+}
+
+// NewStepFailedEvent 创建 step_failed 事件
+func NewStepFailedEvent(jobID, stepID, nodeID string, stepIndex int, errMsg string, retryable bool) (*JobEvent, error) {
+	payload := StepFailedPayload{
+		StepID:    stepID,
+		NodeID:    nodeID,
+		StepIndex: stepIndex,
+		Error:     errMsg,
+		Retryable: retryable,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return &JobEvent{
+		JobID:     jobID,
+		Type:      StepFailed,
+		Payload:   data,
+		CreatedAt: time.Now(),
+	}, nil
+}
+
+// NewStepRetriedEvent 创建 step_retried 事件
+func NewStepRetriedEvent(jobID, stepID, nodeID string, stepIndex, retryCount, maxRetries int, prevError string) (*JobEvent, error) {
+	payload := StepRetriedPayload{
+		StepID:     stepID,
+		NodeID:     nodeID,
+		StepIndex:  stepIndex,
+		RetryCount: retryCount,
+		PrevError:  prevError,
+		MaxRetries: maxRetries,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return &JobEvent{
+		JobID:     jobID,
+		Type:      StepRetried,
+		Payload:   data,
+		CreatedAt: time.Now(),
+	}, nil
+}
+
+// NewCheckpointSavedEvent 创建 checkpoint_saved 事件
+func NewCheckpointSavedEvent(jobID, checkpointID, sessionID, cursor string, stepIndex, snapshotSize int) (*JobEvent, error) {
+	payload := CheckpointSavedPayload{
+		CheckpointID: checkpointID,
+		JobID:        jobID,
+		SessionID:    sessionID,
+		Cursor:       cursor,
+		StepIndex:    stepIndex,
+		SnapshotSize: snapshotSize,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return &JobEvent{
+		JobID:     jobID,
+		Type:      CheckpointSaved,
+		Payload:   data,
+		CreatedAt: time.Now(),
+	}, nil
 }
