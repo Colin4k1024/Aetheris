@@ -44,6 +44,7 @@ const (
 	JobRunning    EventType = "job_running"
 	JobWaiting    EventType = "job_waiting" // Job 在 Wait 节点挂起
 	JobRequeued   EventType = "job_requeued"
+	JobRetrying   EventType = "job_retrying" // Job 进入重试状态
 	WaitCompleted EventType = "wait_completed"
 
 	// DDD 领域事件补充：Job 生命周期事件

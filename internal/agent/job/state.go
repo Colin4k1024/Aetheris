@@ -66,7 +66,7 @@ func IsJobBlocked(events []jobstore.JobEvent) bool {
 		switch events[i].Type {
 		case jobstore.JobWaiting, jobstore.JobParked:
 			return true
-		case jobstore.JobCreated, jobstore.JobQueued, jobstore.JobRequeued, jobstore.JobLeased, jobstore.JobRunning,
+		case jobstore.JobCreated, jobstore.JobQueued, jobstore.JobRequeued, jobstore.JobRetrying, jobstore.JobLeased, jobstore.JobRunning,
 			jobstore.WaitCompleted, jobstore.JobCompleted, jobstore.JobFailed, jobstore.JobCancelled, jobstore.JobResumed:
 			return false
 		default:
