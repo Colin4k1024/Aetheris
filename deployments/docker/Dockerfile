@@ -1,6 +1,6 @@
 # 占位 Dockerfile（设计 struct.md 5）
 # 后续可改为多阶段构建：build rag-platform 二进制后放入最小镜像
-FROM golang:1.21-alpine AS builder
+FROM golang:1.26-alpine AS builder
 WORKDIR /app
 # COPY go.mod go.sum ./
 # RUN go mod download
