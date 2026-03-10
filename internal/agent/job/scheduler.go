@@ -45,6 +45,7 @@ type SchedulerConfig struct {
 // Scheduler 在 JobStore 之上提供排队、并发限制与重试；形态为 API→Job Queue→Scheduler→Worker→Executor
 type Scheduler struct {
 	store      JobStore
+	wakeup     WakeupQueue // 唤醒队列，用于 Parked/Waiting Job
 	runJob     RunJobFunc
 	config     SchedulerConfig
 	compensate CompensateFunc // optional; called on CompensatableFailure before marking job failed
@@ -54,14 +55,15 @@ type Scheduler struct {
 	limiter    chan struct{} // 信号量，限制并发
 }
 
-// NewScheduler 创建调度器；config 为并发与重试策略
-func NewScheduler(store JobStore, runJob RunJobFunc, config SchedulerConfig) *Scheduler {
+// NewScheduler 创建调度器；config 为并发与重试策略；wakeup 可选，为 nil 时使用纯轮询
+func NewScheduler(store JobStore, runJob RunJobFunc, config SchedulerConfig, wakeup WakeupQueue) *Scheduler {
 	max := config.MaxConcurrency
 	if max <= 0 {
 		max = 1
 	}
 	return &Scheduler{
 		store:   store,
+		wakeup:  wakeup,
 		runJob:  runJob,
 		config:  config,
 		stopCh:  make(chan struct{}),
@@ -80,6 +82,7 @@ func (s *Scheduler) SetLogger(logger *slog.Logger) {
 }
 
 // Start 启动调度循环：最多 MaxConcurrency 个 worker 拉取 Pending、执行、成功则 UpdateStatus(Completed)，failed则按 RetryMax/Backoff 重试或 UpdateStatus(Failed)
+// 若配置了 WakeupQueue，则在无 Job 时阻塞等待唤醒而非固定 sleep
 func (s *Scheduler) Start(ctx context.Context) {
 	s.wg.Add(1)
 	go func() {
@@ -123,9 +126,29 @@ func (s *Scheduler) Start(ctx context.Context) {
 				if j == nil {
 					metrics.LeaseAcquireTotal.WithLabelValues("default", "false").Inc()
 					<-s.limiter
+					// 若配置了 WakeupQueue，使用 Receive 阻塞等待唤醒；否则使用固定 sleep
+					if s.wakeup != nil {
+						jobID, ok := s.wakeup.Receive(ctx, 200*time.Millisecond)
+						if ok && jobID != "" {
+							// 收到唤醒信号，尝试认领该 Job（它应该已经被更新为 Pending）
+							if len(s.config.Capabilities) > 0 {
+								j, err = s.store.ClaimNextPendingForWorker(ctx, "", s.config.Capabilities, "")
+							} else {
+								j, err = s.store.ClaimNextPending(ctx)
+							}
+							if err != nil && s.logger != nil {
+								s.logger.Error("failed to claim woken job", "job_id", jobID, "error", err)
+							}
+							if j != nil && j.ID == jobID {
+								// 成功认领唤醒的 Job，继续执行
+								goto runJob
+							}
+						}
+					}
 					time.Sleep(200 * time.Millisecond)
 					continue
 				}
+			runJob:
 				tenant := j.TenantID
 				if tenant == "" {
 					tenant = "default"

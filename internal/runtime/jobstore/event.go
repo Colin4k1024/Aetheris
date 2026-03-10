@@ -93,6 +93,18 @@ const (
 	// 2.1: Evidence Export audit events
 	EvidenceExportRequested EventType = "evidence_export_requested" // 证据导出请求
 	EvidenceExportCompleted EventType = "evidence_export_completed" // 证据导出完成
+
+	// Step lifecycle events (DDD)
+	StepStarted      EventType = "step_started"       // Step 开始执行
+	StepFinished     EventType = "step_finished"      // Step 成功完成
+	StepFailed       EventType = "step_failed"        // Step 执行失败
+	StepRetried      EventType = "step_retried"       // Step 重试
+	CheckpointSaved  EventType = "checkpoint_saved"  // Checkpoint 已保存
+
+	// Extended job lifecycle events (DDD)
+	JobParked   EventType = "job_parked"   // Job 进入长时间等待
+	JobResumed  EventType = "job_resumed"  // Job 从等待恢复
+	JobRetrying EventType = "job_retrying" // Job 正在重试
 )
 
 // JobWaitingPayload job_waiting 事件 payload 契约；只有携带相同 correlation_key 的 signal 才能解除该 block（design/runtime-contract.md）
@@ -160,4 +172,78 @@ type JobEvent struct {
 	// 2.0-M1: Proof chain for tamper detection
 	PrevHash string // 上一个事件的 hash（SHA256）
 	Hash     string // 当前事件 hash（SHA256(JobID|Type|Payload|Timestamp|PrevHash)）
+}
+
+// StepStartedPayload step_started 事件 payload
+type StepStartedPayload struct {
+	JobID     string `json:"job_id"`
+	StepID    string `json:"step_id"`
+	NodeID    string `json:"node_id"`
+	WorkerID  string `json:"worker_id,omitempty"`
+	StartedAt string `json:"started_at"`
+}
+
+// StepFinishedPayload step_finished 事件 payload
+type StepFinishedPayload struct {
+	JobID      string `json:"job_id"`
+	StepID     string `json:"step_id"`
+	NodeID     string `json:"node_id"`
+	ResultType string `json:"result_type"` // success, failure, etc.
+	DurationMs int64  `json:"duration_ms"`
+	FinishedAt string `json:"finished_at"`
+}
+
+// StepFailedPayload step_failed 事件 payload
+type StepFailedPayload struct {
+	JobID      string `json:"job_id"`
+	StepID     string `json:"step_id"`
+	NodeID     string `json:"node_id"`
+	Error      string `json:"error"`
+	Retryable  bool   `json:"retryable"`
+	FailedAt   string `json:"failed_at"`
+}
+
+// StepRetriedPayload step_retried 事件 payload
+type StepRetriedPayload struct {
+	JobID       string `json:"job_id"`
+	StepID      string `json:"step_id"`
+	NodeID      string `json:"node_id"`
+	Attempt     int    `json:"attempt"`
+	NextTryAt   string `json:"next_try_at"`
+	RetriedAt   string `json:"retried_at"`
+}
+
+// CheckpointSavedPayload checkpoint_saved 事件 payload
+type CheckpointSavedPayload struct {
+	JobID        string `json:"job_id"`
+	CheckpointID string `json:"checkpoint_id"`
+	StepID       string `json:"step_id"`
+	Version      int    `json:"version"`
+	SavedAt      string `json:"saved_at"`
+}
+
+// JobParkedPayload job_parked 事件 payload
+type JobParkedPayload struct {
+	JobID      string `json:"job_id"`
+	Reason     string `json:"reason"`
+	NodeID     string `json:"node_id,omitempty"`
+	WaitType   string `json:"wait_type,omitempty"` // webhook | human | timer | signal | message
+	CorrelationKey string `json:"correlation_key,omitempty"`
+	ExpiresAt   string `json:"expires_at,omitempty"`
+	ParkedAt   string `json:"parked_at"`
+}
+
+// JobResumedPayload job_resumed 事件 payload
+type JobResumedPayload struct {
+	JobID     string `json:"job_id"`
+	Reason    string `json:"reason"` // signal_received, timeout, manual
+	ResumedAt string `json:"resumed_at"`
+}
+
+// JobRetryingPayload job_retrying 事件 payload
+type JobRetryingPayload struct {
+	JobID      string `json:"job_id"`
+	RetryCount int    `json:"retry_count"`
+	NextTryAt  string `json:"next_try_at"`
+	RetriedAt  string `json:"retried_at"`
 }

@@ -14,7 +14,9 @@
 
 package job
 
-import "time"
+import (
+	"time"
+)
 
 // JobStatus 任务状态；与 design/job-state-machine.md 一致，可由事件流推导（DeriveStatusFromEvents）
 type JobStatus int
@@ -85,4 +87,121 @@ type Job struct {
 	ExecutionVersion string
 	// PlannerVersion Planner 版本（可选）；记录生成 Plan 时的 Planner 版本
 	PlannerVersion string
+}
+
+// ErrInvalidStateTransition 表示无效的状态转换
+var ErrInvalidStateTransition = &invalidStateTransitionError{}
+
+type invalidStateTransitionError struct{}
+
+func (e *invalidStateTransitionError) Error() string {
+	return "invalid state transition"
+}
+
+// Start 将 Job 从 Pending 或 Retrying 状态转为 Running
+func (j *Job) Start() error {
+	if j.Status != StatusPending && j.Status != StatusRetrying {
+		return ErrInvalidStateTransition
+	}
+	j.Status = StatusRunning
+	j.UpdatedAt = time.Now()
+	return nil
+}
+
+// Complete 将 Job 状态设为 Completed
+func (j *Job) Complete() error {
+	if j.Status != StatusRunning && j.Status != StatusWaiting {
+		return ErrInvalidStateTransition
+	}
+	j.Status = StatusCompleted
+	j.UpdatedAt = time.Now()
+	return nil
+}
+
+// Fail 将 Job 状态设为 Failed
+func (j *Job) Fail() error {
+	if j.Status != StatusRunning && j.Status != StatusWaiting {
+		return ErrInvalidStateTransition
+	}
+	j.Status = StatusFailed
+	j.UpdatedAt = time.Now()
+	return nil
+}
+
+// Cancel 将 Job 状态设为 Cancelled
+func (j *Job) Cancel() error {
+	if j.IsTerminal() {
+		return ErrInvalidStateTransition
+	}
+	j.Status = StatusCancelled
+	j.CancelRequestedAt = time.Now()
+	j.UpdatedAt = time.Now()
+	return nil
+}
+
+// Park 将 Job 状态设为 Parked（长时间等待）
+func (j *Job) Park() error {
+	if j.Status != StatusRunning && j.Status != StatusWaiting {
+		return ErrInvalidStateTransition
+	}
+	j.Status = StatusParked
+	j.UpdatedAt = time.Now()
+	return nil
+}
+
+// Resume 将 Job 从 Parked 或 Waiting 状态恢复为 Pending
+func (j *Job) Resume() error {
+	if j.Status != StatusParked && j.Status != StatusWaiting {
+		return ErrInvalidStateTransition
+	}
+	j.Status = StatusPending
+	j.UpdatedAt = time.Now()
+	return nil
+}
+
+// Retry 将 Job 状态设为 Retrying，并增加重试计数
+func (j *Job) Retry() error {
+	if j.Status != StatusFailed && j.Status != StatusRunning {
+		return ErrInvalidStateTransition
+	}
+	j.Status = StatusRetrying
+	j.RetryCount++
+	j.UpdatedAt = time.Now()
+	return nil
+}
+
+// Wait 将 Job 状态设为 Waiting（短时间等待）
+func (j *Job) Wait() error {
+	if j.Status != StatusRunning {
+		return ErrInvalidStateTransition
+	}
+	j.Status = StatusWaiting
+	j.UpdatedAt = time.Now()
+	return nil
+}
+
+// IsTerminal 判断 Job 是否处于终态
+func (j *Job) IsTerminal() bool {
+	return j.Status == StatusCompleted || j.Status == StatusFailed || j.Status == StatusCancelled
+}
+
+// CanTransitionTo 验证是否可以从当前状态转换到目标状态
+func (j *Job) CanTransitionTo(target JobStatus) bool {
+	switch j.Status {
+	case StatusPending:
+		return target == StatusRunning || target == StatusCancelled
+	case StatusRunning:
+		return target == StatusCompleted || target == StatusFailed ||
+			target == StatusCancelled || target == StatusWaiting || target == StatusParked
+	case StatusWaiting, StatusParked:
+		return target == StatusPending || target == StatusCancelled
+	case StatusRetrying:
+		return target == StatusPending || target == StatusFailed
+	case StatusFailed:
+		return target == StatusRetrying || target == StatusPending
+	case StatusCompleted, StatusCancelled:
+		return false
+	default:
+		return false
+	}
 }

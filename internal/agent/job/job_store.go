@@ -45,6 +45,8 @@ type JobStore interface {
 	RequestCancel(ctx context.Context, jobID string) error
 	// ReclaimOrphanedJobs 将 status=Running 且 updated_at 早于 (now - olderThan) 的 Job 置回 Pending，供其他 Worker 认领；返回回收数量（design/job-state-machine.md）
 	ReclaimOrphanedJobs(ctx context.Context, olderThan time.Duration) (int, error)
+	// Wakeup 将 Parked 或 Waiting 的 Job 唤醒为 Pending
+	Wakeup(ctx context.Context, jobID string) error
 }
 
 // jobMatchesCapabilities 判断 Job 的 RequiredCapabilities 是否被 workerCapabilities 覆盖；jobRequired 为空表示任意 Worker 可执行；workerCapabilities 为空表示不按能力过滤
@@ -251,6 +253,24 @@ func (s *JobStoreMem) RequestCancel(ctx context.Context, jobID string) error {
 func (s *JobStoreMem) ReclaimOrphanedJobs(ctx context.Context, olderThan time.Duration) (int, error) {
 	_ = olderThan
 	return 0, nil
+}
+
+// Wakeup 将 Parked 或 Waiting 的 Job 唤醒为 Pending
+func (s *JobStoreMem) Wakeup(ctx context.Context, jobID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	j, ok := s.byID[jobID]
+	if !ok {
+		return nil
+	}
+	if j.Status != StatusParked && j.Status != StatusWaiting {
+		return nil
+	}
+	j.Status = StatusPending
+	j.UpdatedAt = time.Now()
+	s.pending = append(s.pending, jobID)
+	s.cond.Signal()
+	return nil
 }
 
 // WaitNextPending 阻塞直到有 Pending 或 ctx 取消，然后尝试 Claim；无则返回 nil, nil
