@@ -1,5 +1,9 @@
-# CoRag + Ollama + Eino Examples 完整测试环境
+# CoRag + 本地 Ollama + Eino Examples 完整测试环境
 # 运行: docker compose -f deployments/compose/docker-compose.v2.yml up -d
+#
+# 注意: 需要先在宿主机启动 Ollama:
+#   ollama serve
+#   ollama pull llama3
 
 services:
   # PostgreSQL 数据库
@@ -20,21 +24,6 @@ services:
       timeout: 3s
       retries: 5
 
-  # Ollama LLM 服务
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_HOST=0.0.0.0:11434
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
   # CoRag API 服务
   api:
     build:
@@ -52,16 +41,16 @@ services:
       API_MIDDLEWARE_AUTH: "true"
       API_MIDDLEWARE_JWT_KEY: "local-dev-jwt-key"
       MODEL_DEFAULTS_LLM: "openai.gpt_35_turbo"
-      # Ollama OpenAI 兼容 API
-      MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://ollama:11434/v1"
+      # 连接宿主机本地 Ollama
+      MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://host.docker.internal:11434/v1"
       MODEL_LLM_PROVIDERS_OPENAI_API_KEY: "ollama"
       MODEL_LLM_PROVIDERS_OPENAI_MODELS_GPT_35_TURBO_NAME: "${OLLAMA_MODEL:-llama3}"
     ports:
       - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
-        condition: service_healthy
-      ollama:
         condition: service_healthy
 
   # CoRag Worker 1
@@ -80,13 +69,13 @@ services:
       STORAGE_METADATA_TYPE: memory
       STORAGE_VECTOR_TYPE: memory
       MODEL_DEFAULTS_LLM: "openai.gpt_35_turbo"
-      MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://ollama:11434/v1"
+      MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://host.docker.internal:11434/v1"
       MODEL_LLM_PROVIDERS_OPENAI_API_KEY: "ollama"
       MODEL_LLM_PROVIDERS_OPENAI_MODELS_GPT_35_TURBO_NAME: "${OLLAMA_MODEL:-llama3}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
-        condition: service_healthy
-      ollama:
         condition: service_healthy
 
   # CoRag Worker 2
@@ -105,33 +94,14 @@ services:
       STORAGE_METADATA_TYPE: memory
       STORAGE_VECTOR_TYPE: memory
       MODEL_DEFAULTS_LLM: "openai.gpt_35_turbo"
-      MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://ollama:11434/v1"
+      MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://host.docker.internal:11434/v1"
       MODEL_LLM_PROVIDERS_OPENAI_API_KEY: "ollama"
       MODEL_LLM_PROVIDERS_OPENAI_MODELS_GPT_35_TURBO_NAME: "${OLLAMA_MODEL:-llama3}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
-      ollama:
-        condition: service_healthy
-
-  # Eino Examples 测试服务
-  eino-tester:
-    build:
-      context: ../..
-      dockerfile: deployments/compose/Dockerfile
-    command: ["tail", "-f", "/dev/null"]
-    working_dir: /app
-    environment:
-      OLLAMA_BASE_URL: "http://ollama:11434"
-      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3}"
-    volumes:
-      - ../../examples:/app/examples:ro
-      - ../../internal/agent/runtime/executor/eino_examples:/app/eino_examples:ro
-    depends_on:
-      ollama:
-        condition: service_healthy
-    profiles:
-      - test
 
   # Prometheus 监控
   prometheus:
@@ -163,5 +133,4 @@ services:
 
 volumes:
   postgres_data: {}
-  ollama_data: {}
   jaeger_data: {}
