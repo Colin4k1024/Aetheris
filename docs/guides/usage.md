@@ -34,7 +34,10 @@ For debugging and admin; subcommands and usage are in [CLI (cli.md)](cli.md).
 ## Environment variables and configuration
 
 - **API Key**: In `configs/model.yaml` use `api_key: "${OPENAI_API_KEY}"`; it is substituted at runtime.
-- **Planner (v1 Agent)**: When `PLANNER_TYPE=rule`, new v1 agents use the **rule planner** (no LLM, fixed TaskGraph) for stable Executor debugging; otherwise the **LLM planner** is used. Startup logs indicate which planner is active.
+- **Planner (v1 Agent)**:
+  - `PLANNER_TYPE=rule`: Uses **RulePlanner** - returns a fixed single-node llm TaskGraph. No LLM needed for planning, useful for Executor/DAG debugging. Startup logs show "Worker 使用规则规划器".
+  - `PLANNER_TYPE=llm` (default): Uses **LLMPlanner** - generates TaskGraph dynamically using LLM. Requires LLM configuration in model.yaml. Startup logs show which planner is active.
+  - Note: Even with RulePlanner, executing llm nodes still requires LLM configuration.
 - **Secrets**: Do not commit real API keys; use environment variables or a secrets manager.
 - **Storage**: API defaults to memory storage (data lost on restart); for production configure MySQL/Milvus etc. (implement the corresponding Store). The **vector store** is configurable via `storage.vector` (type, collection); the default collection name is used for both ingest and query. Optional `storage.ingest` (batch_size, concurrency) tunes the ingest pipeline. See [config.md](../reference/config.md) for full storage and ingest options.
 - **Ingest logging**: The ingest pipeline logs each step (loader, parser, splitter, embedding, indexer) with `ingest_id`, `ingest_step`, `doc_id`, `chunks`, and `duration_ms` for observability.
@@ -210,12 +213,13 @@ Event semantics and tree derivation are in [design/execution-trace.md](../design
 - **Idempotency-Key**: `POST /api/agents/:id/message` supports header `Idempotency-Key`. Duplicate requests with the same key (e.g. retries) return the existing `job_id` (202) and do not create a new job or rewrite Session/Plan.
 - **Poison jobs**: When a job keeps failing, after max_attempts (Scheduler retry_max, Worker max_attempts) it is marked Failed and no longer scheduled; see [design/poison-job.md](../design/poison-job.md).
 - **v1 Agent vs /api/query**: v1 Agent uses Agent + Session + plan → TaskGraph → eino DAG as the only path; RAG is an optional tool. `/api/query` still hits query_pipeline directly and is deprecated; use Agent messages for new usage.
-- **PLANNER_TYPE=rule**: Disables LLM planning for debugging; the rule planner returns a fixed single-node llm TaskGraph to verify Executor and DAG.
+- **PLANNER_TYPE=rule**: Uses RulePlanner for debugging; returns fixed TaskGraph without LLM. Worker logs show "Worker 使用规则规划器". Use when LLMPlanner generates invalid graphs or for stable testing.
 - **No OPENAI_API_KEY**: API still starts but will not register real LLM/Embedding query and ingest workflows; query/upload may use placeholders or fail. With RulePlanner, planning does not need LLM, but executing llm nodes still requires LLM config.
 - **Memory storage**: Default metadata and vector are in-memory; data is lost on restart. Configure and implement a persistent store for production.
 - **Config not applied**: Ensure the API uses `LoadAPIConfigWithModel` (cmd/api does) and that `configs/model.yaml` has `defaults.llm`, `defaults.embedding` and the matching provider/model keys.
 - **Tracing**: Set `monitoring.tracing.enable: true` and `export_endpoint` in `configs/api.yaml` (or `OTEL_EXPORTER_OTLP_ENDPOINT`); otherwise no traces are sent. Use Jaeger or another OTLP backend; see [tracing.md](tracing.md).
 - **Authentication required**: In production mode (`AETHERIS_ENV=production`), JWT authentication is required. Set `auth.jwt.secret` in `configs/api.yaml` and include `Authorization: Bearer <token>` in requests. See [security.md](security.md).
+- **LLMPlanner fails**: If you see "TaskGraph 存在环，无法拓扑排序" in Worker logs, the LLM is generating an invalid graph with cycles. Set `PLANNER_TYPE=rule` to use RulePlanner for debugging. Ensure LLM model is capable of generating valid JSON plans.
 - **Worker not processing jobs**: Ensure Worker is running and connected to the same PostgreSQL database as the API. Check Worker logs for connection errors. With `jobstore.type=postgres`, jobs must be claimed by a Worker.
 - **Job stuck in pending**: If using Postgres jobstore, at least one Worker must be running to claim and process jobs. Without Workers, jobs remain pending indefinitely.
 - **Multiple Workers same job**: Aetheris uses lease fencing to prevent duplicate execution. Each job has a lease token that expires; only the Worker with the valid lease can execute. See [design/scheduler-correctness.md](../design/scheduler-correctness.md).

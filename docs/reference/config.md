@@ -161,7 +161,7 @@ Same as API for log; monitoring.prometheus port can be set per Worker; use env *
 | JWT_SECRET | API auth JWT secret (when middleware.auth is true) |
 | JOBSTORE_DSN | Postgres DSN; overrides jobstore.dsn in api.yaml / worker.yaml |
 | OTEL_EXPORTER_OTLP_ENDPOINT | Tracing OTLP endpoint (when export_endpoint is unset) |
-| PLANNER_TYPE | Set to `rule` for v1 Agent rule planner (no LLM), for debugging |
+| PLANNER_TYPE | Planner type: `rule` for RulePlanner (fixed TaskGraph, no LLM needed for planning), `llm` for LLMPlanner (uses LLM to generate TaskGraph). RulePlanner is recommended for debugging. Default: `llm` |
 | AETHERIS_API_URL | CLI API base URL, default http://localhost:8080 |
 | AETHERIS_AGENT_ID | Used by CLI `chat` when agent_id is not passed |
 | AETHERIS_WORKER_METRICS_PORT | Worker Prometheus port (when running multiple instances) |
