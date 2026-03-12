@@ -37,7 +37,7 @@ services:
       JOBSTORE_TYPE: postgres
       JOBSTORE_DSN: "postgres://corag:corag@postgres:5432/corag?sslmode=disable"
       JOBSTORE_LEASE_DURATION: "180s"
-      PLANNER_TYPE: "${PLANNER_TYPE:-rule}"
+      PLANNER_TYPE: "rule"
       API_MIDDLEWARE_AUTH: "true"
       API_MIDDLEWARE_JWT_KEY: "local-dev-jwt-key"
       MODEL_DEFAULTS_LLM: "openai.gpt_35_turbo"
@@ -65,7 +65,7 @@ services:
       JOBSTORE_TYPE: postgres
       JOBSTORE_DSN: "postgres://corag:corag@postgres:5432/corag?sslmode=disable"
       JOBSTORE_LEASE_DURATION: "180s"
-      PLANNER_TYPE: "${PLANNER_TYPE:-rule}"
+      PLANNER_TYPE: "rule"
       STORAGE_METADATA_TYPE: memory
       STORAGE_VECTOR_TYPE: memory
       MODEL_DEFAULTS_LLM: "openai.gpt_35_turbo"
@@ -90,7 +90,7 @@ services:
       JOBSTORE_TYPE: postgres
       JOBSTORE_DSN: "postgres://corag:corag@postgres:5432/corag?sslmode=disable"
       JOBSTORE_LEASE_DURATION: "180s"
-      PLANNER_TYPE: "${PLANNER_TYPE:-rule}"
+      PLANNER_TYPE: "rule"
       STORAGE_METADATA_TYPE: memory
       STORAGE_VECTOR_TYPE: memory
       MODEL_DEFAULTS_LLM: "openai.gpt_35_turbo"
