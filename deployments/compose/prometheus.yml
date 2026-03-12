@@ -1,5 +1,5 @@
 # Prometheus scrape config for CoRag API metrics (P0 SLO)
-# Scrapes GET /api/system/metrics from the api service.
+# Scrapes GET /metrics from the api service (no auth required)
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -8,5 +8,17 @@ scrape_configs:
   - job_name: corag-api
     static_configs:
       - targets: ["api:8080"]
-    metrics_path: /api/system/metrics
+    metrics_path: /metrics
+    scheme: http
+
+  - job_name: corag-worker1
+    static_configs:
+      - targets: ["worker1:9093"]
+    metrics_path: /metrics
+    scheme: http
+
+  - job_name: corag-worker2
+    static_configs:
+      - targets: ["worker2:9093"]
+    metrics_path: /metrics
     scheme: http
