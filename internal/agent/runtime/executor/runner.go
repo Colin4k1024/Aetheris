@@ -851,6 +851,13 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 			resultType = StepResultPure
 		}
 	}
+	// 处理 step.Run 返回 nil payload 的情况（如 LLM 调用失败）
+	if payload == nil {
+		payload = &AgentDAGPayload{Results: make(map[string]any)}
+	}
+	if payload.Results == nil {
+		payload.Results = make(map[string]any)
+	}
 	payloadResults, err := marshalJSONForRunner(payload.Results, "advance_payload_results")
 	if err != nil {
 		_ = r.jobStore.UpdateStatus(ctx, jobID, statusFailed)
@@ -1406,6 +1413,13 @@ runLoop:
 			} else {
 				resultType = StepResultPure
 			}
+		}
+		// 处理 step.Run 返回 nil payload 的情况（如 LLM 调用失败）
+		if payload == nil {
+			payload = &AgentDAGPayload{Results: make(map[string]any)}
+		}
+		if payload.Results == nil {
+			payload.Results = make(map[string]any)
 		}
 		payloadResults, err := marshalJSONForRunner(payload.Results, "runloop_payload_results")
 		if err != nil {
