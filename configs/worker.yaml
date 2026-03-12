@@ -32,12 +32,12 @@ runtime:
 # Effect Store（两步提交第一阶段：先写 effect，再写 command_committed）
 effect_store:
   type: "postgres"   # memory | postgres
-  dsn: "postgres://aetheris:aetheris@localhost:5432/aetheris?sslmode=disable"
+  dsn: "postgres://corag:corag@postgres:5432/corag?sslmode=disable"
 
 # Checkpoint Store（恢复点存储）
 checkpoint_store:
   type: "postgres"   # memory | postgres
-  dsn: "postgres://aetheris:aetheris@localhost:5432/aetheris?sslmode=disable"
+  dsn: "postgres://corag:corag@postgres:5432/corag?sslmode=disable"
 
 # 存储配置（当前元数据仅支持 memory；mysql 等需后续实现）
 storage:
