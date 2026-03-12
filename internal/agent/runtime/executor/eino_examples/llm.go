@@ -23,6 +23,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 
 	"rag-platform/internal/model/llm"
+	"rag-platform/pkg/metrics"
 )
 
 // OllamaChatModel 将 llm.Client 转换为 eino_examples.ChatModel 接口
@@ -87,6 +88,10 @@ func (m *OllamaChatModel) Generate(ctx context.Context, input []*schema.Message,
 		opt(&options)
 	}
 
+	// 记录 input tokens
+	inputTokens := estimateTokenCount(messages)
+	metrics.LLMTokensTotal.WithLabelValues("input").Add(float64(inputTokens))
+
 	// 转换为 llm.GenerateOptions
 	genOpts := llm.GenerateOptions{
 		Temperature: options.Temperature,
@@ -98,10 +103,26 @@ func (m *OllamaChatModel) Generate(ctx context.Context, input []*schema.Message,
 		return nil, err
 	}
 
+	// 记录 output tokens
+	outputTokens := estimateTokenCount([]llm.Message{{Content: resp}})
+	metrics.LLMTokensTotal.WithLabelValues("output").Add(float64(outputTokens))
+
 	return &schema.Message{
 		Role:    schema.Assistant,
 		Content: resp,
 	}, nil
+}
+
+// estimateTokenCount 估算 token 数量 (约 4 字符 = 1 token)
+func estimateTokenCount(messages []llm.Message) int {
+	total := 0
+	for _, msg := range messages {
+		total += len(msg.Content) / 4
+	}
+	if total == 0 {
+		total = 10 // 默认估算
+	}
+	return total
 }
 
 // Stream 实现 ChatModel 接口
@@ -170,6 +191,10 @@ func (m *OpenAIChatModel) Generate(ctx context.Context, input []*schema.Message,
 		}
 	}
 
+	// 记录 input tokens
+	inputTokens := estimateTokenCount(messages)
+	metrics.LLMTokensTotal.WithLabelValues("input").Add(float64(inputTokens))
+
 	// 合并选项
 	options := m.options
 	for _, opt := range opts {
@@ -186,6 +211,10 @@ func (m *OpenAIChatModel) Generate(ctx context.Context, input []*schema.Message,
 	if err != nil {
 		return nil, err
 	}
+
+	// 记录 output tokens
+	outputTokens := estimateTokenCount([]llm.Message{{Content: resp}})
+	metrics.LLMTokensTotal.WithLabelValues("output").Add(float64(outputTokens))
 
 	return &schema.Message{
 		Role:    schema.Assistant,
@@ -254,6 +283,10 @@ func (m *ClaudeChatModel) Generate(ctx context.Context, input []*schema.Message,
 		}
 	}
 
+	// 记录 input tokens
+	inputTokens := estimateTokenCount(messages)
+	metrics.LLMTokensTotal.WithLabelValues("input").Add(float64(inputTokens))
+
 	// 合并选项
 	options := m.options
 	for _, opt := range opts {
@@ -269,6 +302,10 @@ func (m *ClaudeChatModel) Generate(ctx context.Context, input []*schema.Message,
 	if err != nil {
 		return nil, err
 	}
+
+	// 记录 output tokens
+	outputTokens := estimateTokenCount([]llm.Message{{Content: resp}})
+	metrics.LLMTokensTotal.WithLabelValues("output").Add(float64(outputTokens))
 
 	return &schema.Message{
 		Role:    schema.Assistant,

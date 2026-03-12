@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+
+	"rag-platform/pkg/metrics"
 )
 
 // LLMLimitConfig LLM Provider 限流配置
@@ -182,6 +184,9 @@ func (l *LLMRateLimiter) Release(provider string) {
 
 // RecordTokenUsage 记录实际使用的 tokens（用于精确统计）
 func (l *LLMRateLimiter) RecordTokenUsage(provider string, actualTokens int) {
+	// 记录到 Prometheus 指标
+	metrics.LLMTokensTotal.WithLabelValues("output").Add(float64(actualTokens))
+
 	l.mu.RLock()
 	limiter, exists := l.limiters[provider]
 	l.mu.RUnlock()

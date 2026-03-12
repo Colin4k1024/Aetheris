@@ -59,7 +59,10 @@ func (c *RateLimitedClient) GenerateWithContext(ctx context.Context, prompt stri
 		return "", err
 	}
 	if c.rateLimiter != nil {
-		// 用 MaxTokens 近似记录实际用量（未来可从 response 中取 usage）
+		// 记录 input tokens
+		inputTokens := estimateTokens(prompt, 0)
+		metrics.LLMTokensTotal.WithLabelValues("input").Add(float64(inputTokens))
+		// 记录 output tokens (使用 MaxTokens 近似)
 		c.rateLimiter.RecordTokenUsage(c.inner.Provider(), options.MaxTokens)
 	}
 	return result, nil
@@ -92,6 +95,11 @@ func (c *RateLimitedClient) ChatWithContext(ctx context.Context, messages []Mess
 		return "", err
 	}
 	if c.rateLimiter != nil {
+		// 记录 input tokens
+		promptText := messagesText(messages)
+		inputTokens := estimateTokens(promptText, 0)
+		metrics.LLMTokensTotal.WithLabelValues("input").Add(float64(inputTokens))
+		// 记录 output tokens
 		c.rateLimiter.RecordTokenUsage(c.inner.Provider(), options.MaxTokens)
 	}
 	return result, nil
