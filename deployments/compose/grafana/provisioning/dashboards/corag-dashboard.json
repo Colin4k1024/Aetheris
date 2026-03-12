@@ -24,7 +24,7 @@
       "id": 1,
       "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "rate(corag_jobs_total[1m])", "legendFormat": "Jobs/sec", "refId": "A"}
+        {"expr": "rate(aetheris_jobs_total[1m])", "legendFormat": "Jobs/sec", "refId": "A"}
       ],
       "title": "Job 速率 (jobs/sec)",
       "type": "timeseries"
@@ -44,7 +44,7 @@
       "id": 2,
       "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "corag_job_state", "legendFormat": "{{state}}", "refId": "A"}
+        {"expr": "aetheris_job_state", "legendFormat": "{{state}}", "refId": "A"}
       ],
       "title": "Job 状态分布",
       "type": "timeseries"
@@ -64,7 +64,7 @@
       "id": 3,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [
-        {"expr": "histogram_quantile(0.95, rate(corag_job_duration_seconds_bucket[5m]))", "refId": "A"}
+        {"expr": "histogram_quantile(0.95, rate(aetheris_job_duration_seconds_bucket[5m]))", "refId": "A"}
       ],
       "title": "P95 Job 耗时",
       "type": "stat"
@@ -84,7 +84,7 @@
       "id": 4,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [
-        {"expr": "corag_stuck_job_count", "refId": "A"}
+        {"expr": "aetheris_stuck_job_count", "refId": "A"}
       ],
       "title": "卡住 Job 数",
       "type": "stat"
@@ -105,8 +105,8 @@
       "id": 5,
       "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "histogram_quantile(0.50, rate(corag_tool_duration_seconds_bucket[5m]))", "legendFormat": "P50", "refId": "A"},
-        {"expr": "histogram_quantile(0.95, rate(corag_tool_duration_seconds_bucket[5m]))", "legendFormat": "P95", "refId": "B"}
+        {"expr": "histogram_quantile(0.50, rate(aetheris_tool_duration_seconds_bucket[5m]))", "legendFormat": "P50", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, rate(aetheris_tool_duration_seconds_bucket[5m]))", "legendFormat": "P95", "refId": "B"}
       ],
       "title": "Tool 执行耗时",
       "type": "timeseries"
@@ -127,8 +127,8 @@
       "id": 6,
       "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "histogram_quantile(0.50, rate(corag_plan_duration_seconds_bucket[5m]))", "legendFormat": "P50", "refId": "A"},
-        {"expr": "histogram_quantile(0.95, rate(corag_plan_duration_seconds_bucket[5m]))", "legendFormat": "P95", "refId": "B"}
+        {"expr": "histogram_quantile(0.50, rate(aetheris_plan_duration_seconds_bucket[5m]))", "legendFormat": "P50", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, rate(aetheris_plan_duration_seconds_bucket[5m]))", "legendFormat": "P95", "refId": "B"}
       ],
       "title": "Plan 生成耗时",
       "type": "timeseries"
@@ -148,7 +148,7 @@
       "id": 7,
       "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "corag_worker_busy", "legendFormat": "{{worker_id}}", "refId": "A"}
+        {"expr": "aetheris_worker_busy", "legendFormat": "{{worker_id}}", "refId": "A"}
       ],
       "title": "Worker 忙碌状态",
       "type": "timeseries"
@@ -168,7 +168,7 @@
       "id": 8,
       "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "corag_queue_backlog", "legendFormat": "{{worker_id}}", "refId": "A"}
+        {"expr": "aetheris_queue_backlog", "legendFormat": "{{worker_id}}", "refId": "A"}
       ],
       "title": "队列积压",
       "type": "timeseries"
@@ -188,7 +188,7 @@
       "id": 9,
       "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "rate(corag_llm_tokens_total[1m])", "legendFormat": "{{model}}", "refId": "A"}
+        {"expr": "rate(aetheris_llm_tokens_total[1m])", "legendFormat": "{{model}}", "refId": "A"}
       ],
       "title": "LLM Token 速率",
       "type": "timeseries"
@@ -208,7 +208,7 @@
       "id": 10,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [
-        {"expr": "rate(corag_job_fail_total[1m])", "legendFormat": "失败 Job", "refId": "A"}
+        {"expr": "rate(aetheris_job_fail_total[1m])", "legendFormat": "失败 Job", "refId": "A"}
       ],
       "title": "Job 失败速率",
       "type": "stat"
