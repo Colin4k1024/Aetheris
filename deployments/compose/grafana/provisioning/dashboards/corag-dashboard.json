@@ -24,9 +24,9 @@
       "id": 1,
       "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "rate(aetheris_jobs_total[1m])", "legendFormat": "Jobs/sec", "refId": "A"}
+        {"expr": "sum by (status) (aetheris_jobs_total)", "legendFormat": "{{status}}", "refId": "A"}
       ],
-      "title": "Job 速率 (jobs/sec)",
+      "title": "Job 总数 (按状态)",
       "type": "timeseries"
     },
     {
@@ -46,7 +46,7 @@
       "targets": [
         {"expr": "aetheris_job_state", "legendFormat": "{{state}}", "refId": "A"}
       ],
-      "title": "Job 状态分布",
+      "title": "当前 Job 状态分布",
       "type": "timeseries"
     },
     {
@@ -56,7 +56,7 @@
           "color": {"mode": "thresholds"},
           "mappings": [],
           "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]},
-          "unit": "s"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -64,9 +64,9 @@
       "id": 3,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [
-        {"expr": "histogram_quantile(0.95, rate(aetheris_job_duration_seconds_bucket[5m]))", "refId": "A"}
+        {"expr": "sum(aetheris_job_state{state=\"completed\"})", "refId": "A"}
       ],
-      "title": "P95 Job 耗时",
+      "title": "已完成 Job 数",
       "type": "stat"
     },
     {
@@ -93,105 +93,21 @@
       "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"axisCenteredZero": false, "axisBorderShow": false, "axisLabel": "", "axisPlacement": "auto", "barRadius": 0, "barWidth": 0.97, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+          "color": {"mode": "thresholds"},
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
-          "unit": "s"
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]},
+          "unit": "short"
         },
         "overrides": []
       },
       "gridPos": {"h": 4, "w": 6, "x": 12, "y": 8},
       "id": 5,
-      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [
-        {"expr": "histogram_quantile(0.50, rate(aetheris_tool_duration_seconds_bucket[5m]))", "legendFormat": "P50", "refId": "A"},
-        {"expr": "histogram_quantile(0.95, rate(aetheris_tool_duration_seconds_bucket[5m]))", "legendFormat": "P95", "refId": "B"}
+        {"expr": "sum(aetheris_job_state{state=\"running\"})", "refId": "A"}
       ],
-      "title": "Tool 执行耗时",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "Prometheus",
-      "fieldConfig": {
-        "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"axisCenteredZero": false, "axisBorderShow": false, "axisLabel": "", "axisPlacement": "auto", "barRadius": 0, "barWidth": 0.97, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
-          "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 8},
-      "id": 6,
-      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
-      "targets": [
-        {"expr": "histogram_quantile(0.50, rate(aetheris_plan_duration_seconds_bucket[5m]))", "legendFormat": "P50", "refId": "A"},
-        {"expr": "histogram_quantile(0.95, rate(aetheris_plan_duration_seconds_bucket[5m]))", "legendFormat": "P95", "refId": "B"}
-      ],
-      "title": "Plan 生成耗时",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "Prometheus",
-      "fieldConfig": {
-        "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"axisCenteredZero": false, "axisBorderShow": false, "axisLabel": "", "axisPlacement": "auto", "barRadius": 0, "barWidth": 0.97, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
-          "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
-        },
-        "overrides": []
-      },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
-      "id": 7,
-      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
-      "targets": [
-        {"expr": "aetheris_worker_busy", "legendFormat": "{{worker_id}}", "refId": "A"}
-      ],
-      "title": "Worker 忙碌状态",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "Prometheus",
-      "fieldConfig": {
-        "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"axisCenteredZero": false, "axisBorderShow": false, "axisLabel": "", "axisPlacement": "auto", "barRadius": 0, "barWidth": 0.97, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
-          "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
-        },
-        "overrides": []
-      },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
-      "id": 8,
-      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
-      "targets": [
-        {"expr": "aetheris_queue_backlog", "legendFormat": "{{worker_id}}", "refId": "A"}
-      ],
-      "title": "队列积压",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "Prometheus",
-      "fieldConfig": {
-        "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"axisCenteredZero": false, "axisBorderShow": false, "axisLabel": "", "axisPlacement": "auto", "barRadius": 0, "barWidth": 0.97, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
-          "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
-        },
-        "overrides": []
-      },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
-      "id": 9,
-      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
-      "targets": [
-        {"expr": "rate(aetheris_llm_tokens_total[1m])", "legendFormat": "{{model}}", "refId": "A"}
-      ],
-      "title": "LLM Token 速率",
-      "type": "timeseries"
+      "title": "运行中 Job 数",
+      "type": "stat"
     },
     {
       "datasource": "Prometheus",
@@ -199,19 +115,82 @@
         "defaults": {
           "color": {"mode": "thresholds"},
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 10}]},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]},
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
-      "id": 10,
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 8},
+      "id": 6,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [
-        {"expr": "rate(aetheris_job_fail_total[1m])", "legendFormat": "失败 Job", "refId": "A"}
+        {"expr": "sum(aetheris_job_state{state=\"failed\"})", "refId": "A"}
       ],
-      "title": "Job 失败速率",
+      "title": "失败 Job 数",
       "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisCenteredZero": false, "axisBorderShow": false, "axisLabel": "", "axisPlacement": "auto", "barRadius": 0, "barWidth": 0.97, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "id": 7,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
+      "targets": [
+        {"expr": "rate(aetheris_jobs_total[1m])", "legendFormat": "{{status}}", "refId": "A"}
+      ],
+      "title": "Job 速率 (每秒)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisCenteredZero": false, "axisBorderShow": false, "axisLabel": "", "axisPlacement": "auto", "barRadius": 0, "barWidth": 0.97, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "id": 8,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, rate(aetheris_scheduler_tick_duration_seconds_bucket[5m]))", "legendFormat": "P50", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, rate(aetheris_scheduler_tick_duration_seconds_bucket[5m]))", "legendFormat": "P95", "refId": "B"}
+      ],
+      "title": "Scheduler Tick 耗时",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisCenteredZero": false, "axisBorderShow": false, "axisLabel": "", "axisPlacement": "auto", "barRadius": 0, "barWidth": 0.97, "drawStyle": "bars", "fillOpacity": 50, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "normal"}, "thresholdsStyle": {"mode": "off"}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 20},
+      "id": 9,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {"expr": "aetheris_job_state", "legendFormat": "{{state}}", "refId": "A"}
+      ],
+      "title": "Job 状态分布 (堆叠)",
+      "type": "timeseries"
     }
   ],
   "refresh": "5s",
@@ -224,6 +203,6 @@
   "timezone": "browser",
   "title": "CoRag Agent 监控看板",
   "uid": "corag-dashboard",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
