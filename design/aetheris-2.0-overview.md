@@ -8,24 +8,24 @@
 
 ```mermaid
 flowchart LR
-  subgraph authoring ["Authoring Layer (Eino-first)"]
+  subgraph authoring["Authoring Layer (Eino-first)"]
     einoBuild["Eino Agent Construction"]
     otherFrameworks["Other Frameworks (Optional Legacy)"]
   end
 
-  subgraph control ["Aetheris Control Plane"]
+  subgraph control["Aetheris Control Plane"]
     api["API / CLI / SDK Facade"]
     auth["Auth / RBAC / Audit Policy"]
   end
 
-  subgraph data ["Aetheris Data Plane (Runtime Core)"]
+  subgraph data["Aetheris Data Plane (Runtime Core)"]
     scheduler["Lease Scheduler / Worker Coordinator"]
     runner["Durable Runner / Step Executor"]
     toolPlane["Tool Plane (Native + MCP Host)"]
     replay["Replay / Verify / Trace"]
   end
 
-  subgraph storage ["Durable Stores"]
+  subgraph storage["Durable Stores"]
     eventStore["Event Store (Append-only)"]
     checkpointStore["Checkpoint Store"]
     effectStore["Effect + Invocation Store"]
@@ -110,32 +110,32 @@ graph TD
     H -->|controls access| C
     H -->|controls access| E
 
-    subgraph agentCollab [Agent Collaboration]
+    subgraph agentCollab["Agent Collaboration"]
         A --> I[Multi-Agent Messaging]
         A --> J[Event-Driven Triggers]
         I --> B
         J --> C
     end
 
-    subgraph perfStability [Performance and Stability]
+    subgraph perfStability["Performance and Stability"]
         B --> K[Dynamic Worker Pool]
         B --> L[Task Prioritization and Timeout]
         D --> M[Distributed JobStore]
         C --> N[Async DAG Execution]
     end
 
-    subgraph extensibility [Extensibility]
+    subgraph extensibility["Extensibility"]
         E --> O[Custom Task Plugins]
         F --> P[Custom Knowledge Sources]
     end
 
-    subgraph monitoring [Monitoring]
+    subgraph monitoring["Monitoring"]
         G --> Q[Job / Task Dashboard]
         G --> R[Event Stream Visualization]
         G --> S[Debug / Replay Tools]
     end
 
-    subgraph security [Security]
+    subgraph security["Security"]
         H --> T[RBAC / Access Control]
         H --> U1[Audit Logs]
         H --> V[Multi-Tenant Isolation]
@@ -150,7 +150,7 @@ graph TD
 
 ```mermaid
 graph TB
-    subgraph runtimeCore [Runtime Core 1.0]
+    subgraph runtimeCore["Runtime Core 1.0"]
         Runner[Runner]
         Ledger[InvocationLedger]
         JobStore[JobStore / EventStore]
@@ -158,7 +158,7 @@ graph TB
         Runner --> JobStore
     end
 
-    subgraph verification [Verification Layer]
+    subgraph verification["Verification Layer"]
         VerifyAPI[GET /api/jobs/:id/verify]
         VerifyCLI[aetheris verify]
         EventChainRoot[Event Chain Root Hash]
@@ -172,12 +172,12 @@ graph TB
         VerifyCLI --> VerifyAPI
     end
 
-    subgraph sealing [Optional Sealing 2.0]
+    subgraph sealing["Optional Sealing 2.0"]
         SignRoot[Sign Event Chain Root]
         VerifySig[Verify Signature]
     end
 
-    subgraph boundary [Security and Multi-Tenant]
+    subgraph boundary["Security and Multi-Tenant"]
         RBAC[RBAC / Access Control]
         Namespace[Namespace / Tenant ID]
         Quota[Resource Quota]

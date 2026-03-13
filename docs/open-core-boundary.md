@@ -2,6 +2,12 @@
 
 This document defines what ships in OSS core versus Enterprise add-ons.
 
+## Strategic Context
+
+Open Core is the commercialization layer of Aetheris' B2D transformation.
+The runtime core remains open and developer-first, while enterprise add-ons package governance, compliance, and multi-cluster operations for regulated production environments.
+See [Strategy and User Stories](strategy-and-user-stories.md) for the full strategic mapping.
+
 ## OSS Core
 
 - Durable runtime execution loop (`internal/agent/runtime`)

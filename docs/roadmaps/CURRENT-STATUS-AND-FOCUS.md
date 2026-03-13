@@ -5,6 +5,7 @@
 **Aetheris = Temporal for Agents**
 
 平衡执行可靠性和审计能力，聚焦可生产运营的分布式 Agent Runtime。
+当前 Q1–Q4 的工程收敛与运营化推进，建立在四阶段战略重构（本地事件存储、持久化执行 API、MCP Host、Open Core）之上，见 [../strategy-and-user-stories.md](../strategy-and-user-stories.md)。
 
 ---
 
@@ -13,8 +14,9 @@
 ### ✅ 已稳定实现（Production Ready）
 
 **Runtime Semantic 1.0+**:
+
 - At-most-once tool execution
-- Confirmation replay  
+- Confirmation replay
 - Tool invocation ledger
 - Event sourcing + JobStore
 - Distributed worker + Scheduler correctness
@@ -22,12 +24,14 @@
 - Crash recovery
 
 **基础可观测**:
+
 - Trace UI（timeline + execution tree）
 - Event stream API
 - Reasoning snapshot
 - CLI trace/debug/replay
 
 **部署基础**:
+
 - Docker Compose stack
 - PostgreSQL schema
 - CLI 工具
@@ -35,12 +39,14 @@
 ### ⚠️ 已实现框架，需要集成（2-4 周可完成）
 
 **Operational Runtime 核心**:
+
 - Event snapshot/compaction（已有接口和数据结构，需worker集成）
 - Rate limiting（已有 limiter，需应用到执行路径）
 - Tenant isolation（已有 schema，需 API 层集成）
 - Storage lifecycle/GC（已有框架，需定时任务）
 
 **基础审计**:
+
 - Evidence zip export（已有 proof包，需与实际 Store 集成）
 - Hash chain（已在 Append 中计算，需验证工具）
 - RBAC基础（已有权限模型，需middleware集成）
@@ -48,12 +54,14 @@
 ### 🔬 已有设计原型，3.0再完善（非当前 focus）
 
 **高级审计**:
+
 - Evidence Graph（types定义完成，builder需完善）
 - Forensics Query API（接口定义完成，引擎需实现）
 - 脱敏引擎（基础实现完成，策略配置需完善）
 - Retention engine（框架完成，真实归档需实现）
 
 **3.0 特性（设计框架已有，实际实现暂缓）**:
+
 - 数字签名（Ed25519 keystore完成，集成暂缓）
 - 分布式 Ledger（协议定义完成，同步实现暂缓）
 - AI 异常检测（接口完成，模型集成暂缓）
@@ -153,6 +161,7 @@
 ## 不做清单（避免分散）
 
 ❌ **暂不做**：
+
 - 完整的脱敏策略配置（只保留基础 redact）
 - 复杂的 Forensics Query（只做基础过滤）
 - Evidence Graph UI 渲染（保留 API）
@@ -167,12 +176,14 @@
 ## 代码组织原则
 
 ### 当前可用（src/）
+
 - pkg/proof/ - 基础导出/验证
 - pkg/auth/ - 基础 RBAC
 - internal/runtime/jobstore/ - Snapshot 接口
 - internal/agent/runtime/executor/ - Rate limiter（待集成）
 
 ### 原型/未来（prototypes/ 或标记 TODO）
+
 - pkg/evidence/ - Evidence Graph builder
 - pkg/forensics/ - 复杂查询引擎
 - pkg/redaction/ - 完整脱敏策略
@@ -240,11 +251,13 @@
 ## 诚实的话
 
 **我们现在的问题不是缺功能，而是：**
+
 - 功能太多没集成
 - 设计太超前
 - 测试覆盖不足
 
 **真正需要的是：**
+
 - 收敛聚焦
 - 补充集成
 - 验证稳定性
@@ -253,6 +266,6 @@
 
 **当前 Focus**: Operational Runtime（Q1）  
 **下一步**: 分布式执行（Q2）  
-**远期**: Evidence 产品化（Q3-Q4）  
+**远期**: Evidence 产品化（Q3-Q4）
 
 不急于做完所有功能，先把核心做稳。

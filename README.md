@@ -46,6 +46,8 @@ Your AI agent worked perfectly in testing. Then production happened.
 
 Just as Kubernetes manages containers, **Aetheris manages agents** — providing the durability, reliability, and observability that production systems require.
 
+It is built as **B2D infrastructure** for enterprise AI systems: developers and architects use Aetheris when durability, compliance evidence, and local-first deployment are non-negotiable.
+
 It's not:
 
 - ❌ A chatbot framework
@@ -83,17 +85,17 @@ It is:
 
 Legal contracts, payment approvals, support escalations — agents can pause for days and resume with full context.
 
-### 2. Long-Running API Orchestration
+### 2. Compliance and Auditable Decisioning
 
-> _"Our data pipeline agent calls 50+ APIs, survives any failure."_
+> _"Every API call and model decision is reconstructable for auditors."_
 
-Salesforce sync, Stripe processing, multi-step data pipelines — with at-most-once guarantees.
+Financial risk checks, legal controls, healthcare approvals — with event-sourced traceability and replayable evidence.
 
-### 3. Auditable Decision Agents
+### 3. Local-First and Air-Gapped Deployment
 
-> _"Regulators can verify exactly why AI approved this loan."_
+> _"Core context stays on our private network, not a hosted SaaS backend."_
 
-Financial decisions, medical prescriptions, compliance systems — with tamper-evident evidence chains.
+Private cloud, on-prem, and air-gapped environments — with embedded local stores and deterministic recovery.
 
 ---
 
@@ -156,24 +158,24 @@ Build agent logic in **Eino** first, then submit runs/jobs to Aetheris for durab
 
 ```mermaid
 flowchart LR
-  subgraph authoring ["Authoring Layer (Eino-first)"]
+  subgraph authoring["Authoring Layer (Eino-first)"]
     einoBuild["Eino Agent Construction"]
     otherFrameworks["Other Frameworks (Optional Legacy)"]
   end
 
-  subgraph control ["Aetheris Control Plane"]
+  subgraph control["Aetheris Control Plane"]
     api["API / CLI / SDK Facade"]
     auth["Auth / RBAC / Audit Policy"]
   end
 
-  subgraph data ["Aetheris Data Plane (Runtime Core)"]
+  subgraph data["Aetheris Data Plane (Runtime Core)"]
     scheduler["Lease Scheduler / Worker Coordinator"]
     runner["Durable Runner / Step Executor"]
     toolPlane["Tool Plane (Native + MCP Host)"]
     replay["Replay / Verify / Trace"]
   end
 
-  subgraph storage ["Durable Stores"]
+  subgraph storage["Durable Stores"]
     eventStore["Event Store (Append-only)"]
     checkpointStore["Checkpoint Store"]
     effectStore["Effect + Invocation Store"]
@@ -193,6 +195,13 @@ flowchart LR
 ```
 
 **The flow:** Eino authoring → Aetheris runtime submission → scheduler/runner execution → durable events/checkpoints/effects → replay/verify/audit.
+
+---
+
+## 🧭 Strategy
+
+Aetheris is explicitly positioned as a **B2D runtime foundation** (not a generic end-user SaaS application).  
+See [Strategy and User Stories](docs/strategy-and-user-stories.md) for strategic goals, user stories, and four-phase transformation status.
 
 ---
 
