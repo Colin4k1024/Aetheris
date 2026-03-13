@@ -32,14 +32,14 @@ const (
 	NodeCondition = "condition"
 
 	// Go 开源框架 Agent 节点类型
-	NodeLangChainGo   = "langchaingo"
-	NodeLangGraphGo   = "langgraphgo"
-	NodeADK           = "adk"
-	NodeGenkit        = "genkit"
+	NodeLangChainGo     = "langchaingo"
+	NodeLangGraphGo     = "langgraphgo"
+	NodeADK             = "adk"
+	NodeGenkit          = "genkit"
 	NodeProtocolLattice = "protocol_lattice"
-	NodeLinGoose      = "lingoose"
-	NodeAnyi          = "anyi"
-	NodeAgentSDK      = "agent_sdk"
+	NodeLinGoose        = "lingoose"
+	NodeAnyi            = "anyi"
+	NodeAgentSDK        = "agent_sdk"
 )
 
 // WaitKind 等待类型（NodeWait 时 Config["wait_kind"]）
