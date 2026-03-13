@@ -145,12 +145,21 @@ func NewDAGCompilerWithOptions(llmClient llm.Client, toolsReg *tools.Registry, e
 		workflowAdapter.CommandEventSink = commandEventSink
 	}
 	adapters := map[string]agentexec.NodeAdapter{
-		planner.NodeLLM:       llmAdapter,
-		planner.NodeTool:      toolAdapter,
-		planner.NodeWorkflow:  workflowAdapter,
-		planner.NodeWait:      &agentexec.WaitNodeAdapter{},
-		planner.NodeApproval:  &agentexec.ApprovalNodeAdapter{},
-		planner.NodeCondition: &agentexec.ConditionNodeAdapter{},
+		planner.NodeLLM:        llmAdapter,
+		planner.NodeTool:       toolAdapter,
+		planner.NodeWorkflow:   workflowAdapter,
+		planner.NodeWait:       &agentexec.WaitNodeAdapter{},
+		planner.NodeApproval:   &agentexec.ApprovalNodeAdapter{},
+		planner.NodeCondition:  &agentexec.ConditionNodeAdapter{},
+		// Go 开源框架 Adapters
+		planner.NodeLangChainGo:   &agentexec.LangChainGoNodeAdapter{},
+		planner.NodeLangGraphGo:   &agentexec.LangGraphGoNodeAdapter{},
+		planner.NodeADK:           &agentexec.ADKNodeAdapter{},
+		planner.NodeGenkit:        &agentexec.GenkitNodeAdapter{},
+		planner.NodeProtocolLattice: &agentexec.ProtocolLatticeNodeAdapter{},
+		planner.NodeLinGoose:      &agentexec.LinGooseNodeAdapter{},
+		planner.NodeAnyi:          &agentexec.AnyiNodeAdapter{},
+		planner.NodeAgentSDK:      &agentexec.AgentSDKNodeAdapter{},
 	}
 	return agentexec.NewCompiler(adapters)
 }
