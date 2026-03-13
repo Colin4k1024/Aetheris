@@ -21,7 +21,8 @@
 // 4. 与 CoRag 框架的集成
 //
 // 运行方式：
-//   go run ./examples/eino_chain/main.go
+//
+//	go run ./examples/eino_chain/main.go
 package main
 
 import (
@@ -33,20 +34,20 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/model/llm"
 	eino_examples "rag-platform/internal/agent/runtime/executor/eino_examples"
+	"rag-platform/internal/model/llm"
 )
 
 // ChainExecutor Chain 执行器
 type ChainExecutor struct {
-	Name    string
-	Nodes   []ChainNode
+	Name  string
+	Nodes []ChainNode
 }
 
 // ChainNode 链节点
 type ChainNode struct {
-	Name     string
-	Handler  func(ctx context.Context, input any) (any, error)
+	Name    string
+	Handler func(ctx context.Context, input any) (any, error)
 }
 
 // NewChainExecutor 创建 Chain 执行器
@@ -82,15 +83,15 @@ func (c *ChainExecutor) Execute(ctx context.Context, input any) (any, error) {
 
 // WorkflowNode 工作流节点
 type WorkflowNode struct {
-	Name       string
-	Handler    func(ctx context.Context, input any) (any, string, error) // 返回结果、下一节点、错误
+	Name    string
+	Handler func(ctx context.Context, input any) (any, string, error) // 返回结果、下一节点、错误
 }
 
 // WorkflowExecutor 工作流执行器
 type WorkflowExecutor struct {
-	Name   string
-	Nodes  map[string]WorkflowNode
-	Start  string
+	Name  string
+	Nodes map[string]WorkflowNode
+	Start string
 }
 
 // NewWorkflowExecutor 创建工作流执行器
@@ -244,7 +245,7 @@ func main() {
 
 			return map[string]any{
 				"category": category,
-				"content": content,
+				"content":  content,
 			}, category, nil
 		}).
 		AddNode("weather", func(ctx context.Context, input any) (any, string, error) {

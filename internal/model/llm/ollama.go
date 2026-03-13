@@ -28,45 +28,45 @@ import (
 
 // OllamaClient Ollama LLM 客户端
 type OllamaClient struct {
-	baseURL  string
-	model    string
+	baseURL    string
+	model      string
 	httpClient *http.Client
 }
 
 // OllamaRequest Ollama API 请求
 type OllamaRequest struct {
-	Model    string   `json:"model"`
-	Prompt   string   `json:"prompt"`
-	Stream   bool    `json:"stream"`
-	Options  *OllamaOptions `json:"options,omitempty"`
+	Model   string         `json:"model"`
+	Prompt  string         `json:"prompt"`
+	Stream  bool           `json:"stream"`
+	Options *OllamaOptions `json:"options,omitempty"`
 }
 
 // OllamaOptions Ollama 选项
 type OllamaOptions struct {
-	Temperature  float64 `json:"temperature,omitempty"`
-	TopP         float64 `json:"top_p,omitempty"`
-	TopK         int     `json:"top_k,omitempty"`
-	NumPredict  int     `json:"num_predict,omitempty"`
+	Temperature float64  `json:"temperature,omitempty"`
+	TopP        float64  `json:"top_p,omitempty"`
+	TopK        int      `json:"top_k,omitempty"`
+	NumPredict  int      `json:"num_predict,omitempty"`
 	Stop        []string `json:"stop,omitempty"`
 }
 
 // OllamaResponse Ollama API 响应
 type OllamaResponse struct {
-	Model     string `json:"model"`
-	Response  string `json:"response"`
-	Done      bool   `json:"done"`
-	Context   []int  `json:"context,omitempty"`
-	TotalDuration int64 `json:"total_duration,omitempty"`
-	LoadDuration  int64 `json:"load_duration,omitempty"`
-	PromptEvalCount int `json:"prompt_eval_count,omitempty"`
-	EvalCount    int   `json:"eval_count,omitempty"`
+	Model           string `json:"model"`
+	Response        string `json:"response"`
+	Done            bool   `json:"done"`
+	Context         []int  `json:"context,omitempty"`
+	TotalDuration   int64  `json:"total_duration,omitempty"`
+	LoadDuration    int64  `json:"load_duration,omitempty"`
+	PromptEvalCount int    `json:"prompt_eval_count,omitempty"`
+	EvalCount       int    `json:"eval_count,omitempty"`
 }
 
 // ChatRequest Ollama Chat 请求
 type ChatRequest struct {
-	Model    string   `json:"model"`
-	Messages []ChatMessage `json:"messages"`
-	Stream   bool    `json:"stream"`
+	Model    string         `json:"model"`
+	Messages []ChatMessage  `json:"messages"`
+	Stream   bool           `json:"stream"`
 	Options  *OllamaOptions `json:"options,omitempty"`
 }
 
@@ -78,10 +78,10 @@ type ChatMessage struct {
 
 // ChatResponse Chat 响应
 type ChatResponse struct {
-	Model     string      `json:"model"`
-	Message   ChatMessage `json:"message"`
-	Done      bool        `json:"done"`
-	TotalDuration int64   `json:"total_duration,omitempty"`
+	Model         string      `json:"model"`
+	Message       ChatMessage `json:"message"`
+	Done          bool        `json:"done"`
+	TotalDuration int64       `json:"total_duration,omitempty"`
 }
 
 // NewOllamaClient 创建 Ollama 客户端
@@ -97,8 +97,8 @@ func NewOllamaClient(model string, baseURL string) (*OllamaClient, error) {
 	}
 
 	return &OllamaClient{
-		baseURL:  strings.TrimSuffix(baseURL, "/"),
-		model:    model,
+		baseURL: strings.TrimSuffix(baseURL, "/"),
+		model:   model,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Minute, // Ollama 可能需要较长时间
 		},
@@ -172,9 +172,9 @@ func (c *OllamaClient) ChatWithContext(ctx context.Context, messages []Message, 
 	}
 
 	req := ChatRequest{
-		Model:   c.model,
+		Model:    c.model,
 		Messages: chatMessages,
-		Stream:  false,
+		Stream:   false,
 	}
 
 	if options.Temperature > 0 || options.MaxTokens > 0 || len(options.Stop) > 0 {

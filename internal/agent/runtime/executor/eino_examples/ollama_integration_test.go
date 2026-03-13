@@ -205,7 +205,7 @@ func TestOllamaToNodeRunner(t *testing.T) {
 	runner := ToNodeRunner(adapter)
 
 	payload := &executor.AgentDAGPayload{
-		Goal:   "What is 1+1?",
+		Goal:    "What is 1+1?",
 		Results: make(map[string]any),
 	}
 

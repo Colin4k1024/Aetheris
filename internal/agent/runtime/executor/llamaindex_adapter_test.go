@@ -26,11 +26,11 @@ import (
 
 // fakeLlamaIndexClient LlamaIndex Client 的 mock 实现
 type fakeLlamaIndexClient struct {
-	mu          sync.Mutex
-	invokeCnt   int
-	invokeFunc  func(ctx context.Context, input map[string]any) (map[string]any, error)
-	streamFunc  func(ctx context.Context, input map[string]any, onChunk func(chunk map[string]any) error) error
-	stateFunc   func(ctx context.Context, sessionID string) (map[string]any, error)
+	mu         sync.Mutex
+	invokeCnt  int
+	invokeFunc func(ctx context.Context, input map[string]any) (map[string]any, error)
+	streamFunc func(ctx context.Context, input map[string]any, onChunk func(chunk map[string]any) error) error
+	stateFunc  func(ctx context.Context, sessionID string) (map[string]any, error)
 }
 
 func (f *fakeLlamaIndexClient) Invoke(ctx context.Context, input map[string]any) (map[string]any, error) {

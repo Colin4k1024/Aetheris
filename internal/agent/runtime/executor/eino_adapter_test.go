@@ -55,10 +55,10 @@ func (f *fakeLLMGenForTest) Calls() int {
 
 // fakeToolExecForTest 用于测试的工具执行 mock
 type fakeToolExecForTest struct {
-	mu          sync.Mutex
-	executeCnt  int
-	result      ToolResult
-	err         error
+	mu         sync.Mutex
+	executeCnt int
+	result     ToolResult
+	err        error
 }
 
 func (f *fakeToolExecForTest) Execute(ctx context.Context, toolName string, input map[string]any, state interface{}) (ToolResult, error) {
@@ -81,10 +81,10 @@ func (f *fakeToolExecForTest) Calls() int {
 
 // fakeWorkflowExecForTest 用于测试的工作流执行 mock
 type fakeWorkflowExecForTest struct {
-	mu          sync.Mutex
-	executeCnt  int
-	result      interface{}
-	err         error
+	mu         sync.Mutex
+	executeCnt int
+	result     interface{}
+	err        error
 }
 
 func (f *fakeWorkflowExecForTest) ExecuteWorkflow(ctx context.Context, name string, params map[string]any) (interface{}, error) {

@@ -21,7 +21,8 @@
 // 4. 与 CoRag 框架的持久化集成
 //
 // 运行方式：
-//   go run ./examples/eino_stateful/main.go
+//
+//	go run ./examples/eino_stateful/main.go
 package main
 
 import (
@@ -34,16 +35,16 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/model/llm"
 	eino_examples "rag-platform/internal/agent/runtime/executor/eino_examples"
+	"rag-platform/internal/model/llm"
 )
 
 // SessionState 会话状态
 type SessionState struct {
-	mu            sync.RWMutex
-	Messages      []Message `json:"messages"`      // 对话历史
-	Variables     map[string]any `json:"variables"` // 变量
-	CheckpointID string        `json:"checkpoint_id"` // 检查点ID
+	mu           sync.RWMutex
+	Messages     []Message      `json:"messages"`      // 对话历史
+	Variables    map[string]any `json:"variables"`     // 变量
+	CheckpointID string         `json:"checkpoint_id"` // 检查点ID
 }
 
 // Message 消息
@@ -117,19 +118,19 @@ func (c *CheckpointStore) Save(checkpointID string, data []byte) error {
 
 // StatefulAgent 状态管理 Agent
 type StatefulAgent struct {
-	model     eino_examples.ChatModel
-	store     *SessionStore
+	model      eino_examples.ChatModel
+	store      *SessionStore
 	checkpoint *CheckpointStore
-	sessionID string
+	sessionID  string
 }
 
 // NewStatefulAgent 创建状态管理 Agent
 func NewStatefulAgent(model eino_examples.ChatModel, store *SessionStore, checkpoint *CheckpointStore, sessionID string) *StatefulAgent {
 	return &StatefulAgent{
-		model:     model,
-		store:     store,
+		model:      model,
+		store:      store,
 		checkpoint: checkpoint,
-		sessionID: sessionID,
+		sessionID:  sessionID,
 	}
 }
 

@@ -70,16 +70,16 @@ type EinoExampleAdapter interface {
 // ReactAgentAdapter ReAct 智能体适配器
 // 对应 eino-examples/flow/agent/react
 type ReactAgentAdapter struct {
-	Model      ChatModel
-	Tools      []tool.InvokableTool
+	Model        ChatModel
+	Tools        []tool.InvokableTool
 	SystemPrompt string
 }
 
 // NewReactAgentAdapter 创建 ReAct 智能体适配器
 func NewReactAgentAdapter(model ChatModel, tools []tool.InvokableTool, opts ...Option) *ReactAgentAdapter {
 	return &ReactAgentAdapter{
-		Model:       model,
-		Tools:       tools,
+		Model:        model,
+		Tools:        tools,
 		SystemPrompt: "你是一个有帮助的助手。",
 	}
 }
@@ -146,16 +146,16 @@ func (a *ReactAgentAdapter) GetState(ctx context.Context) (map[string]any, error
 // DEERAgentAdapter DEER-Go 智能体适配器
 // 对应 eino-examples/flow/agent/deer-go
 type DEERAgentAdapter struct {
-	Model      ChatModel
-	Tools      []tool.InvokableTool
+	Model        ChatModel
+	Tools        []tool.InvokableTool
 	SystemPrompt string
 }
 
 // NewDEERAgentAdapter 创建 DEER-Go 智能体适配器
 func NewDEERAgentAdapter(model ChatModel, tools []tool.InvokableTool, opts ...Option) *DEERAgentAdapter {
 	return &DEERAgentAdapter{
-		Model:       model,
-		Tools:       tools,
+		Model:        model,
+		Tools:        tools,
 		SystemPrompt: "你是一个有帮助的助手。",
 	}
 }

@@ -21,11 +21,13 @@
 // 4. 与 CoRag 框架的集成
 //
 // 运行方式：
-//   go run ./examples/eino_agent_with_tools/main.go
+//
+//	go run ./examples/eino_agent_with_tools/main.go
 //
 // 环境变量：
-//   OLLAMA_MODEL=llama3
-//   OLLAMA_BASE_URL=http://localhost:11434
+//
+//	OLLAMA_MODEL=llama3
+//	OLLAMA_BASE_URL=http://localhost:11434
 package main
 
 import (
@@ -40,8 +42,8 @@ import (
 	"github.com/cloudwego/eino/components/tool/utils"
 
 	"rag-platform/internal/agent/runtime/executor"
-	"rag-platform/internal/model/llm"
 	eino_examples "rag-platform/internal/agent/runtime/executor/eino_examples"
+	"rag-platform/internal/model/llm"
 )
 
 // ToolInput 工具输入参数
@@ -120,10 +122,10 @@ func FakeWeatherTool(ctx context.Context, input string) (string, error) {
 	// 模拟天气数据
 	weather := map[string]string{
 		"beijing":   "晴, 25°C, 空气质量良",
-		"shanghai":   "多云, 28°C, 空气质量良",
-		"guangzhou":  "雷阵雨, 32°C, 空气质量中",
-		"shenzhen":   "晴, 31°C, 空气质量良",
-		"hangzhou":   "晴, 26°C, 空气质量优",
+		"shanghai":  "多云, 28°C, 空气质量良",
+		"guangzhou": "雷阵雨, 32°C, 空气质量中",
+		"shenzhen":  "晴, 31°C, 空气质量良",
+		"hangzhou":  "晴, 26°C, 空气质量优",
 	}
 
 	if w, ok := weather[strings.ToLower(wi.City)]; ok {
@@ -259,7 +261,7 @@ func main() {
 	runner := eino_examples.ToNodeRunner(reactAdapter)
 
 	payload := &executor.AgentDAGPayload{
-		Goal:   "计算 50 乘以 2",
+		Goal:    "计算 50 乘以 2",
 		Results: make(map[string]any),
 	}
 

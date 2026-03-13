@@ -305,7 +305,7 @@ func TestToNodeRunner(t *testing.T) {
 	runner := ToNodeRunner(adapter)
 
 	payload := &executor.AgentDAGPayload{
-		Goal:   "test goal",
+		Goal:    "test goal",
 		Results: make(map[string]any),
 	}
 

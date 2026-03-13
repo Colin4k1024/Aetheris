@@ -89,7 +89,7 @@ func TestBedrockNodeAdapter_SessionManagement(t *testing.T) {
 		},
 		invokeFunc: func(ctx context.Context, agentID, sessionID string, input map[string]any) (map[string]any, error) {
 			return map[string]any{
-				"response":  "test response",
+				"response": "test response",
 				"session":  sessionID,
 				"agent_id": agentID,
 			}, nil
@@ -129,7 +129,7 @@ func TestBedrockNodeAdapter_ReuseExistingSession(t *testing.T) {
 		},
 		invokeFunc: func(ctx context.Context, agentID, sessionID string, input map[string]any) (map[string]any, error) {
 			return map[string]any{
-				"response":  "test response",
+				"response": "test response",
 				"session":  sessionID,
 				"agent_id": agentID,
 			}, nil
