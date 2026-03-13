@@ -8,28 +8,28 @@
 
 ```mermaid
 flowchart LR
-  subgraph authoring [Authoring Layer (Eino-first)]
-    einoBuild[Eino Agent Construction]
-    otherFrameworks[Other Frameworks (Optional Legacy)]
+  subgraph authoring ["Authoring Layer (Eino-first)"]
+    einoBuild["Eino Agent Construction"]
+    otherFrameworks["Other Frameworks (Optional Legacy)"]
   end
 
-  subgraph control [Aetheris Control Plane]
-    api[API / CLI / SDK Facade]
-    auth[Auth / RBAC / Audit Policy]
+  subgraph control ["Aetheris Control Plane"]
+    api["API / CLI / SDK Facade"]
+    auth["Auth / RBAC / Audit Policy"]
   end
 
-  subgraph data [Aetheris Data Plane (Runtime Core)]
-    scheduler[Lease Scheduler / Worker Coordinator]
-    runner[Durable Runner / Step Executor]
-    toolPlane[Tool Plane (Native + MCP Host)]
-    replay[Replay / Verify / Trace]
+  subgraph data ["Aetheris Data Plane (Runtime Core)"]
+    scheduler["Lease Scheduler / Worker Coordinator"]
+    runner["Durable Runner / Step Executor"]
+    toolPlane["Tool Plane (Native + MCP Host)"]
+    replay["Replay / Verify / Trace"]
   end
 
-  subgraph storage [Durable Stores]
-    eventStore[Event Store (Append-only)]
-    checkpointStore[Checkpoint Store]
-    effectStore[Effect + Invocation Store]
-    jobStore[Job Metadata Store]
+  subgraph storage ["Durable Stores"]
+    eventStore["Event Store (Append-only)"]
+    checkpointStore["Checkpoint Store"]
+    effectStore["Effect + Invocation Store"]
+    jobStore["Job Metadata Store"]
   end
 
   authoring --> api
