@@ -1,0 +1,116 @@
+# Aetheris API + 2 Workers + Postgres (Qwen3-Max)
+# 使用阿里云 DashScope 的 qwen3-max 模型
+
+services:
+  postgres:
+    image: registry.openanolis.cn/openanolis/postgres:10.21-8.6
+    environment:
+      POSTGRES_USER: corag
+      POSTGRES_PASSWORD: corag
+      POSTGRES_DB: corag
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../internal/runtime/jobstore/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U corag -d corag"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: ../..
+      dockerfile: deployments/compose/Dockerfile
+    command: ["/usr/local/bin/api"]
+    working_dir: /app
+    volumes:
+      - ../../configs:/app/configs:ro
+    environment:
+      JOBSTORE_TYPE: postgres
+      JOBSTORE_DSN: "postgres://corag:corag@postgres:5432/corag?sslmode=disable"
+      JOBSTORE_LEASE_DURATION: "180s"
+      PLANNER_TYPE: "${PLANNER_TYPE:-rule}"
+      API_MIDDLEWARE_AUTH: "true"
+      API_MIDDLEWARE_JWT_KEY: "local-dev-jwt-key"
+      MODEL_DEFAULTS_LLM: "qwen.qwen3_max"
+      MODEL_LLM_PROVIDERS_QWEN_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+      MODEL_LLM_PROVIDERS_QWEN_API_KEY: "${QWEN_API_KEY}"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker1:
+    build:
+      context: ../..
+      dockerfile: deployments/compose/Dockerfile
+    command: ["/usr/local/bin/worker"]
+    working_dir: /app
+    environment:
+      WORKER_ID: worker-1
+      JOBSTORE_TYPE: postgres
+      JOBSTORE_DSN: "postgres://corag:corag@postgres:5432/corag?sslmode=disable"
+      JOBSTORE_LEASE_DURATION: "180s"
+      PLANNER_TYPE: "${PLANNER_TYPE:-rule}"
+      STORAGE_METADATA_TYPE: memory
+      STORAGE_VECTOR_TYPE: memory
+      MODEL_DEFAULTS_LLM: "qwen.qwen3_max"
+      MODEL_LLM_PROVIDERS_QWEN_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+      MODEL_LLM_PROVIDERS_QWEN_API_KEY: "${QWEN_API_KEY}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker2:
+    build:
+      context: ../..
+      dockerfile: deployments/compose/Dockerfile
+    command: ["/usr/local/bin/worker"]
+    working_dir: /app
+    environment:
+      WORKER_ID: worker-2
+      JOBSTORE_TYPE: postgres
+      JOBSTORE_DSN: "postgres://corag:corag@postgres:5432/corag?sslmode=disable"
+      JOBSTORE_LEASE_DURATION: "180s"
+      PLANNER_TYPE: "${PLANNER_TYPE:-rule}"
+      STORAGE_METADATA_TYPE: memory
+      STORAGE_VECTOR_TYPE: memory
+      MODEL_DEFAULTS_LLM: "qwen.qwen3_max"
+      MODEL_LLM_PROVIDERS_QWEN_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+      MODEL_LLM_PROVIDERS_QWEN_API_KEY: "${QWEN_API_KEY}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v2.47.0}
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.52
+    ports:
+      - "16686:16686"        # Jaeger UI
+      - "4317:4317"         # OTLP HTTP receiver
+      - "4318:4318"         # OTLP gRPC receiver
+      - "14268:14268"       # Jaeger HTTP collector
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=badger
+    volumes:
+      - jaeger_data:/badger
+
+volumes:
+  postgres_data: {}
+  jaeger_data: {}
