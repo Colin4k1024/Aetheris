@@ -34,7 +34,7 @@ Your AI agent worked perfectly in testing. Then production happened.
 ❌ Need to replay a failed run for debugging? → Impossible
 ```
 
-**This is the reality of most AI agent deployments.** The agent frameworks (LangGraph, AutoGen, CrewAI) are great for _building_ agents, but they don't handle _running_ agents in production.
+**This is the reality of most AI agent deployments.** The Go agent frameworks (LangChainGo, LangGraphGo, Google ADK, Genkit) are great for _building_ agents, but they don't handle _running_ agents in production.
 
 **Aetheris fills that gap.**
 
@@ -50,10 +50,10 @@ It's not:
 - ❌ A chatbot framework
 - ❌ A prompt library
 - ❌ A RAG system
-- ❌ Another way to _write_ agents (use LangGraph, AutoGen, CrewAI for that)
+- ❌ Another way to _write_ agents (use LangChainGo, LangGraphGo, Google ADK, Genkit for that)
 
 It is:
-- ✅ An **agent execution runtime** — host your LangGraph/AutoGen/CrewAI agents on Aetheris
+- ✅ An **agent execution runtime** — host your LangChainGo/LangGraphGo/ADK agents on Aetheris
 - ✅ A **durable execution engine** — agents survive crashes and resume from checkpoints
 - ✅ A **reliable orchestrator** — at-most-once tool execution guarantees
 - ✅ An **auditable system** — full decision history with evidence chain
@@ -69,7 +69,7 @@ It is:
 | **🔄 Deterministic Replay** | Reproduce any run for debugging or auditing |
 | **👤 Human-in-the-Loop** | Pause for approval, resume later — without wasting resources |
 | **📋 Full Audit Trail** | Every decision traced — who, what, when, why |
-| **🔌 Multi-Framework** | Already using LangGraph/AutoGen/CrewAI? Just plug them in |
+| **🔌 Multi-Framework** | Already using LangChainGo/LangGraphGo/ADK? Just plug them in |
 
 ---
 
@@ -139,22 +139,26 @@ For a complete walkthrough: [Getting Started Guide](docs/guides/getting-started-
 
 ## 🔗 Framework Adapters
 
-Bring your existing agents. Aetheris runs them durably.
+Bring your Go agents. Aetheris runs them durably with full execution guarantees.
 
-| Framework | Status | Quick Start |
-|-----------|--------|-------------|
-| LangGraph | ✅ Stable | [Example](examples/langgraph-agent/) |
-| AutoGen | ✅ Stable | [Example](examples/autogen_agent/) |
-| CrewAI | ✅ Stable | [Example](examples/crewai_agent/) |
-| LlamaIndex | ✅ Stable | [Example](examples/llamaindex_agent/) |
+| Framework | Description | Documentation |
+|-----------|-------------|---------------|
+| LangChainGo | Go port of LangChain | [Guide](docs/adapters/go-frameworks.md) |
+| LangGraphGo | Graph-based state management | [Guide](docs/adapters/go-frameworks.md) |
+| Google ADK | Google's Agent Development Kit | [Guide](docs/adapters/go-frameworks.md) |
+| Genkit | Firebase Genkit for Go | [Guide](docs/adapters/go-frameworks.md) |
+| Protocol-Lattice | Production multi-agent systems | [Guide](docs/adapters/go-frameworks.md) |
+| LinGoose | Lightweight Go agent framework | [Guide](docs/adapters/go-frameworks.md) |
 
-```python
-# Run your LangGraph on Aetheris
-from aetheris import AetherisRuntime
-
-runtime = AetherisRuntime()
-job = runtime.submit(graph=your_langgraph, input={"query": "..."})
-# Now it's durable, recoverable, auditable
+```json
+{
+  "id": "my-agent",
+  "type": "langchaingo",
+  "config": {
+    "model": "gpt-4",
+    "agent_type": "zeroShotReactDescription"
+  }
+}
 ```
 
 ---
@@ -164,7 +168,7 @@ job = runtime.submit(graph=your_langgraph, input={"query": "..."})
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    Your Agents                      │
-│        (LangGraph / AutoGen / CrewAI / Custom)     │
+│        (LangChainGo / LangGraphGo / ADK / Custom) │
 └──────────────────────┬──────────────────────────────┘
                        │
                        ▼

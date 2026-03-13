@@ -58,7 +58,7 @@ Technical blog articles covering Aetheris core concepts, use cases, and deep div
 | [blog/08-multi-worker-lease-fencing.md](blog/08-multi-worker-lease-fencing.md) | 多 Worker 与 Lease Fencing    |
 | [blog/09-compliance-evidence-chain.md](blog/09-compliance-evidence-chain.md)   | 合规审计与 Evidence Chain     |
 | [blog/10-long-running-checkpoint.md](blog/10-long-running-checkpoint.md)       | 长任务与 Checkpoint 恢复      |
-| [blog/11-when-to-choose-aetheris.md](blog/11-when-to-choose-aetheris.md)       | 选型对比：LangGraph、Temporal |
+| [blog/11-when-to-choose-aetheris.md](blog/11-when-to-choose-aetheris.md)       | 选型对比：Go Agent 框架、Temporal |
 | [blog/12-multi-framework-agent-support.md](blog/12-multi-framework-agent-support.md) | 多框架 Agent 支持：LangChainGo、LangGraphGo、Google ADK 等 |
 
 ## Recommended reading order

@@ -26,7 +26,7 @@ Aetheris now supports:
 ✅ Crash recovery from checkpoints
 ✅ Deterministic replay for debugging
 ✅ Full audit trail
-LangGraph/AutoGen/CrewAI → just plug in.
+✅ LangChainGo/LangGraphGo → just plug in.
 ⭐ github.com/Colin4k1024/Aetheris
 ```
 
@@ -70,11 +70,11 @@ Aetheris 让 Agent 可以用于生产。
 4. 崩溃测试验证
 5. 代码示例
 
-### 文章 3: 从 LangGraph 到生产：Agent 迁移实战
+### 文章 3: 从 Go Agent 框架到生产：迁移实战
 
 **大纲：**
 1. 为什么要迁移现有 Agent？
-2. Aetheris LangGraph 适配器
+2. Aetheris Go 框架适配器 (LangChainGo/LangGraphGo)
 3. 迁移步骤
 4. 对比测试：迁移前 vs 迁移后
 5. 注意事项
@@ -90,7 +90,7 @@ Aetheris 让 Agent 可以用于生产。
 
 ### 正文：
 
-你用 LangGraph 写了一个 Agent，测试完美。上线后：
+你用 LangChainGo 写了一个 Agent，测试完美。上线后：
 
 - Worker 崩溃 → 任务从头开始
 - 工具被调用两次 → 重复支付
@@ -100,7 +100,7 @@ Aetheris 让 Agent 可以用于生产。
 
 ## Aetheris 是什么？
 
-Aetheris 是一个**AI Agent 生产运行时**——把 LangGraph/AutoGen/CrewAI 构建的 Agent 部署到 Aetheris，获得：
+Aetheris 是一个**AI Agent 生产运行时**——把 LangChainGo/LangGraphGo 构建的 Agent 部署到 Aetheris，获得：
 
 - ✅ **持久化执行** — 崩溃后从检查点恢复
 - ✅ **At-Most-Once** — 工具调用绝不重复
@@ -135,7 +135,7 @@ GitHub: github.com/Colin4k1024/Aetheris
 ## 🔗 SEO 关键词建议
 
 - AI Agent 生产部署
-- LangGraph 生产环境
+- LangChainGo 生产环境
 - Agent 运行时
 - Durable Execution
 - At-Most-Once AI

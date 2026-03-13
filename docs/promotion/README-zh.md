@@ -22,9 +22,9 @@
 - ❌ 聊天机器人框架
 - ❌ Prompt 模板库
 - ❌ RAG 检索系统
-- ❌ 用来"写"Agent 的工具（这些是 LangGraph、AutoGen、CrewAI 做的事）
+- ❌ 用来"写"Agent 的工具（这些是 LangChainGo、LangGraphGo、Google ADK 做的事）
 
-它是一个**Agent 执行运行时**——帮你把用 LangGraph/AutoGen/CrewAI 构建的 Agent 跑起来，并且：
+它是一个**Agent 执行运行时**——帮你把用 LangChainGo/LangGraphGo 构建的 Agent 跑起来，并且：
 - ✅ **持久化** — 崩溃后从检查点恢复
 - ✅ **幂等性** — 工具调用绝不重复（At-Most-Once）
 - ✅ **可回放** — 任意时刻的运行都能复现
@@ -39,7 +39,7 @@
 | **🔄 确定性回放** | 任意运行都能复现，用于调试或审计 |
 | **👤 人机协作** | 暂停等待审批，不占用资源 |
 | **📋 完整审计** | 谁、什么、何时、为什么 — 全部记录 |
-| **🔌 多框架支持** | LangGraph、AutoGen、CrewAI 都能接入 |
+| **🔌 多框架支持** | LangChainGo、LangGraphGo、Google ADK 都能接入 |
 
 ## 🚀 5 分钟快速开始
 
@@ -78,7 +78,7 @@ curl http://localhost:8080/api/health
 
 ## 🔗 接入现有 Agent
 
-已经用 LangGraph/AutoGen/CrewAI 写了 Agent？直接迁移：
+已经用 LangChainGo/LangGraphGo 写了 Agent？直接迁移：
 
 ```python
 from aetheris import AetherisRuntime
