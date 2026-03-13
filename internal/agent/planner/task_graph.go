@@ -30,14 +30,6 @@ const (
 	NodeApproval = "approval"
 	// NodeCondition 条件等待节点：内建等待节点，默认 wait_kind=condition，常用于外部条件达成再继续
 	NodeCondition = "condition"
-	// NodeLangGraph LangGraph 桥接节点：通过 LangGraph Adapter 调用外部图执行器（invoke/stream/state）
-	NodeLangGraph = "langgraph"
-	// NodeLlamaIndex LlamaIndex 桥接节点：通过 LlamaIndex Adapter 调用外部 Agent 执行器（invoke/stream）
-	NodeLlamaIndex = "llamaindex"
-	// NodeVertex Vertex AI Agent Engine 桥接节点：通过 Vertex Adapter 调用托管 Agent
-	NodeVertex = "vertex"
-	// NodeBedrock AWS Bedrock Agents 桥接节点：通过 Bedrock Adapter 调用托管 Agent
-	NodeBedrock = "bedrock"
 )
 
 // WaitKind 等待类型（NodeWait 时 Config["wait_kind"]）
@@ -53,7 +45,7 @@ const (
 // TaskNode 任务图中的节点
 type TaskNode struct {
 	ID       string         `json:"id"`
-	Type     string         `json:"type"` // tool / workflow / llm / wait / approval / condition / langgraph / llamaindex
+	Type     string         `json:"type"` // tool / workflow / llm / wait / approval / condition
 	Config   map[string]any `json:"config,omitempty"`
 	ToolName string         `json:"tool_name,omitempty"` // Type=tool 时使用
 	Workflow string         `json:"workflow,omitempty"`  // Type=workflow 时使用
