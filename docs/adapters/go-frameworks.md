@@ -2,18 +2,20 @@
 
 Aetheris provides adapters for integrating Go-based open-source agent frameworks as TaskGraph nodes. This allows you to leverage existing Go agent ecosystems while benefiting from Aetheris's execution guarantees.
 
+> Compatibility only: these adapters are optional legacy integration paths. The recommended default for new builds is Eino-first authoring.
+
 ## Supported Frameworks
 
-| Framework | Node Type | Repository |
-| --------- | --------- | ---------- |
-| LangChainGo | `langchaingo` | [tmc/langchaingo](https://github.com/tmc/langchaingo) |
-| LangGraphGo | `langgraphgo` | [smallnest/langgraphgo](https://github.com/smallnest/langgraphgo) |
-| Google ADK | `adk` | [google/adk-go](https://github.com/google/adk-go) |
-| Firebase Genkit | `genkit` | [firebase/genkit](https://github.com/firebase/genkit) |
-| Protocol-Lattice | `protocol_lattice` | [Protocol-Lattice/go-agent](https://github.com/Protocol-Lattice/go-agent) |
-| LinGoose | `lingoose` | [henomis/lingoose](https://github.com/henomis/lingoose) |
-| Anyi | `anyi` | [jieliu2000/anyi](https://github.com/jieliu2000/anyi) |
-| Agent SDK Go | `agent_sdk` | [timwhitez/agent-sdk-golang](https://github.com/timwhitez/agent-sdk-golang) |
+| Framework        | Node Type          | Repository                                                                  |
+| ---------------- | ------------------ | --------------------------------------------------------------------------- |
+| LangChainGo      | `langchaingo`      | [tmc/langchaingo](https://github.com/tmc/langchaingo)                       |
+| LangGraphGo      | `langgraphgo`      | [smallnest/langgraphgo](https://github.com/smallnest/langgraphgo)           |
+| Google ADK       | `adk`              | [google/adk-go](https://github.com/google/adk-go)                           |
+| Firebase Genkit  | `genkit`           | [firebase/genkit](https://github.com/firebase/genkit)                       |
+| Protocol-Lattice | `protocol_lattice` | [Protocol-Lattice/go-agent](https://github.com/Protocol-Lattice/go-agent)   |
+| LinGoose         | `lingoose`         | [henomis/lingoose](https://github.com/henomis/lingoose)                     |
+| Anyi             | `anyi`             | [jieliu2000/anyi](https://github.com/jieliu2000/anyi)                       |
+| Agent SDK Go     | `agent_sdk`        | [timwhitez/agent-sdk-golang](https://github.com/timwhitez/agent-sdk-golang) |
 
 ## Architecture
 
@@ -174,12 +176,12 @@ type ADKClient interface {
 
 All adapters support these common config options:
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `model` | string | LLM model to use |
-| `temperature` | float | Model temperature (0.0-1.0) |
-| `max_tokens` | int | Maximum tokens to generate |
-| `timeout` | int | Request timeout in seconds |
+| Option        | Type   | Description                 |
+| ------------- | ------ | --------------------------- |
+| `model`       | string | LLM model to use            |
+| `temperature` | float  | Model temperature (0.0-1.0) |
+| `max_tokens`  | int    | Maximum tokens to generate  |
+| `timeout`     | int    | Request timeout in seconds  |
 
 Framework-specific options can be found in each framework's documentation.
 

@@ -227,6 +227,57 @@ func cancelJob(jobID string) (map[string]interface{}, error) {
 	return out, nil
 }
 
+func pauseJob(jobID, reason string) (map[string]interface{}, error) {
+	var out map[string]interface{}
+	body := map[string]string{"reason": reason}
+	resp, err := newClient().R().
+		SetBody(body).
+		SetResult(&out).
+		Post("/api/jobs/" + jobID + "/pause")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("POST pause: %s", resp.String())
+	}
+	return out, nil
+}
+
+func resumeJob(jobID, correlationKey string) (map[string]interface{}, error) {
+	var out map[string]interface{}
+	body := map[string]string{"correlation_key": correlationKey}
+	resp, err := newClient().R().
+		SetBody(body).
+		SetResult(&out).
+		Post("/api/jobs/" + jobID + "/resume")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("POST resume: %s", resp.String())
+	}
+	return out, nil
+}
+
+func signalJob(jobID, correlationKey string) (map[string]interface{}, error) {
+	var out map[string]interface{}
+	body := map[string]interface{}{
+		"correlation_key": correlationKey,
+		"payload":         map[string]interface{}{},
+	}
+	resp, err := newClient().R().
+		SetBody(body).
+		SetResult(&out).
+		Post("/api/jobs/" + jobID + "/signal")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("POST signal: %s", resp.String())
+	}
+	return out, nil
+}
+
 func prettyJSON(v interface{}) string {
 	b, _ := json.MarshalIndent(v, "", "  ")
 	return string(b)

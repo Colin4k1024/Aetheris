@@ -42,3 +42,10 @@ type ToolWithCapability interface {
 	// RequiredCapability 返回该工具所需能力标识，空则使用 Name()
 	RequiredCapability() string
 }
+
+// ToolWithMetadata 可选接口：用于声明工具来源协议与上游标识（例如 MCP server）。
+type ToolWithMetadata interface {
+	Tool
+	Protocol() string // "native" | "mcp"
+	Source() string   // 例如 "github-mcp"
+}

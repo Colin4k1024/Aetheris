@@ -506,28 +506,93 @@ func (s *JobStorePg) CountByStatus(ctx context.Context) (map[string]int64, error
 	return out, rows.Err()
 }
 
-// SetWaiting PostgreSQL 实现：TODO - 需要 waiting_info 表支持
 func (s *JobStorePg) SetWaiting(ctx context.Context, jobID, correlationKey, waitType, reason string) error {
-	// TODO: 实现 waiting_info 表写入
-	_, err := s.pool.Exec(ctx,
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx,
 		`UPDATE jobs SET status = $1, updated_at = now() WHERE id = $2`,
-		pgStatusWaiting, jobID)
-	return err
+		pgStatusWaiting, jobID); err != nil {
+		return err
+	}
+	if correlationKey != "" {
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO waiting_info (job_id, correlation_key, wait_type, reason, status, created_at, updated_at)
+			 VALUES ($1, $2, $3, $4, $5, now(), now())
+			 ON CONFLICT (job_id) DO UPDATE SET
+			   correlation_key = EXCLUDED.correlation_key,
+			   wait_type = EXCLUDED.wait_type,
+			   reason = EXCLUDED.reason,
+			   status = EXCLUDED.status,
+			   updated_at = now()`,
+			jobID, correlationKey, waitType, reason, pgStatusWaiting); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }
 
-// SetParked PostgreSQL 实现：TODO - 需要 waiting_info 表支持
 func (s *JobStorePg) SetParked(ctx context.Context, jobID, correlationKey, waitType, reason string) error {
-	// TODO: 实现 waiting_info 表写入
-	_, err := s.pool.Exec(ctx,
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx,
 		`UPDATE jobs SET status = $1, updated_at = now() WHERE id = $2`,
-		pgStatusParked, jobID)
-	return err
+		pgStatusParked, jobID); err != nil {
+		return err
+	}
+	if correlationKey != "" {
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO waiting_info (job_id, correlation_key, wait_type, reason, status, created_at, updated_at)
+			 VALUES ($1, $2, $3, $4, $5, now(), now())
+			 ON CONFLICT (job_id) DO UPDATE SET
+			   correlation_key = EXCLUDED.correlation_key,
+			   wait_type = EXCLUDED.wait_type,
+			   reason = EXCLUDED.reason,
+			   status = EXCLUDED.status,
+			   updated_at = now()`,
+			jobID, correlationKey, waitType, reason, pgStatusParked); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }
 
-// WakeupJob PostgreSQL 实现：TODO - 需要 waiting_info 表支持
 func (s *JobStorePg) WakeupJob(ctx context.Context, correlationKey string) (*Job, error) {
-	// TODO: 实现 waiting_info 表查询和状态更新
-	return nil, nil
+	if correlationKey == "" {
+		return nil, nil
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	var jobID string
+	err = tx.QueryRow(ctx,
+		`SELECT job_id FROM waiting_info WHERE correlation_key = $1 FOR UPDATE`,
+		correlationKey).Scan(&jobID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE jobs SET status = $1, updated_at = now() WHERE id = $2 AND status IN ($3, $4)`,
+		pgStatusPending, jobID, pgStatusParked, pgStatusWaiting); err != nil {
+		return nil, err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM waiting_info WHERE job_id = $1`, jobID); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return s.Get(ctx, jobID)
 }
 
 // ClaimParkedJob PostgreSQL 实现

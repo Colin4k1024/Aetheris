@@ -115,6 +115,32 @@ func main() {
 			os.Exit(1)
 		}
 		runCancel(args[0])
+	case "pause":
+		if len(args) < 1 {
+			fmt.Fprintf(os.Stderr, "Usage: aetheris pause <job_id> [reason]\n")
+			os.Exit(1)
+		}
+		reason := ""
+		if len(args) > 1 {
+			reason = args[1]
+		}
+		runPause(args[0], reason)
+	case "resume":
+		if len(args) < 1 {
+			fmt.Fprintf(os.Stderr, "Usage: aetheris resume <job_id> [correlation_key]\n")
+			os.Exit(1)
+		}
+		correlationKey := ""
+		if len(args) > 1 {
+			correlationKey = args[1]
+		}
+		runResume(args[0], correlationKey)
+	case "signal":
+		if len(args) < 2 {
+			fmt.Fprintf(os.Stderr, "Usage: aetheris signal <job_id> <correlation_key>\n")
+			os.Exit(1)
+		}
+		runSignal(args[0], args[1])
 	case "debug":
 		if len(args) < 1 {
 			fmt.Fprintf(os.Stderr, "Usage: aetheris debug <job_id> [--compare-replay]\n")
@@ -162,15 +188,18 @@ func printUsage() {
 	fmt.Println("  config          - 显示配置概要")
 	fmt.Println("  server start    - 启动 API 服务（go run ./cmd/api）")
 	fmt.Println("  worker start    - 启动 Worker 服务（go run ./cmd/worker）")
-	fmt.Println("  agent create [name] - 创建 Agent，返回 agent_id")
-	fmt.Println("  chat [agent_id] - 交互式对话（未传 agent_id 时需环境 AETHERIS_AGENT_ID）")
-	fmt.Println("  jobs <agent_id> - 列出该 Agent 的 Jobs")
+	fmt.Println("  agent create [name] - [legacy] 创建 Agent，返回 agent_id")
+	fmt.Println("  chat [agent_id] - [legacy] 交互式对话（未传 agent_id 时需环境 AETHERIS_AGENT_ID）")
+	fmt.Println("  jobs <agent_id> - 列出该 Agent 的 Jobs（runtime-first 建议使用 job_id 进行后续操作）")
 	fmt.Println("  trace <job_id>  - 输出 Job 执行时间线，并打印 Trace 页面 URL")
 	fmt.Println("  workers         - 列出当前活跃 Worker（Postgres 模式）")
 	fmt.Println("  replay <job_id> - 输出 Job 事件流（重放用）")
 	fmt.Println("  monitor [--watch] [--interval N] - 输出运行期可观测性摘要")
 	fmt.Println("  migrate <subcommand> - 迁移辅助命令（如 m1-sql、backfill-hashes）")
 	fmt.Println("  cancel <job_id> - 请求取消执行中的 Job")
+	fmt.Println("  pause <job_id> [reason] - 暂停 Job（进入 parked）")
+	fmt.Println("  resume <job_id> [correlation_key] - 恢复 Job（回到 pending）")
+	fmt.Println("  signal <job_id> <correlation_key> - 向 waiting/parked Job 发送 signal")
 	fmt.Println("  debug <job_id> [--compare-replay] - Agent 调试器：timeline + evidence + replay verification")
 	fmt.Println("  verify <job_id> - 执行验证：输出 execution_hash、event_chain_root、ledger proof、replay proof")
 	fmt.Println("  verify <evidence.zip> - 离线验证证据包完整性")
@@ -250,6 +279,7 @@ func runWorkerStart() {
 }
 
 func runAgentCreate(name string) {
+	fmt.Fprintln(os.Stderr, "warning: `agent create` is a legacy facade; prefer runtime-first `/api/runs` + `/api/jobs`.")
 	if name == "" {
 		name = "default"
 	}
@@ -262,6 +292,7 @@ func runAgentCreate(name string) {
 }
 
 func runChat(args []string) {
+	fmt.Fprintln(os.Stderr, "warning: `chat` is a legacy facade; prefer runtime-first run submission and job tracking.")
 	agentID := os.Getenv("AETHERIS_AGENT_ID")
 	if len(args) > 0 {
 		agentID = args[0]
@@ -569,6 +600,33 @@ func runCancel(jobID string) {
 	out, err := cancelJob(jobID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "取消失败: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println(prettyJSON(out))
+}
+
+func runPause(jobID, reason string) {
+	out, err := pauseJob(jobID, reason)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "暂停失败: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println(prettyJSON(out))
+}
+
+func runResume(jobID, correlationKey string) {
+	out, err := resumeJob(jobID, correlationKey)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "恢复失败: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println(prettyJSON(out))
+}
+
+func runSignal(jobID, correlationKey string) {
+	out, err := signalJob(jobID, correlationKey)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "signal 失败: %v\n", err)
 		os.Exit(1)
 	}
 	fmt.Println(prettyJSON(out))

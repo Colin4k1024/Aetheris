@@ -57,6 +57,18 @@ CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs (created_at);
 -- 同一 Agent 下幂等键唯一，用于 Idempotency-Key header 去重
 CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_agent_idempotency ON jobs (agent_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
 
+-- Waiting/Parked 状态索引（用于 correlation_key 唤醒）
+CREATE TABLE IF NOT EXISTS waiting_info (
+    job_id            TEXT PRIMARY KEY REFERENCES jobs(id) ON DELETE CASCADE,
+    correlation_key   TEXT UNIQUE NOT NULL,
+    wait_type         TEXT NOT NULL,
+    reason            TEXT,
+    status            INT NOT NULL,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_waiting_info_correlation_key ON waiting_info (correlation_key);
+
 -- Agent 状态表（会话/记忆快照），供 Worker 恢复与多实例共享
 CREATE TABLE IF NOT EXISTS agent_states (
     agent_id   TEXT NOT NULL,

@@ -138,7 +138,7 @@ func (a *LLMNodeAdapter) runNode(ctx context.Context, taskID string, cfg map[str
 			}
 			// Include evidence from Effect Store Metadata if available
 			evidence := map[string]interface{}{}
-			if eff.Metadata != nil && len(eff.Metadata) > 0 {
+			if len(eff.Metadata) > 0 {
 				evidence["llm_decision"] = eff.Metadata
 			}
 			resultMap := map[string]any{
@@ -151,7 +151,20 @@ func (a *LLMNodeAdapter) runNode(ctx context.Context, taskID string, cfg map[str
 	}
 	if a.CommandEventSink != nil && jobID != "" {
 		inputBytes, _ := json.Marshal(map[string]any{"prompt": prompt})
-		_ = a.CommandEventSink.AppendCommandEmitted(ctx, jobID, taskID, taskID, "llm", inputBytes)
+		if err := a.CommandEventSink.AppendCommandEmitted(ctx, jobID, taskID, taskID, "llm", inputBytes); err != nil {
+			return nil, err
+		}
+	}
+	if a.EffectStore != nil && jobID != "" {
+		inputBytes, _ := json.Marshal(map[string]any{"prompt": prompt})
+		_ = a.EffectStore.PutEffect(ctx, &EffectRecord{
+			JobID:     jobID,
+			CommandID: taskID,
+			Kind:      EffectKindLLM,
+			Input:     inputBytes,
+			Error:     "inflight",
+			Metadata:  map[string]any{"phase": "started"},
+		})
 	}
 	// LLM span for tracing
 	model := "default"
@@ -577,7 +590,9 @@ func (a *ToolNodeAdapter) runNodeExecute(ctx context.Context, jobID, taskID, too
 	}
 	if a.CommandEventSink != nil && jobID != "" {
 		inputBytes, _ := json.Marshal(cfg)
-		_ = a.CommandEventSink.AppendCommandEmitted(ctx, jobID, nodeIDForEvent, taskID, "tool", inputBytes)
+		if err := a.CommandEventSink.AppendCommandEmitted(ctx, jobID, nodeIDForEvent, taskID, "tool", inputBytes); err != nil {
+			return nil, err
+		}
 	}
 	if a.ToolEventSink != nil && jobID != "" {
 		inputBytes, _ := json.Marshal(cfg)

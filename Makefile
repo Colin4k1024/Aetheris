@@ -9,8 +9,12 @@ API_PID   := $(BIN_DIR)/api.pid
 WORKER_PID := $(BIN_DIR)/worker.pid
 API_LOG   := $(BIN_DIR)/api.log
 WORKER_LOG := $(BIN_DIR)/worker.log
+EMBED_API_PID := $(BIN_DIR)/api.embedded.pid
+EMBED_WORKER_PID := $(BIN_DIR)/worker.embedded.pid
+EMBED_API_LOG := $(BIN_DIR)/api.embedded.log
+EMBED_WORKER_LOG := $(BIN_DIR)/worker.embedded.log
 
-.PHONY: build run run-all run-api run-worker stop clean test test-integration vet fmt fmt-check tidy docker-build docker-run docker-stop release-2.0 help
+.PHONY: build run run-all run-api run-worker run-embedded run-embedded-api run-embedded-worker stop stop-embedded clean test test-integration vet fmt fmt-check tidy docker-build docker-run docker-stop run-embedded-docker stop-embedded-docker release-2.0 help
 
 # 默认目标：帮助
 help:
@@ -20,13 +24,17 @@ help:
 	@echo "  make run-api - 仅后台启动 API（会先 build）"
 	@echo "  make run-worker - 仅后台启动 Worker（会先 build）"
 	@echo "  make run-all - 等价 make run"
+	@echo "  make run-embedded - 使用 embedded 配置后台启动 API + Worker"
 	@echo "  make stop    - 停止由 make run 启动的 API 与 Worker"
+	@echo "  make stop-embedded - 停止由 make run-embedded 启动的 API 与 Worker"
 	@echo "  make clean   - 删除 $(BIN_DIR)/"
 	@echo "  make test    - 运行测试"
 	@echo "  make test-integration - 运行关键集成测试（runtime + http）"
 	@echo "  make docker-build - 构建 API/Worker 容器镜像（deployments/compose/Dockerfile）"
 	@echo "  make docker-run   - 使用 compose 启动本地 2.0 栈"
 	@echo "  make docker-stop  - 使用 compose 停止本地 2.0 栈"
+	@echo "  make run-embedded-docker  - 启动 embedded compose 栈（无外部 DB）"
+	@echo "  make stop-embedded-docker - 停止 embedded compose 栈"
 	@echo "  make release-2.0  - 执行 2.0 发布前检查脚本"
 	@echo "  make vet     - go vet"
 	@echo "  make fmt       - gofmt -w"
@@ -62,11 +70,35 @@ run-worker: build
 	$(WORKER_BIN) > $(WORKER_LOG) 2>&1 & echo $$! > $(WORKER_PID)
 	@echo "Worker 已启动 (PID $$(cat $(WORKER_PID))), 日志: $(WORKER_LOG)"
 
+run-embedded: build
+	@$(MAKE) run-embedded-api
+	@$(MAKE) run-embedded-worker
+	@echo "Embedded 模式已启动"
+	@echo "停止服务: make stop-embedded"
+	@echo "健康检查: curl http://localhost:8080/api/health"
+
+run-embedded-api: build
+	@mkdir -p $(BIN_DIR)
+	@if [ -f $(EMBED_API_PID) ]; then kill -0 $$(cat $(EMBED_API_PID)) 2>/dev/null && { echo "Embedded API 已在运行 (PID $$(cat $(EMBED_API_PID))), 先执行 make stop-embedded"; exit 1; }; fi
+	API_CONFIG_PATH=configs/api.embedded.yaml MODEL_CONFIG_PATH=configs/model.yaml $(API_BIN) > $(EMBED_API_LOG) 2>&1 & echo $$! > $(EMBED_API_PID)
+	@echo "Embedded API 已启动 (PID $$(cat $(EMBED_API_PID))), 日志: $(EMBED_API_LOG)"
+
+run-embedded-worker: build
+	@mkdir -p $(BIN_DIR)
+	@if [ -f $(EMBED_WORKER_PID) ]; then kill -0 $$(cat $(EMBED_WORKER_PID)) 2>/dev/null && { echo "Embedded Worker 已在运行 (PID $$(cat $(EMBED_WORKER_PID))), 先执行 make stop-embedded"; exit 1; }; fi
+	WORKER_CONFIG_PATH=configs/worker.embedded.yaml MODEL_CONFIG_PATH=configs/model.yaml $(WORKER_BIN) > $(EMBED_WORKER_LOG) 2>&1 & echo $$! > $(EMBED_WORKER_PID)
+	@echo "Embedded Worker 已启动 (PID $$(cat $(EMBED_WORKER_PID))), 日志: $(EMBED_WORKER_LOG)"
+
 # 停止由 make run 启动的进程
 stop:
 	@[ -f $(API_PID) ] && kill $$(cat $(API_PID)) 2>/dev/null && echo "已停止 API ($$(cat $(API_PID)))" || true
 	@[ -f $(WORKER_PID) ] && kill $$(cat $(WORKER_PID)) 2>/dev/null && echo "已停止 Worker ($$(cat $(WORKER_PID)))" || true
 	@rm -f $(API_PID) $(WORKER_PID)
+
+stop-embedded:
+	@[ -f $(EMBED_API_PID) ] && kill $$(cat $(EMBED_API_PID)) 2>/dev/null && echo "已停止 Embedded API ($$(cat $(EMBED_API_PID)))" || true
+	@[ -f $(EMBED_WORKER_PID) ] && kill $$(cat $(EMBED_WORKER_PID)) 2>/dev/null && echo "已停止 Embedded Worker ($$(cat $(EMBED_WORKER_PID)))" || true
+	@rm -f $(EMBED_API_PID) $(EMBED_WORKER_PID)
 
 clean:
 	rm -rf $(BIN_DIR)
@@ -85,6 +117,12 @@ docker-run:
 
 docker-stop:
 	./scripts/local-2.0-stack.sh stop
+
+run-embedded-docker:
+	docker compose -f deployments/compose/docker-compose.embedded.yml up -d
+
+stop-embedded-docker:
+	docker compose -f deployments/compose/docker-compose.embedded.yml down
 
 release-2.0:
 	./scripts/release-2.0.sh

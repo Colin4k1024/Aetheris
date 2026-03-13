@@ -88,6 +88,8 @@ type ToolManifest struct {
 	Timeout      string         `json:"timeout,omitempty"`
 	Version      string         `json:"version,omitempty"`
 	Capability   string         `json:"capability,omitempty"` // 所需 capability，供 RBAC/策略校验；空则用 name
+	Protocol     string         `json:"protocol,omitempty"`   // native | mcp
+	Source       string         `json:"source,omitempty"`     // e.g. mcp server name
 }
 
 // SchemasForLLM 返回所有工具的 Schema 列表（JSON，供 Planner 使用）
@@ -115,6 +117,10 @@ func (r *Registry) Manifests() []ToolManifest {
 		if w, ok := t.(ToolWithCapability); ok && w.RequiredCapability() != "" {
 			m.Capability = w.RequiredCapability()
 		}
+		if meta, ok := t.(ToolWithMetadata); ok {
+			m.Protocol = meta.Protocol()
+			m.Source = meta.Source()
+		}
 		list = append(list, m)
 	}
 	return list
@@ -136,6 +142,10 @@ func (r *Registry) Manifest(name string) *ToolManifest {
 	}
 	if w, ok := t.(ToolWithCapability); ok && w.RequiredCapability() != "" {
 		m.Capability = w.RequiredCapability()
+	}
+	if meta, ok := t.(ToolWithMetadata); ok {
+		m.Protocol = meta.Protocol()
+		m.Source = meta.Source()
 	}
 	return m
 }

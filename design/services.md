@@ -2,17 +2,16 @@
 
 ## 1. 架构概览
 
-系统基于 Go 语言，采用 **多 Service + 单一编排核心（eino）** 的设计：
+系统基于 Go 语言，采用 **Eino-first 构建 + Aetheris runtime 执行** 的设计：
 
-```
-┌──────────────┐      ┌────────────────┐
-│  api-service │ ───▶ │ agent-service  │
-└──────────────┘      │   (eino)       │
-                      └───────┬────────┘
-                              ▼
-                      ┌────────────────┐
-                      │ index-service  │
-                      └────────────────┘
+```mermaid
+flowchart LR
+  authoring[Eino Authoring] --> api[api-service]
+  api --> worker[agent-service / worker]
+  worker --> runtime[Durable Runtime Core]
+  runtime --> stores[Event + Checkpoint + Effect + Job Stores]
+  runtime --> mcp[MCP Tool Plane]
+  runtime --> replay[Replay / Verify / Trace]
 ```
 
 ---
@@ -37,10 +36,10 @@
 
 ### 职责
 
-- eino Workflow / DAG 执行
-- Agent 调度
-- Pipeline 编排
-- 模型调用决策
+- Durable 执行（Scheduler/Runner）
+- 事件溯源与回放验证
+- MCP 工具调用托管
+- 对 Eino 构建结果进行可靠执行（而非负责 Agent 构建）
 
 ### 内部结构
 

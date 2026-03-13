@@ -13,7 +13,7 @@
 
 ## 3. 必测场景
 
-1. 基础提交链路: `POST /api/agents/:id/message` -> Job 完成
+1. 基础提交链路: `POST /api/runs`（canonical）或 `POST /api/agents/:id/message`（legacy facade）-> Job 完成
 2. 查询链路: `GET /api/jobs/:id` 与 `GET /api/jobs/:id/events`
 3. 取证链路: `POST /api/jobs/:id/export` + 离线 verify
 4. 可观测链路: `GET /api/jobs/:id/trace` 与 Trace 页面
@@ -27,7 +27,8 @@
   - 简单任务: `>= 10 jobs/min`
   - 复杂任务: `>= 2 jobs/min`
 - 时延:
-  - `POST /api/agents/:id/message` P95 `<= 500ms`（仅提交确认）
+  - `POST /api/runs` P95 `<= 500ms`（仅提交确认，canonical）
+  - `POST /api/agents/:id/message` P95 `<= 500ms`（兼容层，legacy facade）
   - `GET /api/jobs/:id` P95 `<= 200ms`
   - `GET /api/jobs/:id/events` P95 `<= 500ms`
 - 稳定性:
@@ -40,6 +41,7 @@
 ## 5. 采集指标
 
 至少采集:
+
 - API QPS、P50/P95/P99
 - Worker busy ratio
 - Queue backlog
@@ -59,11 +61,13 @@
 ```
 
 输出报告:
+
 - `artifacts/release/perf-baseline-2.0-*.md`
 
 ## 7. 报告模板
 
 发布前输出一份基线报告，建议包含:
+
 - 测试环境（版本、规格、配置）
 - 场景与请求量
 - 指标结果（P50/P95/P99、失败率）

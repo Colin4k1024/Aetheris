@@ -1,10 +1,13 @@
-# Getting Started: Build Your First Production Agent
+# Getting Started: Eino-first + Aetheris Runtime
 
-This guide walks you through building a **real production agent** on Aetheris in 15 minutes: an automatic refund agent with human approval, external API calls (at-most-once), crash recovery, and audit trail.
+This guide walks you through the official path: build your agent with **Eino**, then run it on **Aetheris runtime** for durability, replay, and auditability.
+
+> Migration note: legacy `/api/agents/*` construction endpoints remain available for compatibility, but runtime-first `/api/runs/*` and `/api/jobs/*` are the default path for new users.
 
 **What you'll learn**:
+
 - Define Tools with idempotency (no duplicate side effects)
-- Create a TaskGraph with Wait node (human-in-the-loop)
+- Create Eino workflow/graph with Wait node (human-in-the-loop)
 - Send signals to resume execution
 - View execution trace and evidence
 - Replay for debugging (deterministic)
@@ -14,6 +17,7 @@ This guide walks you through building a **real production agent** on Aetheris in
 ## Scenario: Automatic Refund Agent
 
 **Business flow**:
+
 1. User requests refund for order-123
 2. Agent queries order status (tool call)
 3. LLM decides if approval needed
@@ -23,6 +27,7 @@ This guide walks you through building a **real production agent** on Aetheris in
 7. Complete with full audit trail
 
 **Why this matters**:
+
 - **Human-in-the-loop**: Real production scenario (not demo)
 - **External side effects**: Refund API must be at-most-once
 - **Long wait**: 3 hour wait doesn't block Worker
@@ -40,6 +45,7 @@ This guide walks you through building a **real production agent** on Aetheris in
 **Scaffold a new project** (optional): From an empty directory run `aetheris init` to create a minimal agent template with `configs/api.yaml` and a sample `main.go.example`. Then follow the steps below from the Aetheris repo or your project.
 
 **Quick setup**:
+
 ```bash
 # Start Postgres
 docker run -d --name aetheris-pg -p 5432:5432 \
@@ -77,7 +83,7 @@ type QueryOrderTool struct{}
 
 func (t *QueryOrderTool) Execute(ctx context.Context, toolName string, input map[string]any, state interface{}) (executor.ToolResult, error) {
 	orderID, _ := input["order_id"].(string)
-	
+
 	// 模拟查询订单 API
 	orderStatus := map[string]interface{}{
 		"order_id": orderID,
@@ -85,7 +91,7 @@ func (t *QueryOrderTool) Execute(ctx context.Context, toolName string, input map
 		"amount":   100.0,
 		"issue":    "product_defective", // 触发退款
 	}
-	
+
 	output, _ := json.Marshal(orderStatus)
 	return executor.ToolResult{
 		Done:   true,
@@ -105,28 +111,28 @@ func (t *SendRefundTool) Execute(ctx context.Context, toolName string, input map
 		stepID = toolName
 	}
 	idempotencyKey := executor.StepIdempotencyKeyForExternal(ctx, jobID, stepID)
-	
+
 	orderID, _ := input["order_id"].(string)
 	amount, _ := input["amount"].(float64)
-	
+
 	// 模拟调用支付 API（实际应传 idempotencyKey 到 Stripe/Alipay）
 	fmt.Printf("[RefundTool] Calling payment API: refund(order=%s, amount=%.2f, idempotency_key=%s)\n",
 		orderID, amount, idempotencyKey)
-	
+
 	// 真实实现示例：
 	// err := stripeClient.Refunds.Create(&stripe.RefundParams{
 	//     Charge: stripe.String(orderID),
 	//     Amount: stripe.Int64(int64(amount * 100)),
 	//     IdempotencyKey: stripe.String(idempotencyKey), // ← 关键！
 	// })
-	
+
 	result := map[string]interface{}{
 		"refund_id":       "refund-" + orderID,
 		"status":          "success",
 		"idempotency_key": idempotencyKey,
 	}
 	output, _ := json.Marshal(result)
-	
+
 	return executor.ToolResult{
 		Done:   true,
 		Output: string(output),
@@ -161,7 +167,7 @@ type RefundAgentPlanner struct{}
 func (p *RefundAgentPlanner) PlanGoal(ctx context.Context, goal string, mem memory.Memory) (*planner.TaskGraph, error) {
 	// 生成唯一 correlation_key（用于 signal 匹配）
 	approvalKey := "approval-" + uuid.New().String()
-	
+
 	return &planner.TaskGraph{
 		Nodes: []planner.TaskNode{
 			// Step 1: 查询订单
@@ -241,32 +247,32 @@ import (
 
 func main() {
 	ctx := context.Background()
-	
+
 	// 1. 注册 Tools
 	registry := tools.NewRegistry()
 	registry.Register("query_order", &QueryOrderTool{})
 	registry.Register("send_refund", &SendRefundTool{})
-	
+
 	// 2. 创建 Agent（使用 RefundAgentPlanner）
 	planner := &RefundAgentPlanner{}
 	mem := memory.NewCompositeMemory(nil)
 	session := runtime.NewSession("session-1")
-	
+
 	agent := runtime.NewAgent("refund-agent-1", "Refund Agent", session, mem, planner, registry)
-	
+
 	fmt.Println("✓ Agent 创建成功")
 	fmt.Println("✓ Tools 注册: query_order, send_refund")
 	fmt.Println()
-	
-	// 3. 创建 Job（POST /api/agents/:id/message）
+
+	// 3. 创建 Job（legacy facade: POST /api/agents/:id/message）
 	jobID := createRefundJob(ctx, agent)
 	fmt.Printf("✓ Job 创建: %s\n", jobID)
 	fmt.Println("  Job 将执行到 Wait 节点（StatusParked）并等待审批")
 	fmt.Println()
-	
+
 	// 4. 等待 Agent 执行到 Wait（StatusParked）
 	time.Sleep(5 * time.Second)
-	
+
 	// 5. 查询 Job 状态
 	status := getJobStatus(jobID)
 	fmt.Printf("✓ Job 状态: %s\n", status)
@@ -274,30 +280,30 @@ func main() {
 		fmt.Println("  → Agent 在等待人工审批")
 	}
 	fmt.Println()
-	
+
 	// 6. 人工审批（POST /api/jobs/:id/signal）
 	fmt.Println("模拟人工审批（3 小时后）...")
 	time.Sleep(2 * time.Second)
-	
+
 	correlationKey := getCorrelationKeyFromJob(jobID) // 从 job_waiting 事件读取
 	sendSignal(ctx, jobID, correlationKey, map[string]interface{}{"approved": true})
 	fmt.Printf("✓ Signal 发送: correlation_key=%s, approved=true\n", correlationKey)
 	fmt.Println("  Job 将重新入队并继续执行")
 	fmt.Println()
-	
+
 	// 7. 等待 Agent 完成
 	time.Sleep(5 * time.Second)
-	
+
 	finalStatus := getJobStatus(jobID)
 	fmt.Printf("✓ Job 最终状态: %s\n", finalStatus)
 	fmt.Println()
-	
+
 	// 8. 查看 Trace
 	fmt.Println("=== Execution Trace ===")
 	trace := getTrace(jobID)
 	fmt.Println(trace)
 	fmt.Println()
-	
+
 	// 9. Replay 验证（determinism）
 	fmt.Println("=== Replay Verification ===")
 	replayResult := triggerReplay(jobID)
@@ -305,7 +311,8 @@ func main() {
 }
 
 func createRefundJob(ctx context.Context, agent *runtime.Agent) string {
-	// POST /api/agents/:id/message
+	// legacy facade: POST /api/agents/:id/message
+	// runtime-first canonical: POST /api/runs
 	// 返回 job_id
 	return "job-refund-001" // 实际应调用 API
 }
@@ -422,6 +429,7 @@ go run ./cmd/worker
 ```
 
 **What happens**:
+
 1. Worker A executes send_refund, writes to Effect Store, crashes before command_committed
 2. Lease expires (30s), Scheduler Reclaim → Job back to Pending
 3. Worker B claims, Replay from events
@@ -444,6 +452,7 @@ curl -s http://localhost:8080/api/jobs/job-xxx/trace | jq .
 ```
 
 **Evidence for audit**:
+
 ```json
 {
   "steps": [
@@ -460,6 +469,7 @@ curl -s http://localhost:8080/api/jobs/job-xxx/trace | jq .
 ```
 
 **Can answer**:
+
 - "谁让 AI 发起退款？" → Job job-xxx, Agent refund-agent-1
 - "何时执行？" → 2024-11-20 13:12:35
 - "为什么退款？" → llm_decide 基于 query_order 返回"订单异常"
@@ -481,6 +491,7 @@ curl -s http://localhost:8080/api/jobs/job-xxx/replay | jq .
 ```
 
 **Replay guarantees** (see [design/execution-guarantees.md](../design/execution-guarantees.md)):
+
 - **Tools NOT re-executed**: Injected from Ledger/Effect Store
 - **LLM NOT re-called**: Injected from Effect Store
 - **State deterministic**: Same inputs → same outputs
@@ -494,7 +505,10 @@ In production, the wait → signal flow is asynchronous:
 
 ```bash
 # 1. Create job → Agent executes to Wait node
+# legacy facade example:
 POST /api/agents/refund-agent-1/message
+# runtime-first canonical:
+# POST /api/runs  (workflow_id=agent_message, input.goal="Refund order-123")
 → Job job-123, Status: parked
 
 # 2. Worker releases (Agent "sleeping")
@@ -529,23 +543,24 @@ Body: {
 
 ```yaml
 jobstore:
-  type: postgres  # Required for crash recovery
+  type: postgres # Required for crash recovery
   postgres:
     dsn: "postgres://user:pass@localhost:5432/aetheris"
 
 effect_store:
-  enabled: true  # Required for at-most-once & LLM replay guard
+  enabled: true # Required for at-most-once & LLM replay guard
 
 invocation_ledger:
-  enabled: true  # Required for Tool at-most-once
+  enabled: true # Required for Tool at-most-once
 
 wakeup_queue:
-  type: redis    # Required for multi-worker signal delivery
+  type: redis # Required for multi-worker signal delivery
   redis:
     addr: "localhost:6379"
 ```
 
 **Deploy**:
+
 - **Single-process**: 1 API (includes Scheduler) + WakeupQueueMem
 - **Multi-worker**: 1 API + N Workers + Postgres + Redis (WakeupQueue)
 
@@ -561,7 +576,7 @@ A **production-grade refund agent** with:
 ✅ **Human-in-the-loop**: Wait 3 hours without blocking Worker  
 ✅ **Crash recovery**: Worker crash → new Worker resumes from Checkpoint  
 ✅ **Audit trail**: Full evidence (who approved, when, which model decided)  
-✅ **Replay debugging**: Verify determinism (Tool/LLM NOT re-executed)  
+✅ **Replay debugging**: Verify determinism (Tool/LLM NOT re-executed)
 
 **Time to build**: 15 minutes  
 **Time to production-ready**: Add real payment API + configure Postgres/Redis
@@ -600,10 +615,10 @@ curl -X POST http://localhost:8080/api/jobs/job-xxx/signal \
 ```yaml
 # configs/api.yaml & configs/worker.yaml
 effect_store:
-  enabled: true  # ← Must be true
+  enabled: true # ← Must be true
 
 invocation_ledger:
-  enabled: true  # ← Must be true
+  enabled: true # ← Must be true
 ```
 
 Without these, at-most-once is NOT guaranteed (dev mode only).
@@ -659,6 +674,7 @@ Use this pattern when one business action spans multiple external systems (CRM, 
 5. `notify_user` tool
 
 **Why this is 2.0-ready**:
+
 - each external action gets an idempotency key
 - failures are isolated per step with retry/failure policy
 - replay can restore execution timeline without re-sending side effects
@@ -677,6 +693,7 @@ Use this pattern for finance/health/legal workflows where you must answer “why
 4. Route all side effects via tool layer (no direct external writes in step code)
 
 **Audit output**:
+
 - decision timeline
 - tool provenance
 - proof package (offline verifiable)

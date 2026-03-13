@@ -17,6 +17,7 @@ package replay
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"testing"
 
 	"rag-platform/internal/runtime/jobstore"
@@ -179,5 +180,66 @@ func TestSnapshotReplay_BuildFromSnapshot_FallbackToEvents(t *testing.T) {
 	}
 	if len(rc.TaskGraphState) == 0 {
 		t.Error("TaskGraphState should be populated after fallback")
+	}
+}
+
+func TestSnapshotReplay_BuildFromSnapshot_AppliesIncrementalEvents(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "events.json")
+	storeI, err := jobstore.NewEmbeddedStore(path)
+	if err != nil {
+		t.Fatalf("new embedded store: %v", err)
+	}
+	store := storeI
+	ctx := context.Background()
+	jobID := "test-job-incremental"
+
+	taskGraph := json.RawMessage(`{"nodes":[{"id":"n1","type":"pure"},{"id":"n2","type":"pure"}],"edges":[]}`)
+	planPayload, _ := json.Marshal(map[string]interface{}{"task_graph": taskGraph})
+	if _, err := store.Append(ctx, jobID, 0, jobstore.JobEvent{Type: jobstore.PlanGenerated, Payload: planPayload}); err != nil {
+		t.Fatalf("append plan: %v", err)
+	}
+	node1Payload, _ := json.Marshal(map[string]interface{}{
+		"node_id":         "n1",
+		"payload_results": json.RawMessage(`{"n1":"ok"}`),
+		"result_type":     "success",
+	})
+	if _, err := store.Append(ctx, jobID, 1, jobstore.JobEvent{Type: jobstore.NodeFinished, Payload: node1Payload}); err != nil {
+		t.Fatalf("append n1: %v", err)
+	}
+
+	builder := NewReplayContextBuilder(store)
+	base, err := builder.BuildFromEvents(ctx, jobID)
+	if err != nil {
+		t.Fatalf("build base: %v", err)
+	}
+	snapshotBytes, err := SerializeReplayContext(base)
+	if err != nil {
+		t.Fatalf("serialize snapshot: %v", err)
+	}
+	if err := store.CreateSnapshot(ctx, jobID, 2, snapshotBytes); err != nil {
+		t.Fatalf("create snapshot: %v", err)
+	}
+
+	node2Payload, _ := json.Marshal(map[string]interface{}{
+		"node_id":         "n2",
+		"payload_results": json.RawMessage(`{"n2":"ok"}`),
+		"result_type":     "success",
+	})
+	if _, err := store.Append(ctx, jobID, 2, jobstore.JobEvent{Type: jobstore.NodeFinished, Payload: node2Payload}); err != nil {
+		t.Fatalf("append n2: %v", err)
+	}
+
+	rc, err := builder.BuildFromSnapshot(ctx, jobID)
+	if err != nil {
+		t.Fatalf("BuildFromSnapshot: %v", err)
+	}
+	if rc == nil {
+		t.Fatal("expected non-nil replay context")
+	}
+	if _, ok := rc.CompletedNodeIDs["n2"]; !ok {
+		t.Fatalf("expected incremental node n2 to be applied")
+	}
+	if rc.CursorNode != "n2" {
+		t.Fatalf("cursor should advance to n2, got %s", rc.CursorNode)
 	}
 }

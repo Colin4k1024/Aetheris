@@ -975,10 +975,21 @@ func (h *Handler) AgentMessage(ctx context.Context, c *app.RequestContext) {
 	if idempotencyKey != "" && h.jobStore != nil {
 		existing, _ := h.jobStore.GetByAgentAndIdempotencyKey(ctx, id, idempotencyKey)
 		if existing != nil && existing.TenantID == tenantID {
+			runtimeSubmission := map[string]interface{}{
+				"legacy_facade": true,
+				"canonical_api": "/api/runs",
+				"job_id":        existing.ID,
+			}
+			if h.runStore != nil {
+				runtimeSubmission["run_status"] = "best_effort"
+			} else {
+				runtimeSubmission["run_status"] = "disabled"
+			}
 			c.JSON(consts.StatusAccepted, map[string]interface{}{
-				"status":   "accepted",
-				"agent_id": id,
-				"job_id":   existing.ID,
+				"status":             "accepted",
+				"agent_id":           id,
+				"job_id":             existing.ID,
+				"runtime_submission": runtimeSubmission,
 			})
 			return
 		}
@@ -1076,11 +1087,26 @@ func (h *Handler) AgentMessage(ctx context.Context, c *app.RequestContext) {
 				}
 			}
 		}
-		c.JSON(consts.StatusAccepted, map[string]interface{}{
-			"status":   "accepted",
-			"agent_id": id,
-			"job_id":   jobIDOut,
-		})
+		runtimeSubmission := map[string]interface{}{
+			"legacy_facade": true,
+			"canonical_api": "/api/runs",
+			"job_id":        jobIDOut,
+		}
+		resp := map[string]interface{}{
+			"status":             "accepted",
+			"agent_id":           id,
+			"job_id":             jobIDOut,
+			"runtime_submission": runtimeSubmission,
+		}
+		if runID, err := h.createFacadeRunForAgentMessage(ctx, id, req.Message, idempotencyKey, jobIDOut); err != nil {
+			hlog.CtxErrorf(ctx, "create legacy facade run failed: %v", err)
+		} else if runID != "" {
+			runtimeSubmission["run_id"] = runID
+			runtimeSubmission["run_status"] = "created"
+		} else {
+			runtimeSubmission["run_status"] = "best_effort"
+		}
+		c.JSON(consts.StatusAccepted, resp)
 		return
 	}
 	if h.agentScheduler != nil {
@@ -1089,7 +1115,37 @@ func (h *Handler) AgentMessage(ctx context.Context, c *app.RequestContext) {
 	c.JSON(consts.StatusAccepted, map[string]interface{}{
 		"status":   "accepted",
 		"agent_id": id,
+		"runtime_submission": map[string]interface{}{
+			"legacy_facade": true,
+			"canonical_api": "/api/runs",
+			"run_status":    "disabled",
+		},
 	})
+}
+
+// createFacadeRunForAgentMessage 将 legacy /api/agents/:id/message 提交映射到 runtime /runs 语义。
+func (h *Handler) createFacadeRunForAgentMessage(ctx context.Context, agentID, message, idempotencyKey, jobID string) (string, error) {
+	if h.runStore == nil {
+		return "", nil
+	}
+	facadeInput := map[string]interface{}{
+		"agent_id": agentID,
+		"goal":     message,
+		"job_id":   jobID,
+		"source":   "legacy-agents-message",
+	}
+	run, err := h.runStore.CreateRun(ctx, &eino.Run{
+		WorkflowID:     "agent_message",
+		Input:          facadeInput,
+		IdempotencyKey: idempotencyKey,
+	})
+	if err != nil {
+		if errors.Is(err, eino.ErrRunConflict) {
+			return "", nil
+		}
+		return "", err
+	}
+	return run.ID, nil
 }
 
 // AgentState 返回 Agent 状态（Status, CurrentTask, LastCheckpoint）
@@ -1362,6 +1418,86 @@ func (h *Handler) JobStop(ctx context.Context, c *app.RequestContext) {
 type JobSignalRequest struct {
 	CorrelationKey string                 `json:"correlation_key" binding:"required"`
 	Payload        map[string]interface{} `json:"payload"`
+}
+
+type JobPauseRequest struct {
+	CorrelationKey string `json:"correlation_key"`
+	WaitType       string `json:"wait_type"`
+	Reason         string `json:"reason"`
+}
+
+type JobResumeRequest struct {
+	CorrelationKey string `json:"correlation_key"`
+	Reason         string `json:"reason"`
+}
+
+// JobPause 将 Job 显式置为 Parked 状态，支持后续 correlation_key 恢复。
+func (h *Handler) JobPause(ctx context.Context, c *app.RequestContext) {
+	jobID := c.Param("id")
+	j, ok := h.getJobAndCheckTenant(ctx, c, jobID)
+	if !ok {
+		return
+	}
+	if j.Status == job.StatusCompleted || j.Status == job.StatusFailed || j.Status == job.StatusCancelled {
+		c.JSON(consts.StatusBadRequest, map[string]string{"error": "任务已结束，无法暂停"})
+		return
+	}
+	var req JobPauseRequest
+	_ = c.BindJSON(&req)
+	if req.WaitType == "" {
+		req.WaitType = "manual"
+	}
+	if req.CorrelationKey == "" {
+		req.CorrelationKey = fmt.Sprintf("pause-%s-%d", jobID, time.Now().UnixNano())
+	}
+	if err := h.jobStore.SetParked(ctx, jobID, req.CorrelationKey, req.WaitType, req.Reason); err != nil {
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "暂停任务failed"})
+		return
+	}
+	if h.jobEventStore != nil {
+		_, ver, _ := h.jobEventStore.ListEvents(ctx, jobID)
+		ev, _ := jobstore.NewJobParkedEvent(jobID, req.Reason, req.CorrelationKey, req.WaitType)
+		if ev != nil {
+			_, _ = h.jobEventStore.Append(ctx, jobID, ver, *ev)
+		}
+	}
+	c.JSON(consts.StatusOK, map[string]interface{}{
+		"job_id":          jobID,
+		"status":          "parked",
+		"correlation_key": req.CorrelationKey,
+	})
+}
+
+// JobResume 从 Parked/Waiting 恢复到 Pending。
+func (h *Handler) JobResume(ctx context.Context, c *app.RequestContext) {
+	jobID := c.Param("id")
+	if _, ok := h.getJobAndCheckTenant(ctx, c, jobID); !ok {
+		return
+	}
+	var req JobResumeRequest
+	_ = c.BindJSON(&req)
+	if req.CorrelationKey != "" {
+		if _, err := h.jobStore.WakeupJob(ctx, req.CorrelationKey); err != nil {
+			c.JSON(consts.StatusInternalServerError, map[string]string{"error": "恢复任务failed"})
+			return
+		}
+	} else {
+		_ = h.jobStore.UpdateStatus(ctx, jobID, job.StatusPending)
+	}
+	if h.wakeupQueue != nil {
+		_ = h.wakeupQueue.NotifyReady(ctx, jobID)
+	}
+	if h.jobEventStore != nil {
+		_, ver, _ := h.jobEventStore.ListEvents(ctx, jobID)
+		ev, _ := jobstore.NewJobResumedEvent(jobID, req.CorrelationKey, "manual")
+		if ev != nil {
+			_, _ = h.jobEventStore.Append(ctx, jobID, ver, *ev)
+		}
+	}
+	c.JSON(consts.StatusOK, map[string]interface{}{
+		"job_id": jobID,
+		"status": "pending",
+	})
 }
 
 // lastEventIsWaitCompletedWithCorrelationKey 判断事件列表最后一条是否为 wait_completed 且 payload 中 correlation_key 一致（用于 signal/message 幂等）

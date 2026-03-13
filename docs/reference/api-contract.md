@@ -15,6 +15,7 @@ This document defines the external API compatibility boundary for Aetheris `2.x`
 - Patch (`0.0.x`): bug fixes and non-breaking behavior fixes
 
 Compatibility window:
+
 - Stable APIs are guaranteed across all `2.x`
 - Deprecated stable APIs are supported for at least 2 minor versions before removal
 
@@ -22,7 +23,7 @@ Compatibility window:
 
 ### Job APIs
 
-- `POST /api/agents/:id/message`
+- `POST /api/agents/:id/message` (legacy facade)
 - `GET /api/jobs/:id`
 - `POST /api/jobs/:id/stop`
 - `POST /api/jobs/:id/signal`
@@ -35,7 +36,7 @@ Compatibility window:
 
 ### Run APIs
 
-- `POST /api/runs`
+- `POST /api/runs` (canonical submission)
 - `GET /api/runs/:id`
 - `GET /api/runs/:id/events`
 - `POST /api/runs/:id/tool-calls`
@@ -117,6 +118,7 @@ Experimental APIs may change without major bump, but should be noted in release 
 ## 5. Request/Response Change Policy
 
 For stable endpoints:
+
 - Allowed:
   - Add optional request fields
   - Add optional response fields
@@ -130,14 +132,27 @@ For stable endpoints:
 ## 6. Deprecation Policy
 
 When deprecating a stable API:
+
 1. Mark as deprecated in docs
 2. Add migration path in release notes
 3. Keep API available for >= 2 minor versions
 4. Remove only in next major, or after window with explicit notice
 
 Example:
+
 - Deprecated in `v2.2.0`
 - Earliest removal target: `v2.4.0` (or `v3.0.0`)
+
+### Current deprecation note (runtime-first migration)
+
+- `POST /api/agents/:id/message` is retained as a compatibility facade.
+- Canonical submission path for new integrations is `POST /api/runs` + `GET /api/jobs/:id`.
+- During migration, `/api/agents/:id/message` may include optional response object `runtime_submission` with fields such as:
+  - `legacy_facade` (bool)
+  - `canonical_api` (string)
+  - `job_id` (string)
+  - `run_id` (string, optional)
+  - `run_status` (`created` / `best_effort` / `disabled`)
 
 ## 7. Release Gates for Contract Safety (P0)
 

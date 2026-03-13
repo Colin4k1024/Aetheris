@@ -29,6 +29,7 @@ type Router struct {
 	middleware            *middleware.Middleware
 	jwtAuth               *middleware.JWTAuth
 	authz                 *middleware.AuthZMiddleware
+	audit                 *middleware.AuditMiddleware
 	forensicsExperimental bool
 }
 
@@ -49,6 +50,11 @@ func (r *Router) SetJWT(jwtAuth *middleware.JWTAuth) {
 // SetAuthZ 设置 RBAC 授权中间件（可选；启用后需在 Build 前调用）
 func (r *Router) SetAuthZ(authz *middleware.AuthZMiddleware) {
 	r.authz = authz
+}
+
+// SetAudit 设置访问审计中间件（可选）。
+func (r *Router) SetAudit(audit *middleware.AuditMiddleware) {
+	r.audit = audit
 }
 
 // SetForensicsExperimental 设置 Forensics 查询类接口是否暴露（默认 false）
@@ -81,6 +87,9 @@ func (r *Router) Build(addr string, opts ...config.Option) *server.Hertz {
 	// 全局中间件：访问日志、CORS
 	h.Use(r.middleware.AccessLog())
 	h.Use(r.middleware.CORS())
+	if r.audit != nil {
+		h.Use(r.audit.AuditAccess())
+	}
 
 	// Prometheus 抓取用；无认证，与 CI/运维约定一致
 	h.GET("/metrics", r.handler.SystemMetrics)
@@ -122,12 +131,14 @@ func (r *Router) Build(addr string, opts ...config.Option) *server.Hertz {
 
 	// Deprecated: 请使用 POST /api/agents/{id}/message
 	query := api.Group("/query")
+	query.Use(r.middleware.Legacy("/api/runs + /api/jobs"))
 	{
 		query.POST("/", r.authChainWith(auth.PermissionJobCreate, r.handler.Query)...)
 		query.POST("/batch", r.authChainWith(auth.PermissionJobCreate, r.handler.BatchQuery)...)
 	}
 
 	agentGroup := api.Group("/agent")
+	agentGroup.Use(r.middleware.Legacy("/api/runs"))
 	{
 		agentGroup.POST("/run", r.authChainWith(auth.PermissionJobCreate, r.handler.AgentRun)...)
 		agentGroup.POST("/resume", r.authChainWith(auth.PermissionJobCreate, r.handler.AgentResumeCheckpoint)...)
@@ -136,6 +147,7 @@ func (r *Router) Build(addr string, opts ...config.Option) *server.Hertz {
 
 	// v1 Agent 中心 API（POST/GET 同时注册 "" 与 "/" 以兼容带/不带尾部斜杠的请求）
 	agents := api.Group("/agents")
+	agents.Use(r.middleware.Legacy("/api/runs + /api/jobs"))
 	{
 		agents.POST("", r.authChainWith(auth.PermissionAgentManage, r.handler.CreateAgent)...)
 		agents.POST("/", r.authChainWith(auth.PermissionAgentManage, r.handler.CreateAgent)...)
@@ -154,6 +166,8 @@ func (r *Router) Build(addr string, opts ...config.Option) *server.Hertz {
 	{
 		jobs.GET("/:id", r.authChainWith(auth.PermissionJobView, r.handler.GetJob)...)
 		jobs.POST("/:id/stop", r.authChainWith(auth.PermissionJobStop, r.handler.JobStop)...)
+		jobs.POST("/:id/pause", r.authChainWith(auth.PermissionJobStop, r.handler.JobPause)...)
+		jobs.POST("/:id/resume", r.authChainWith(auth.PermissionJobCreate, r.handler.JobResume)...)
 		jobs.POST("/:id/signal", r.authChainWith(auth.PermissionJobCreate, r.handler.JobSignal)...)
 		jobs.POST("/:id/message", r.authChainWith(auth.PermissionJobCreate, r.handler.JobMessage)...)
 		jobs.GET("/:id/events", r.authChainWith(auth.PermissionJobView, r.handler.GetJobEvents)...)

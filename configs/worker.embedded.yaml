@@ -1,0 +1,54 @@
+# Worker embedded local-first config
+worker:
+  concurrency: 1
+  queue_size: 1000
+  retry_count: 3
+  retry_delay: 1s
+  timeout: 5m
+  poll_interval: "2s"
+  max_attempts: 3
+
+runtime:
+  profile: "dev"
+  strict: false
+
+jobstore:
+  type: "embedded"
+  dsn: "./data/embedded"
+  lease_duration: "30s"
+
+effect_store:
+  type: "embedded"
+  dsn: "./data/embedded"
+
+checkpoint_store:
+  type: "embedded"
+  dsn: "./data/embedded"
+
+storage:
+  metadata:
+    type: "memory"
+    dsn: ""
+    pool_size: 0
+  vector:
+    type: "memory"
+    addr: ""
+    db: ""
+    collection: "default"
+  object:
+    type: "memory"
+  cache:
+    type: "memory"
+  ingest:
+    batch_size: 100
+    concurrency: 4
+
+log:
+  level: "info"
+  format: "json"
+  file: "worker.log"
+
+monitoring:
+  prometheus:
+    enable: true
+    port: 9093

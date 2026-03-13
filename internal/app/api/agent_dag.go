@@ -17,6 +17,11 @@ package api
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+
+	einomodel "github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/schema"
 
 	"rag-platform/internal/agent/planner"
 	"rag-platform/internal/agent/runtime"
@@ -37,6 +42,27 @@ func (a *llmGenAdapter) Generate(ctx context.Context, prompt string) (string, er
 		return "", fmt.Errorf("LLM not configured")
 	}
 	return a.client.GenerateWithContext(ctx, prompt, llm.GenerateOptions{MaxTokens: 4096, Temperature: 0.1})
+}
+
+// einoToolCallingAdapter 将 eino model.ToolCallingChatModel 适配为 executor.EinoToolCallingChatModel
+type einoToolCallingAdapter struct {
+	model einomodel.ToolCallingChatModel
+}
+
+func (a *einoToolCallingAdapter) Generate(ctx context.Context, input []*schema.Message) (*schema.Message, error) {
+	return a.model.Generate(ctx, input)
+}
+
+func (a *einoToolCallingAdapter) Stream(ctx context.Context, input []*schema.Message) (*schema.StreamReader[*schema.Message], error) {
+	return a.model.Stream(ctx, input)
+}
+
+func (a *einoToolCallingAdapter) WithTools(tools []*schema.ToolInfo) (agentexec.EinoToolCallingChatModel, error) {
+	m, err := a.model.WithTools(tools)
+	if err != nil {
+		return nil, err
+	}
+	return &einoToolCallingAdapter{model: m}, nil
 }
 
 // toolExecAdapter 从 ctx 取 agent，将 runtime.Session 转为 runtime/session.Session 后调 agent/tools
@@ -144,6 +170,41 @@ func NewDAGCompilerWithOptions(llmClient llm.Client, toolsReg *tools.Registry, e
 	if commandEventSink != nil {
 		workflowAdapter.CommandEventSink = commandEventSink
 	}
+
+	// 创建 ToolCallingChatModel 用于 Eino Agent
+	var toolCallingLLM agentexec.EinoToolCallingChatModel
+	if engine != nil {
+		ctx := context.Background()
+		tcLLM, err := engine.CreateChatModel(ctx)
+		if err != nil {
+			// 如果创建失败，使用普通模式
+			fmt.Printf("Warning: 创建 ToolCallingChatModel 失败: %v\n", err)
+		} else {
+			toolCallingLLM = &einoToolCallingAdapter{model: tcLLM}
+		}
+	}
+
+	// 创建 Eino Agent 适配器（带内置工具和 ToolCalling LLM）
+	builtinTools := agentexec.NewBuiltinTools()
+	einoReactAdapter := &agentexec.EinoNodeAdapter{
+		NodeType:       planner.NodeEinoReact,
+		Tools:          builtinTools,
+		ToolCallingLLM: toolCallingLLM,
+		MaxIterations:  10,
+	}
+	einoDEERAdapter := &agentexec.EinoNodeAdapter{
+		NodeType:       planner.NodeEinoDEER,
+		Tools:          builtinTools,
+		ToolCallingLLM: toolCallingLLM,
+		MaxIterations:  10,
+	}
+	einoManusAdapter := &agentexec.EinoNodeAdapter{
+		NodeType:       planner.NodeEinoManus,
+		Tools:          builtinTools,
+		ToolCallingLLM: toolCallingLLM,
+		MaxIterations:  10,
+	}
+
 	adapters := map[string]agentexec.NodeAdapter{
 		planner.NodeLLM:       llmAdapter,
 		planner.NodeTool:      toolAdapter,
@@ -151,15 +212,20 @@ func NewDAGCompilerWithOptions(llmClient llm.Client, toolsReg *tools.Registry, e
 		planner.NodeWait:      &agentexec.WaitNodeAdapter{},
 		planner.NodeApproval:  &agentexec.ApprovalNodeAdapter{},
 		planner.NodeCondition: &agentexec.ConditionNodeAdapter{},
-		// Go 开源框架 Adapters
-		planner.NodeLangChainGo:     &agentexec.LangChainGoNodeAdapter{},
-		planner.NodeLangGraphGo:     &agentexec.LangGraphGoNodeAdapter{},
-		planner.NodeADK:             &agentexec.ADKNodeAdapter{},
-		planner.NodeGenkit:          &agentexec.GenkitNodeAdapter{},
-		planner.NodeProtocolLattice: &agentexec.ProtocolLatticeNodeAdapter{},
-		planner.NodeLinGoose:        &agentexec.LinGooseNodeAdapter{},
-		planner.NodeAnyi:            &agentexec.AnyiNodeAdapter{},
-		planner.NodeAgentSDK:        &agentexec.AgentSDKNodeAdapter{},
+		// Eino Agent 节点类型
+		planner.NodeEinoReact: einoReactAdapter,
+		planner.NodeEinoDEER:  einoDEERAdapter,
+		planner.NodeEinoManus: einoManusAdapter,
+	}
+	if legacyNodeAdaptersEnabled() {
+		adapters[planner.NodeLangChainGo] = &agentexec.LangChainGoNodeAdapter{}
+		adapters[planner.NodeLangGraphGo] = &agentexec.LangGraphGoNodeAdapter{}
+		adapters[planner.NodeADK] = &agentexec.ADKNodeAdapter{}
+		adapters[planner.NodeGenkit] = &agentexec.GenkitNodeAdapter{}
+		adapters[planner.NodeProtocolLattice] = &agentexec.ProtocolLatticeNodeAdapter{}
+		adapters[planner.NodeLinGoose] = &agentexec.LinGooseNodeAdapter{}
+		adapters[planner.NodeAnyi] = &agentexec.AnyiNodeAdapter{}
+		adapters[planner.NodeAgentSDK] = &agentexec.AgentSDKNodeAdapter{}
 	}
 	return agentexec.NewCompiler(adapters)
 }
@@ -195,4 +261,9 @@ func lastUserMessage(s *runtime.Session) string {
 		}
 	}
 	return ""
+}
+
+func legacyNodeAdaptersEnabled() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("AETHERIS_ENABLE_LEGACY_NODE_ADAPTERS")))
+	return v == "1" || v == "true" || v == "yes" || v == "on"
 }

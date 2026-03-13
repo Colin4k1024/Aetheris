@@ -2,6 +2,8 @@
 
 `pkg/agent/sdk` 提供高层 Agent API，屏蔽 Job、Event、Planner、Runner 等底层概念，适合应用开发者「提交任务、取回回答」的用法。
 
+> Runtime-first：新接入默认对接 `/api/runs/*` + `/api/jobs/*`。`/api/agents/*` 仅作为兼容迁移 facade。
+
 ## 推荐用法
 
 ```go
@@ -16,13 +18,17 @@ answer, err := agent.Run(ctx, "用户问题")
 
 ## 与底层的关系
 
-| SDK | 底层 |
-|-----|------|
-| Agent.Run(ctx, query) | JobStore.Create → Scheduler/Worker 拉取 → Runner.RunForJob → Session 最后一条 assistant |
-| AgentRuntime.Submit | JobStore.Create（+ 可选 PlanAtJobCreation） |
-| AgentRuntime.WaitCompleted | 轮询 Job 状态或 Watch 事件，完成后从 Session/Job 取回答 |
+| SDK                        | 底层                                                                                    |
+| -------------------------- | --------------------------------------------------------------------------------------- |
+| Agent.Run(ctx, query)      | JobStore.Create → Scheduler/Worker 拉取 → Runner.RunForJob → Session 最后一条 assistant |
+| AgentRuntime.Submit        | Run/Job 提交（runtime-first；可兼容 Agent facade）                                      |
+| AgentRuntime.WaitCompleted | 轮询 Job 状态或 Watch 事件，完成后从 Session/Job 取回答                                 |
 
-对接真实 API 时，实现一个 AgentRuntime：Submit 调用 `POST /api/agents/:id/messages`（或创建 Job 的接口），WaitCompleted 轮询 `GET /api/jobs/:id` 或通过 Session 取最后回复。
+对接真实 API 时，实现一个 AgentRuntime：
+
+- **推荐**：`Submit` 调用 `POST /api/runs`，并保存 `run_id`（可选）+ `job_id`（如业务返回/映射提供）。
+- **状态查询**：`WaitCompleted` 轮询 `GET /api/jobs/:id`（以及按需读取 `GET /api/runs/:id`）。
+- **兼容路径**：如使用 `POST /api/agents/:id/message`，可读取响应内 `runtime_submission` 取得 canonical runtime 映射信息。
 
 ## 示例
 

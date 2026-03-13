@@ -61,7 +61,28 @@ On success, ingest_pipeline runs: load → parse → split → embed → write t
 curl http://localhost:8080/api/documents/
 ```
 
-### 3. Use v1 Agent (recommended)
+### 3. Runtime-first API (recommended)
+
+```bash
+# Create run
+curl -X POST http://localhost:8080/api/runs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_id": "agent_message",
+    "input": {"goal":"Your question"},
+    "idempotency_key": "demo-run-001"
+  }'
+
+# Poll run status
+curl http://localhost:8080/api/runs/<run_id>
+
+# Inspect run events
+curl http://localhost:8080/api/runs/<run_id>/events
+```
+
+Use runtime-first APIs for new integrations. They are the canonical control surface for submission and state transitions.
+
+### 4. Agent facade (legacy compatibility)
 
 ```bash
 # Create Agent
@@ -98,7 +119,7 @@ curl http://localhost:8080/api/agents
 
 **Control / Data plane (Postgres)**: When `jobstore.type=postgres`, the API is control-plane only (create job, query, cancel); it **does not start the Scheduler or run any jobs**. All execution is done by Workers via Postgres Claim. API restart or scale does not affect already-claimed jobs. See [design/services.md](../design/services.md) §7.
 
-### 4. Query (deprecated; prefer Agent message)
+### 5. Query (deprecated; prefer runtime-first or Agent facade)
 
 ```bash
 curl -X POST http://localhost:8080/api/query \
@@ -106,9 +127,9 @@ curl -X POST http://localhost:8080/api/query \
   -d '{"query": "Your question", "top_k": 10}'
 ```
 
-Uses query_pipeline: embed query → retrieve → LLM generate answer. **Deprecated**; use `POST /api/agents/{id}/message` instead.
+Uses query_pipeline: embed query → retrieve → LLM generate answer. **Deprecated**; use runtime-first submission (`POST /api/runs`) or legacy facade `POST /api/agents/{id}/message`.
 
-### 5. Batch query
+### 6. Batch query
 
 ```bash
 curl -X POST http://localhost:8080/api/query/batch \
@@ -118,63 +139,63 @@ curl -X POST http://localhost:8080/api/query/batch \
 
 ## API endpoint summary
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /api/health | Health check |
-| **v1 Agent** | | |
-| POST | /api/agents | Create agent |
-| GET | /api/agents | List all agents |
-| POST | /api/agents/:id/message | Send message (creates job, 202 + job_id); optional `Idempotency-Key` header |
-| GET | /api/agents/:id/state | Agent state (status, current_task, last_checkpoint) |
-| GET | /api/agents/:id/jobs | List jobs for this agent (?status=, ?limit=) |
-| GET | /api/agents/:id/jobs/:job_id | Single job (poll status) |
-| **Runs** | | |
-| POST | /api/runs | Create a new run |
-| GET | /api/runs/:id | Get run details |
-| GET | /api/runs/:id/events | Get run events |
-| POST | /api/runs/:id/tool-calls | Upsert tool call result |
-| POST | /api/runs/:id/pause | Pause a run |
-| POST | /api/runs/:id/resume | Resume a run |
-| POST | /api/runs/:id/human-decisions | Inject human decision |
-| **Agent legacy** | | |
-| POST | /api/agent/run | Run agent (legacy) |
-| POST | /api/agent/resume | Resume agent checkpoint (legacy) |
-| POST | /api/agent/stream | Run agent with streaming |
-| **Execution trace** | | |
-| GET | /api/jobs/:id/events | Raw event stream (id, type, payload, created_at) |
-| GET | /api/jobs/:id/trace | Timeline and execution_tree, node timings |
-| GET | /api/jobs/:id/trace/page | Same as trace, HTML page |
-| GET | /api/jobs/:id/replay | Read-only replay |
-| POST | /api/agents/:id/resume | Resume execution |
-| POST | /api/agents/:id/stop | Stop execution |
-| **Documents and knowledge** | | |
-| POST | /api/documents/upload | Upload document |
-| GET | /api/documents/ | List documents |
-| GET | /api/documents/:id | Document details |
-| DELETE | /api/documents/:id | Delete document |
-| GET | /api/knowledge/collections | List collections |
-| POST | /api/knowledge/collections | Create collection |
-| DELETE | /api/knowledge/collections/:id | Delete collection |
-| **Documents (async)** | | |
-| POST | /api/documents/upload/async | Upload document asynchronously |
-| GET | /api/documents/upload/status/:task_id | Get upload task status |
-| **Query (deprecated)** | | |
-| POST | /api/query | Single query (prefer Agent message) |
-| POST | /api/query/batch | Batch query |
-| **Legacy agent** | | |
-| POST | /api/agent/run | Run agent by session (query + session_id) |
-| **System** | | |
-| GET | /api/system/status | System status (workflows, agents) |
-| GET | /api/system/metrics | Metrics |
-| GET | /api/system/workers | Worker status and info |
-| **Observability** | | |
-| GET | /api/observability/summary | Observability summary |
-| GET | /api/observability/stuck | Stuck jobs list |
-| GET | /api/trace/overview/page | Trace overview HTML page |
-| **RBAC** | | |
-| GET | /api/rbac/role | Get current user role |
-| POST | /api/rbac/role | Assign role to user |
-| POST | /api/rbac/check | Check user permissions |
+| Method                       | Path                                  | Description                                                                                 |
+| ---------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------- |
+| GET                          | /api/health                           | Health check                                                                                |
+| **v1 Agent (legacy facade)** |                                       |                                                                                             |
+| POST                         | /api/agents                           | Create agent                                                                                |
+| GET                          | /api/agents                           | List all agents                                                                             |
+| POST                         | /api/agents/:id/message               | [legacy facade] Send message (creates job, 202 + job_id); optional `Idempotency-Key` header |
+| GET                          | /api/agents/:id/state                 | Agent state (status, current_task, last_checkpoint)                                         |
+| GET                          | /api/agents/:id/jobs                  | [legacy facade] List jobs for this agent (?status=, ?limit=)                                |
+| GET                          | /api/agents/:id/jobs/:job_id          | [legacy facade] Single job (poll status)                                                    |
+| **Runs**                     |                                       |                                                                                             |
+| POST                         | /api/runs                             | Create a new run                                                                            |
+| GET                          | /api/runs/:id                         | Get run details                                                                             |
+| GET                          | /api/runs/:id/events                  | Get run events                                                                              |
+| POST                         | /api/runs/:id/tool-calls              | Upsert tool call result                                                                     |
+| POST                         | /api/runs/:id/pause                   | Pause a run                                                                                 |
+| POST                         | /api/runs/:id/resume                  | Resume a run                                                                                |
+| POST                         | /api/runs/:id/human-decisions         | Inject human decision                                                                       |
+| **Agent legacy**             |                                       |                                                                                             |
+| POST                         | /api/agent/run                        | [legacy] Run agent                                                                          |
+| POST                         | /api/agent/resume                     | [legacy] Resume agent checkpoint                                                            |
+| POST                         | /api/agent/stream                     | Run agent with streaming                                                                    |
+| **Execution trace**          |                                       |                                                                                             |
+| GET                          | /api/jobs/:id/events                  | Raw event stream (id, type, payload, created_at)                                            |
+| GET                          | /api/jobs/:id/trace                   | Timeline and execution_tree, node timings                                                   |
+| GET                          | /api/jobs/:id/trace/page              | Same as trace, HTML page                                                                    |
+| GET                          | /api/jobs/:id/replay                  | Read-only replay                                                                            |
+| POST                         | /api/agents/:id/resume                | Resume execution                                                                            |
+| POST                         | /api/agents/:id/stop                  | Stop execution                                                                              |
+| **Documents and knowledge**  |                                       |                                                                                             |
+| POST                         | /api/documents/upload                 | Upload document                                                                             |
+| GET                          | /api/documents/                       | List documents                                                                              |
+| GET                          | /api/documents/:id                    | Document details                                                                            |
+| DELETE                       | /api/documents/:id                    | Delete document                                                                             |
+| GET                          | /api/knowledge/collections            | List collections                                                                            |
+| POST                         | /api/knowledge/collections            | Create collection                                                                           |
+| DELETE                       | /api/knowledge/collections/:id        | Delete collection                                                                           |
+| **Documents (async)**        |                                       |                                                                                             |
+| POST                         | /api/documents/upload/async           | Upload document asynchronously                                                              |
+| GET                          | /api/documents/upload/status/:task_id | Get upload task status                                                                      |
+| **Query (deprecated)**       |                                       |                                                                                             |
+| POST                         | /api/query                            | Single query (prefer runtime-first; Agent facade for compatibility)                         |
+| POST                         | /api/query/batch                      | Batch query                                                                                 |
+| **Legacy agent**             |                                       |                                                                                             |
+| POST                         | /api/agent/run                        | Run agent by session (query + session_id)                                                   |
+| **System**                   |                                       |                                                                                             |
+| GET                          | /api/system/status                    | System status (workflows, agents)                                                           |
+| GET                          | /api/system/metrics                   | Metrics                                                                                     |
+| GET                          | /api/system/workers                   | Worker status and info                                                                      |
+| **Observability**            |                                       |                                                                                             |
+| GET                          | /api/observability/summary            | Observability summary                                                                       |
+| GET                          | /api/observability/stuck              | Stuck jobs list                                                                             |
+| GET                          | /api/trace/overview/page              | Trace overview HTML page                                                                    |
+| **RBAC**                     |                                       |                                                                                             |
+| GET                          | /api/rbac/role                        | Get current user role                                                                       |
+| POST                         | /api/rbac/role                        | Assign role to user                                                                         |
+| POST                         | /api/rbac/check                       | Check user permissions                                                                      |
 
 | **Jobs** | | |
 | POST | /api/jobs/:id/stop | Stop a running job |
@@ -211,6 +232,7 @@ Event semantics and tree derivation are in [design/execution-trace.md](../design
 
 - **Job and event stream**: The returned `job_id` is written to both the event stream (JobCreated) and the state JobStore for future replay or multi-worker consumption; execution is still driven by the state JobStore + Scheduler.
 - **Idempotency-Key**: `POST /api/agents/:id/message` supports header `Idempotency-Key`. Duplicate requests with the same key (e.g. retries) return the existing `job_id` (202) and do not create a new job or rewrite Session/Plan.
+- **Migration field**: legacy `POST /api/agents/:id/message` responses include optional `runtime_submission` object to expose canonical runtime mapping (`canonical_api`, `run_id`, `run_status`).
 - **Poison jobs**: When a job keeps failing, after max_attempts (Scheduler retry_max, Worker max_attempts) it is marked Failed and no longer scheduled; see [design/poison-job.md](../design/poison-job.md).
 - **v1 Agent vs /api/query**: v1 Agent uses Agent + Session + plan → TaskGraph → eino DAG as the only path; RAG is an optional tool. `/api/query` still hits query_pipeline directly and is deprecated; use Agent messages for new usage.
 - **PLANNER_TYPE=rule**: Uses RulePlanner for debugging; returns fixed TaskGraph without LLM. Worker logs show "Worker 使用规则规划器". Use when LLMPlanner generates invalid graphs or for stable testing.

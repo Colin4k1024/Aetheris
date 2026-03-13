@@ -20,9 +20,11 @@ With Postgres + Worker deployed, run the following 9 checks in order; all must p
 4. **Verify**: The same `job_id` eventually reaches Completed; event stream has no duplicate PlanGenerated; tool call count matches (no re-execution of completed nodes).
 
 ```bash
-# Example (adjust agent_id and message as needed)
-aetheris agent create test
-aetheris chat <agent_id>   # Send a message, note job_id; in another terminal kill -9 worker
+# Example (runtime-first canonical submission)
+curl -s -X POST "$AETHERIS_API_URL/api/runs" \
+  -H "Content-Type: application/json" \
+  -d '{"workflow_id":"agent_message","input":{"goal":"test crash recovery"}}'
+# Note returned run_id / job mapping, then in another terminal kill -9 worker
 # After restarting worker, poll job status until completed
 aetheris trace <job_id>   # Inspect event sequence
 ```
@@ -70,7 +72,9 @@ aetheris trace <job_id>   # Get another copy; compare plan_generated and node se
 2. **Verify**: LLM response still references earlier turns.
 
 ```bash
-aetheris chat <agent_id>  # Multi-turn
+# Use your canonical submission path or legacy facade chat.
+# Legacy example:
+aetheris chat <agent_id>  # Multi-turn (legacy facade)
 # Restart worker
 # Send a message that depends on context; check reply continues the conversation
 ```

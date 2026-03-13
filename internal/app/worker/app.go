@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -111,6 +112,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	}
 
 	// Agent Job 模式：jobstore.type=postgres 时，从事件存储 Claim、从元数据存储取 Job、执行 DAG Runner
+	embeddedBaseDir := embeddedDataDir(cfg)
 	if cfg != nil && cfg.JobStore.Type == "postgres" && cfg.JobStore.DSN != "" {
 		dsn := cfg.JobStore.DSN
 		leaseDur := 30 * time.Second
@@ -133,7 +135,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 		}
 		// LLM 限流包装
 		var llmClient llmmod.Client = llmClientRaw
-		if cfg != nil && len(cfg.RateLimits.LLM) > 0 {
+		if len(cfg.RateLimits.LLM) > 0 {
 			llmLimiterConfigs := make(map[string]llmmod.LLMLimitConfig, len(cfg.RateLimits.LLM))
 			for provider, c := range cfg.RateLimits.LLM {
 				if provider == "_default" {
@@ -159,6 +161,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 		}
 		toolsReg := tools.NewRegistry()
 		tools.RegisterBuiltin(toolsReg, engine, nil)
+		registerMCPReferenceTools(toolsReg)
 		var v1Planner planner.Planner
 		if os.Getenv("PLANNER_TYPE") == "rule" {
 			v1Planner = planner.NewRulePlanner()
@@ -196,7 +199,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 		}
 		// Tool 限流器（可选）
 		var toolRateLimiter *agentexec.ToolRateLimiter
-		if cfg != nil && len(cfg.RateLimits.Tools) > 0 {
+		if len(cfg.RateLimits.Tools) > 0 {
 			toolLimiterConfigs := make(map[string]agentexec.ToolLimitConfig, len(cfg.RateLimits.Tools))
 			for toolName, c := range cfg.RateLimits.Tools {
 				if toolName == "_default" {
@@ -223,6 +226,13 @@ func NewApp(cfg *config.Config) (*App, error) {
 				return nil, fmt.Errorf("创建 CheckpointStore 连接池failed: %w", errPool)
 			}
 			checkpointStore = runtime.NewCheckpointStorePg(cpPool)
+		} else if cfg.CheckpointStore.Type == "embedded" || cfg.JobStore.Type == "embedded" {
+			embeddedCheckpointPath := filepath.Join(embeddedBaseDir, "checkpoints.json")
+			embeddedCheckpointStore, err := runtime.NewCheckpointStoreEmbedded(embeddedCheckpointPath)
+			if err != nil {
+				return nil, fmt.Errorf("初始化 CheckpointStore(embedded) failed: %w", err)
+			}
+			checkpointStore = embeddedCheckpointStore
 		}
 		agentStateStore, errState := runtime.NewAgentStateStorePg(context.Background(), dsn)
 		if errState != nil {
@@ -366,6 +376,70 @@ func NewApp(cfg *config.Config) (*App, error) {
 		appObj.jobEventStore = pgEventStore
 		appObj.replayBuilder = replay.NewReplayContextBuilder(pgEventStore)
 		logger.Info("Worker Agent Job 模式已启用", "worker_id", DefaultWorkerID(), "dsn", dsn)
+	} else if cfg != nil && cfg.JobStore.Type == "embedded" {
+		embeddedEventsPath := filepath.Join(embeddedBaseDir, "job_events.json")
+		embeddedJobsPath := filepath.Join(embeddedBaseDir, "jobs.json")
+		embeddedEventStore, err := jobstore.NewEmbeddedStore(embeddedEventsPath)
+		if err != nil {
+			return nil, fmt.Errorf("初始化 JobStore 事件(embedded) failed: %w", err)
+		}
+		embeddedJobStore, err := job.NewJobStoreEmbedded(embeddedJobsPath)
+		if err != nil {
+			return nil, fmt.Errorf("初始化 Job 元数据(embedded) failed: %w", err)
+		}
+		llmClientRaw, err := app.NewLLMClientFromConfig(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("初始化 LLM 客户端failed: %w", err)
+		}
+		toolsReg := tools.NewRegistry()
+		tools.RegisterBuiltin(toolsReg, engine, nil)
+		registerMCPReferenceTools(toolsReg)
+		v1Planner := planner.NewLLMPlanner(llmClientRaw)
+		nodeEventSink := api.NewNodeEventSink(embeddedEventStore)
+		embeddedInvocationStore, err := agentexec.NewToolInvocationStoreEmbedded(filepath.Join(embeddedBaseDir, "tool_invocations.json"))
+		if err != nil {
+			return nil, fmt.Errorf("初始化 ToolInvocationStore(embedded) failed: %w", err)
+		}
+		embeddedEffectStore, err := agentexec.NewEffectStoreEmbedded(filepath.Join(embeddedBaseDir, "effects.json"))
+		if err != nil {
+			return nil, fmt.Errorf("初始化 EffectStore(embedded) failed: %w", err)
+		}
+		dagCompiler := api.NewDAGCompilerWithOptions(llmClientRaw, toolsReg, engine, nodeEventSink, nodeEventSink, embeddedInvocationStore, embeddedEffectStore, nil, api.NewAttemptValidator(embeddedEventStore), nil)
+		dagRunner := api.NewDAGRunner(dagCompiler)
+		embeddedCheckpointStore, err := runtime.NewCheckpointStoreEmbedded(filepath.Join(embeddedBaseDir, "checkpoints.json"))
+		if err != nil {
+			return nil, fmt.Errorf("初始化 CheckpointStore(embedded) failed: %w", err)
+		}
+		embeddedStateStore, err := runtime.NewAgentStateStoreEmbedded(filepath.Join(embeddedBaseDir, "agent_state.json"))
+		if err != nil {
+			return nil, fmt.Errorf("初始化 AgentStateStore(embedded) failed: %w", err)
+		}
+		dagRunner.SetCheckpointStores(embeddedCheckpointStore, &jobStoreForRunnerAdapter{JobStore: embeddedJobStore})
+		dagRunner.SetPlanGeneratedSink(api.NewPlanGeneratedSink(embeddedEventStore))
+		dagRunner.SetNodeEventSink(nodeEventSink)
+		dagRunner.SetRecordedEffectsRecorder(api.NewRecordedEffectsRecorder(embeddedEventStore))
+		dagRunner.SetReplayContextBuilder(api.NewReplayContextBuilder(embeddedEventStore))
+		dagRunner.SetReplayPolicy(replaysandbox.DefaultPolicy{})
+		runJob := func(ctx context.Context, j *job.Job) error {
+			sessionID := j.SessionID
+			if sessionID == "" {
+				sessionID = j.AgentID
+			}
+			state, _ := embeddedStateStore.LoadAgentState(ctx, j.AgentID, sessionID)
+			sess := runtime.NewSession(sessionID, j.AgentID)
+			if state != nil {
+				runtime.ApplyAgentState(sess, state)
+			}
+			agent := runtime.NewAgent(j.AgentID, j.AgentID, sess, nil, newPlannerProviderAdapter(v1Planner), newToolsProviderAdapter(toolsReg))
+			err := dagRunner.RunForJob(ctx, agent, &agentexec.JobForRunner{ID: j.ID, AgentID: j.AgentID, Goal: j.Goal, Cursor: j.Cursor, TenantID: "default"})
+			_ = embeddedStateStore.SaveAgentState(ctx, j.AgentID, sess.ID, runtime.SessionToAgentState(sess))
+			return err
+		}
+		runner := NewAgentJobRunner(DefaultWorkerID(), embeddedEventStore, embeddedJobStore, runJob, 2*time.Second, 30*time.Second, 1, nil, logger)
+		appObj.agentJobRunner = runner
+		appObj.jobEventStore = embeddedEventStore
+		appObj.replayBuilder = replay.NewReplayContextBuilder(embeddedEventStore)
+		logger.Info("Worker Agent Job Embedded 模式已启用", "path", embeddedBaseDir)
 	}
 
 	return appObj, nil
@@ -664,6 +738,45 @@ func getHostname() string {
 	}
 	return h
 } // runIngestQueueLoop 轮询认领入库任务并执行 ingest_pipeline，直到 shutdown 关闭
+
+func embeddedDataDir(cfg *config.Config) string {
+	if cfg == nil {
+		return filepath.Join("data", "embedded")
+	}
+	if cfg.JobStore.DSN != "" {
+		return cfg.JobStore.DSN
+	}
+	return filepath.Join("data", "embedded")
+}
+
+type defaultMCPInvoker struct{}
+
+func (i *defaultMCPInvoker) CallTool(ctx context.Context, server string, tool string, input map[string]any) (any, error) {
+	return nil, fmt.Errorf("mcp invoker not configured: %s/%s", server, tool)
+}
+
+func registerMCPReferenceTools(reg *tools.Registry) {
+	if reg == nil {
+		return
+	}
+	host := tools.NewMCPHost(&defaultMCPInvoker{})
+	manifests := []tools.ToolManifest{
+		{Name: "github_issue_read", Description: "Read GitHub issue", InputSchema: map[string]any{"type": "object"}},
+		{Name: "slack_post_message", Description: "Post message to Slack", InputSchema: map[string]any{"type": "object"}},
+		{Name: "sql_query", Description: "Run SQL query", InputSchema: map[string]any{"type": "object"}},
+	}
+	for _, server := range strings.Split(os.Getenv("AETHERIS_MCP_SERVERS"), ",") {
+		server = strings.TrimSpace(server)
+		if server == "" {
+			continue
+		}
+		host.RegisterServer(server)
+		for _, m := range manifests {
+			_ = host.RegisterToolAdapter(reg, server, m)
+		}
+	}
+}
+
 func (a *App) runIngestQueueLoop(queue ingestqueue.IngestQueue, workerID string, pollInterval time.Duration) {
 	for {
 		select {

@@ -7,56 +7,53 @@
 ## 1. 2.0 功能模块结构图
 
 ```mermaid
-graph TD
-    A[User/API] --> B[Agent Core]
-    B --> C[Job Scheduler & Runner]
-    B --> D[Planner / DAG Executor]
-    B --> E[Event Store / JobStore]
-    B --> F[Tool & Workflow Nodes]
-    B --> G[RAG / Knowledge Nodes]
-    B --> H[Monitoring & Visualization]
-    B --> I[Security & Governance]
+flowchart LR
+  subgraph authoring [Authoring Layer (Eino-first)]
+    einoBuild[Eino Agent Construction]
+    otherFrameworks[Other Frameworks (Optional Legacy)]
+  end
 
-    subgraph AgentCollaboration [Agent Collaboration]
-        B --> J[Multi-Agent Messaging]
-        B --> K[Event-Driven Triggers]
-    end
+  subgraph control [Aetheris Control Plane]
+    api[API / CLI / SDK Facade]
+    auth[Auth / RBAC / Audit Policy]
+  end
 
-    subgraph PerformanceStability [Performance and Stability]
-        C --> L[Dynamic Worker Pool]
-        C --> M[Task Prioritization and Timeout]
-        E --> N[Distributed JobStore]
-        D --> O[Async DAG Execution]
-    end
+  subgraph data [Aetheris Data Plane (Runtime Core)]
+    scheduler[Lease Scheduler / Worker Coordinator]
+    runner[Durable Runner / Step Executor]
+    toolPlane[Tool Plane (Native + MCP Host)]
+    replay[Replay / Verify / Trace]
+  end
 
-    subgraph Extensibility [Extensibility]
-        F --> P[Custom Task Plugins]
-        G --> Q[Custom Knowledge Sources]
-    end
+  subgraph storage [Durable Stores]
+    eventStore[Event Store (Append-only)]
+    checkpointStore[Checkpoint Store]
+    effectStore[Effect + Invocation Store]
+    jobStore[Job Metadata Store]
+  end
 
-    subgraph Monitoring [Monitoring]
-        H --> R[Job / Task Dashboard]
-        H --> S[Event Stream Visualization]
-        H --> T[Debug / Replay Tools]
-    end
-
-    subgraph Security [Security]
-        I --> U[RBAC / Access Control]
-        I --> V[Audit Logs]
-        I --> W[Multi-Tenant Isolation]
-    end
+  authoring --> api
+  api --> scheduler
+  scheduler --> runner
+  runner --> toolPlane
+  runner --> eventStore
+  runner --> checkpointStore
+  runner --> effectStore
+  scheduler --> jobStore
+  replay --> eventStore
+  auth --> api
 ```
 
 ---
 
 ## 2. 2.0 高阶 Roadmap 时间线
 
-| 阶段       | 时间     | 主要目标              | 关键模块                                                                |
-| ---------- | -------- | --------------------- | ----------------------------------------------------------------------- |
-| **阶段 1** | 1–2 个月 | 核心执行增强、多 Agent 支持 | Job Scheduler & Runner, Planner/DAG Executor, Multi-Agent Messaging     |
-| **阶段 2** | 2–3 个月 | RAG 集成 & 扩展节点   | RAG / Knowledge Nodes, Tool & Workflow Nodes, Custom Task Plugins       |
-| **阶段 3** | 2 个月   | 监控与可视化          | Monitoring & Visualization, Event Stream, Debug Tools                   |
-| **阶段 4** | 1–2 个月 | 安全与治理            | Security & Governance, RBAC, Audit, Multi-Tenant                        |
+| 阶段       | 时间     | 主要目标                    | 关键模块                                                            |
+| ---------- | -------- | --------------------------- | ------------------------------------------------------------------- |
+| **阶段 1** | 1–2 个月 | 核心执行增强、多 Agent 支持 | Job Scheduler & Runner, Planner/DAG Executor, Multi-Agent Messaging |
+| **阶段 2** | 2–3 个月 | RAG 集成 & 扩展节点         | RAG / Knowledge Nodes, Tool & Workflow Nodes, Custom Task Plugins   |
+| **阶段 3** | 2 个月   | 监控与可视化                | Monitoring & Visualization, Event Stream, Debug Tools               |
+| **阶段 4** | 1–2 个月 | 安全与治理                  | Security & Governance, RBAC, Audit, Multi-Tenant                    |
 
 ---
 

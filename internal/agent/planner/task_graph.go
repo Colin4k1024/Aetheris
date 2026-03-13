@@ -40,6 +40,11 @@ const (
 	NodeLinGoose        = "lingoose"
 	NodeAnyi            = "anyi"
 	NodeAgentSDK        = "agent_sdk"
+
+	// Eino Agent 节点类型 (cloudwego/eino-examples)
+	NodeEinoReact = "eino_react"
+	NodeEinoDEER  = "eino_deer"
+	NodeEinoManus = "eino_manus"
 )
 
 // WaitKind 等待类型（NodeWait 时 Config["wait_kind"]）

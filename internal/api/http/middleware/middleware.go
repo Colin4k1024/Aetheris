@@ -16,6 +16,7 @@ package middleware
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -322,5 +323,23 @@ func (m *Middleware) AccessLog() app.HandlerFunc {
 		latency := time.Since(start)
 		hlog.CtxInfof(ctx, "%s %s %s %d %s",
 			c.Method(), c.Path(), c.ClientIP(), c.Response.StatusCode(), latency)
+	}
+}
+
+// Legacy 为迁移期接口添加标准化 deprecation 响应头。
+func (m *Middleware) Legacy(replacement string) app.HandlerFunc {
+	return func(ctx context.Context, c *app.RequestContext) {
+		c.Header("Deprecation", "true")
+		c.Header("X-Aetheris-Deprecated", "true")
+		if replacement != "" {
+			c.Header("X-Aetheris-Replacement", replacement)
+		}
+		prevWarning := string(c.Response.Header.Peek("Warning"))
+		warning := `299 - "Deprecated API: migrate to runtime-first endpoints"`
+		if prevWarning != "" {
+			warning = strings.TrimSpace(prevWarning) + ", " + warning
+		}
+		c.Header("Warning", warning)
+		c.Next(ctx)
 	}
 }

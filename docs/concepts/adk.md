@@ -2,7 +2,10 @@
 
 本文说明项目中 [Eino ADK](https://www.cloudwego.io/zh/docs/eino/core_modules/eino_adk/) 的接入方式与对话/恢复/流式接口用法。
 
-## 默认对话路径
+## ADK 对话路径（兼容层）
+
+> Runtime-first 说明：系统对外 canonical 提交路径是 `/api/runs/*` + `/api/jobs/*`。  
+> 本文描述的是 ADK 专项接口（`/api/agent/*`），用于兼容与专项能力，不作为默认主路径。
 
 当配置中 **agent.adk.enabled** 未设为 `false` 时，以下接口由 **ADK Runner** 执行（主 ChatModelAgent + 检索、生成、文档加载/解析/切片/向量化/建索引等工具）：
 

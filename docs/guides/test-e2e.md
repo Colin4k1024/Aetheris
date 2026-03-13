@@ -62,7 +62,7 @@ curl http://localhost:8080/api/documents/
 
 Expected: 200, list includes the uploaded document (id, metadata, etc.).
 
-## 4. Query (deprecated; prefer "Send message via Agent" below)
+## 4. Query (deprecated; prefer runtime-first or Agent facade below)
 
 Run a query related to the uploaded content:
 
@@ -72,30 +72,36 @@ curl -X POST http://localhost:8080/api/query \
   -d '{"query": "Your question", "top_k": 10}'
 ```
 
-**Expected**: 200 with retrieval-based `answer` if LLM and Embedding are configured. This endpoint is deprecated; use the "Send message via Agent" flow below.
+**Expected**: 200 with retrieval-based `answer` if LLM and Embedding are configured. This endpoint is deprecated; use runtime-first submission (`/api/runs`) or the Agent facade flow below.
 
-## 5. Send message via Agent (recommended E2E)
+## 5. Send message via Agent (legacy facade E2E)
 
-Recommended flow: create an agent, send a message, poll job status, optionally view execution trace.
+Compatibility flow: create an agent, send a message, poll job status, optionally view execution trace.
 
 1. **Create agent**:
+
    ```bash
    curl -s -X POST http://localhost:8080/api/agents -H "Content-Type: application/json" -d '{"name":"e2e-test"}'
    ```
+
    Note the returned `id` as `agent_id`.
 
 2. **Send message**:
+
    ```bash
    curl -s -X POST http://localhost:8080/api/agents/<agent_id>/message \
      -H "Content-Type: application/json" \
      -d '{"message": "Your question"}'
    ```
+
    Returns 202 with `job_id`.
 
 3. **Poll job status**:
+
    ```bash
    curl -s http://localhost:8080/api/agents/<agent_id>/jobs/<job_id>
    ```
+
    Until `status` is `completed` or `failed`.
 
 4. **(Optional) View execution trace**:

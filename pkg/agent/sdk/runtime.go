@@ -16,12 +16,22 @@ package sdk
 
 import "context"
 
-// AgentRuntime 供 SDK Agent 使用的运行时抽象：提交 Job、等待完成并取回结果
+// AgentRuntime 供 SDK Agent 使用的运行时抽象：提交 Job、等待完成并取回结果。
+// 说明：该接口用于兼容 Agent 语义；新接入建议采用 runtime-first 的 run/job 语义。
 type AgentRuntime interface {
 	// Submit 提交一条 Agent 任务，返回 jobID
 	Submit(ctx context.Context, agentID, goal, sessionID string) (jobID string, err error)
 	// WaitCompleted 阻塞直到 Job 完成或 ctx 取消，返回状态与最终回答（从 Session 或 Job 结果取）
 	WaitCompleted(ctx context.Context, jobID string) (status string, answer string, err error)
+}
+
+// DurableAgentRuntime 扩展可中断/可恢复能力（HITL 场景）。
+type DurableAgentRuntime interface {
+	AgentRuntime
+	Pause(ctx context.Context, jobID, reason string) error
+	Resume(ctx context.Context, jobID, correlationKey string) error
+	Signal(ctx context.Context, jobID, correlationKey string, payload map[string]any) error
+	Approve(ctx context.Context, jobID, correlationKey string, payload map[string]any) error
 }
 
 // ToolRegistrar 可选：支持在运行时注册工具（由实现方将工具注入 Executor/Planner）

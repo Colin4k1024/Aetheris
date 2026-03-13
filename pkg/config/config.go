@@ -110,21 +110,21 @@ type SecretsConfig struct {
 
 // JobStoreConfig 任务事件存储配置（事件流 + 租约）
 type JobStoreConfig struct {
-	Type          string `mapstructure:"type"`           // memory | postgres
-	DSN           string `mapstructure:"dsn"`            // Postgres 连接串，type=postgres 时必填
+	Type          string `mapstructure:"type"`           // memory | postgres | embedded
+	DSN           string `mapstructure:"dsn"`            // Postgres 连接串或 embedded 数据目录路径
 	LeaseDuration string `mapstructure:"lease_duration"` // 租约时长，如 "30s"，空则默认 30s
 }
 
 // EffectStoreConfig 副作用存储配置
 type EffectStoreConfig struct {
-	Type string `mapstructure:"type"` // memory | postgres
-	DSN  string `mapstructure:"dsn"`  // Postgres 连接串，type=postgres 时必填
+	Type string `mapstructure:"type"` // memory | postgres | embedded
+	DSN  string `mapstructure:"dsn"`  // Postgres 连接串；embedded 时可为空（沿用 jobstore.dsn）
 }
 
 // CheckpointStoreConfig Checkpoint 存储配置
 type CheckpointStoreConfig struct {
-	Type string `mapstructure:"type"` // memory | postgres
-	DSN  string `mapstructure:"dsn"`  // Postgres 连接串，type=postgres 时必填
+	Type string `mapstructure:"type"` // memory | postgres | embedded
+	DSN  string `mapstructure:"dsn"`  // Postgres 连接串；embedded 时可为空（沿用 jobstore.dsn）
 }
 
 // AgentConfig Agent 与 Job 调度相关配置
@@ -417,16 +417,32 @@ func replaceEnvVars(config *Config) error {
 
 // LoadAPIConfig 加载 API 配置（仅 configs/api.yaml）
 func LoadAPIConfig() (*Config, error) {
+	if p := os.Getenv("API_CONFIG_PATH"); p != "" {
+		return LoadConfig(p)
+	}
+	if p := os.Getenv("CONFIG_PATH"); p != "" {
+		return LoadConfig(p)
+	}
 	return LoadConfig("configs/api.yaml")
 }
 
 // LoadAPIConfigWithModel 加载 API 配置并合并 model 配置，便于 API 使用 LLM/Embedding；storage 仍来自 api.yaml（缺省为 memory）
 func LoadAPIConfigWithModel() (*Config, error) {
-	cfg, err := LoadConfig("configs/api.yaml")
+	apiPath := "configs/api.yaml"
+	if p := os.Getenv("API_CONFIG_PATH"); p != "" {
+		apiPath = p
+	} else if p := os.Getenv("CONFIG_PATH"); p != "" {
+		apiPath = p
+	}
+	cfg, err := LoadConfig(apiPath)
 	if err != nil {
 		return nil, err
 	}
-	modelCfg, err := LoadConfig("configs/model.yaml")
+	modelPath := "configs/model.yaml"
+	if p := os.Getenv("MODEL_CONFIG_PATH"); p != "" {
+		modelPath = p
+	}
+	modelCfg, err := LoadConfig(modelPath)
 	if err == nil {
 		cfg.Model = modelCfg.Model
 	}
@@ -435,18 +451,32 @@ func LoadAPIConfigWithModel() (*Config, error) {
 
 // LoadWorkerConfig 加载 Worker 配置（仅 configs/worker.yaml）
 func LoadWorkerConfig() (*Config, error) {
+	if p := os.Getenv("WORKER_CONFIG_PATH"); p != "" {
+		return LoadConfig(p)
+	}
+	if p := os.Getenv("CONFIG_PATH"); p != "" {
+		return LoadConfig(p)
+	}
 	return LoadConfig("configs/worker.yaml")
 }
 
 // LoadWorkerConfigWithModel 加载 Worker 配置并合并 model 配置，便于 Worker 执行 Agent Job 时使用 LLM/Embedding。
 // model 路径解析为与 worker 配置同目录（configs/），避免 cwd 导致 model.yaml 未加载。
 func LoadWorkerConfigWithModel() (*Config, error) {
-	cfg, err := LoadConfig("configs/worker.yaml")
+	workerPath := "configs/worker.yaml"
+	if p := os.Getenv("WORKER_CONFIG_PATH"); p != "" {
+		workerPath = p
+	} else if p := os.Getenv("CONFIG_PATH"); p != "" {
+		workerPath = p
+	}
+	cfg, err := LoadConfig(workerPath)
 	if err != nil {
 		return nil, err
 	}
 	modelPath := "configs/model.yaml"
-	if absWorker, errAbs := filepath.Abs("configs/worker.yaml"); errAbs == nil {
+	if p := os.Getenv("MODEL_CONFIG_PATH"); p != "" {
+		modelPath = p
+	} else if absWorker, errAbs := filepath.Abs(workerPath); errAbs == nil {
 		modelPath = filepath.Join(filepath.Dir(absWorker), "model.yaml")
 	}
 	modelCfg, err := LoadConfig(modelPath)

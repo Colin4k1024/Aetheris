@@ -25,6 +25,7 @@
 **症状**: `go run ./cmd/api` 失败
 
 **常见原因**:
+
 - 端口 8080 被占用
 - 配置文件格式错误
 - 缺少必要依赖
@@ -111,6 +112,7 @@ providers:
 **症状**: Job 状态长时间停留在 `pending`
 
 **常见原因**:
+
 - 没有 Worker 进程运行（使用 PostgreSQL 时）
 - Worker 无法连接到 PostgreSQL
 - Scheduler 未启动（内存模式）
@@ -143,6 +145,7 @@ curl http://localhost:8080/api/jobs/<job_id>/trace
 ```
 
 **常见原因**:
+
 - LLM API 调用失败（检查 API Key）
 - 工具执行失败（检查工具配置）
 - 超过最大重试次数
@@ -185,6 +188,7 @@ curl http://localhost:8080/api/jobs/<job_id>
 **症状**: API 请求返回 401
 
 **常见原因**:
+
 - 生产模式下未提供 JWT token
 - JWT secret 配置错误
 - Token 过期
@@ -233,21 +237,21 @@ curl -X POST -H "Authorization: Bearer <token>" \
 ```yaml
 # configs/api.yaml
 app:
-  env: "production"  # 或设置 AETHERIS_ENV=production
+  env: "production" # 或设置 AETHERIS_ENV=production
 
 auth:
   jwt:
-    secret: "your-secure-secret-key"  # 必须修改默认密钥
+    secret: "your-secure-secret-key" # 必须修改默认密钥
     enabled: true
 
 jobstore:
-  type: "postgres"  # 生产环境必须使用 PostgreSQL
+  type: "postgres" # 生产环境必须使用 PostgreSQL
   postgres:
     dsn: "postgres://user:pass@host:5432/db?sslmode=require"
 
 cors:
   allowed_origins:
-    - "https://your-domain.com"  # 不能使用 *
+    - "https://your-domain.com" # 不能使用 *
 ```
 
 ---
@@ -387,13 +391,13 @@ logging:
 ### 7.2 使用 CLI 调试
 
 ```bash
-# 创建 Agent
+# 创建 Agent（legacy facade）
 go run ./cmd/cli agent create my-agent
 
-# 发送消息
+# 发送消息（legacy facade）
 go run ./cmd/cli chat <agent_id>
 
-# 查看 Job 状态
+# 查看 Job 状态（legacy facade）
 go run ./cmd/cli jobs <agent_id>
 
 # 查看 Trace

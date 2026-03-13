@@ -375,19 +375,16 @@ func (b *replayBuilder) BuildFromSnapshot(ctx context.Context, jobID string) (*R
 		return nil, err
 	}
 
-	// 只处理快照版本之后的事件
-	incrementalEvents := []jobstore.JobEvent{}
-	for _, e := range events {
-		// 事件按 version 排序，version 从 1 开始
-		// 快照覆盖到 version N，则处理 version > N 的事件
-		// 这里简化处理：使用事件数量作为版本号判断
-		if len(incrementalEvents) >= snapshot.Version {
-			incrementalEvents = append(incrementalEvents, e)
-		} else if len(events) > snapshot.Version {
-			// 如果总事件数大于快照版本，说明有增量
-			continue
-		}
+	// 只处理快照版本之后的事件。
+	// ListEvents 返回顺序事件流，版本号等于事件条数（首条版本=1），因此快照覆盖到 version N 时，
+	// 增量事件应从 events[N:] 开始。
+	if snapshot.Version < 0 {
+		snapshot.Version = 0
 	}
+	if snapshot.Version > len(events) {
+		snapshot.Version = len(events)
+	}
+	incrementalEvents := events[snapshot.Version:]
 
 	// 如果没有增量事件，直接返回快照
 	if len(incrementalEvents) == 0 {

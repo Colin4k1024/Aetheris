@@ -6,24 +6,24 @@ This document explains what Aetheris guarantees in normal and failure scenarios.
 
 ## Normal Scenario Guarantees
 
-| Scenario | Guarantee | Condition |
-|----------|-----------|-----------|
-| **Worker executes step** | At-most-once | Configured InvocationLedger + Effect Store |
-| **Tool calls external API** | Pass idempotency key → downstream dedup | Tool uses `StepIdempotencyKeyForExternal(ctx, jobID, stepID)` |
-| **LLM generates result** | Stored in Effect Store; Replay injects (NOT re-called) | Effect Store configured |
-| **Signal sent** | At-least-once (write wait_completed → Job scheduled) | WakeupQueue for multi-worker |
-| **Checkpoint saved** | After each step; crash recovery from latest Checkpoint | CheckpointStore configured |
+| Scenario                    | Guarantee                                              | Condition                                                     |
+| --------------------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
+| **Worker executes step**    | At-most-once                                           | Configured InvocationLedger + Effect Store                    |
+| **Tool calls external API** | Pass idempotency key → downstream dedup                | Tool uses `StepIdempotencyKeyForExternal(ctx, jobID, stepID)` |
+| **LLM generates result**    | Stored in Effect Store; Replay injects (NOT re-called) | Effect Store configured                                       |
+| **Signal sent**             | At-least-once (write wait_completed → Job scheduled)   | WakeupQueue for multi-worker                                  |
+| **Checkpoint saved**        | After each step; crash recovery from latest Checkpoint | CheckpointStore configured                                    |
 
 ### DAG parallel execution (2.0)
 
 When **max parallel steps** is configured (> 0), steps in the same topological level may run in parallel on a single worker. See [design/dag-parallel-execution.md](../design/dag-parallel-execution.md).
 
-| Aspect | Behavior |
-|--------|----------|
-| **Max concurrency** | Configurable per Runner (`SetMaxParallelSteps(n)`); 0 = sequential (default). |
-| **Failure** | If any step in a level fails, the level is failed; the job is marked failed and no results from that level are committed. Other in-flight steps in the level are effectively canceled (context). |
-| **Replay / determinism** | Results are merged by node ID in sorted order; NodeStarted/NodeFinished are written in deterministic order. Replay and checkpoint semantics remain the same. |
-| **Wait nodes** | Levels that contain a Wait node are run sequentially (one step at a time) so Wait semantics are unchanged. |
+| Aspect                   | Behavior                                                                                                                                                                                         |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Max concurrency**      | Configurable per Runner (`SetMaxParallelSteps(n)`); 0 = sequential (default).                                                                                                                    |
+| **Failure**              | If any step in a level fails, the level is failed; the job is marked failed and no results from that level are committed. Other in-flight steps in the level are effectively canceled (context). |
+| **Replay / determinism** | Results are merged by node ID in sorted order; NodeStarted/NodeFinished are written in deterministic order. Replay and checkpoint semantics remain the same.                                     |
+| **Wait nodes**           | Levels that contain a Wait node are run sequentially (one step at a time) so Wait semantics are unchanged.                                                                                       |
 
 ---
 
@@ -45,11 +45,13 @@ When **max parallel steps** is configured (> 0), steps in the same topological l
    - Ledger/InvocationStore recovery flow ensures Tool NOT re-executed
 
 **Guarantees**:
+
 - ✅ Job not lost (Reclaim ensures eventual progress)
 - ✅ Step not duplicated (Ledger + Effect Store at-most-once)
 - ✅ Maximum loss: Progress of last step (redo from Checkpoint, but Replay injects recorded results)
 
 **Example**:
+
 ```
 Worker A: query_order (success) → llm_decide (success) → send_refund (executing...) → CRASH
 Worker B: Reclaim → Replay: query_order, llm_decide injected → send_refund: check Ledger → injected (NOT re-executed)
@@ -57,6 +59,7 @@ Result: Refund sent once
 ```
 
 **Configuration requirements**:
+
 - JobStore: Postgres (or shared store)
 - Event Store: Postgres (lease management)
 - InvocationLedger: Enabled
@@ -79,17 +82,20 @@ Result: Refund sent once
    - **Block re-execution**: Recover from Ledger or fail permanently
 
 **Guarantees**:
+
 - ✅ Timeout does NOT cause "step half-done, state inconsistent"
 - ✅ Tool already called but uncommitted → NOT re-executed (Activity Log Barrier)
 
 **Configuration**:
+
 ```yaml
 # configs/worker.yaml
 executor:
-  step_timeout: "5m"  # Per-step timeout
+  step_timeout: "5m" # Per-step timeout
 ```
 
 **Example**:
+
 ```
 Step: call_slow_api (timeout 5m)
 3 min: API responding...
@@ -114,10 +120,12 @@ Step: call_slow_api (timeout 5m)
 3. **WakeupQueue**: If configured, signal → NotifyReady → Worker immediately claims (no poll delay)
 
 **Guarantees**:
+
 - ✅ Signal at-least-once (once wait_completed written, Job WILL be scheduled)
 - ✅ Duplicate signal idempotent (no double-unblock)
 
 **Recovery**:
+
 ```bash
 # Check if signal delivered
 curl -s http://localhost:8080/api/jobs/job-xxx/replay | jq '.events[] | select(.type=="wait_completed")'
@@ -145,10 +153,12 @@ curl -X POST http://localhost:8080/api/jobs/job-xxx/signal \
    - Worker B: Acquire → WaitOtherWorker or ReturnRecordedResult
 
 **Guarantees**:
+
 - ✅ Tool executed exactly once (Ledger arbitration)
 - ✅ Event stream not polluted by stale Worker (attempt_id validation)
 
 **Example**:
+
 ```
 Time 0s: Worker A claims job-123 (attempt_id=attempt-1, lease expires at 30s)
 Time 30s: Lease expires
@@ -172,10 +182,12 @@ Result: Tool executed once by Worker B
 4. **Warning log**: Model version changed (if version tracking configured)
 
 **Guarantees**:
+
 - ✅ Replay result matches first execution (not affected by model update)
 - ✅ Audit can trace "which model was used during execution"
 
 **Example**:
+
 ```
 First exec (2024-08-06): LLM(model=gpt-4o-2024-08-06) → "Approve"
 Replay (2024-11-20): Inject "Approve" from Effect Store (model=gpt-4o-2024-08-06)
@@ -197,6 +209,7 @@ Replay (2024-11-20): Inject "Approve" from Effect Store (model=gpt-4o-2024-08-06
 4. **Audit**: Can explain "why historical execution returned X, now returns Y" (tool version changed)
 
 **Guarantees**:
+
 - ✅ Replay uses recorded result (not affected by tool schema change)
 - ✅ Version tracking for audit (tool_version, schema_hash)
 
@@ -215,6 +228,7 @@ Replay (2024-11-20): Inject "Approve" from Effect Store (model=gpt-4o-2024-08-06
 5. **Without Effect Store**: Activity Log Barrier (tool_invocation_started, no finished) → Block re-execution → Recover from Ledger or fail
 
 **Guarantees**:
+
 - ✅ With Effect Store: Catch-up writes event, Tool NOT re-executed (two-phase commit)
 - ✅ Without Effect Store: Block re-execution (Activity Log Barrier), wait for manual recovery
 
@@ -235,6 +249,7 @@ Replay (2024-11-20): Inject "Approve" from Effect Store (model=gpt-4o-2024-08-06
 5. Worker B: Continues from Checkpoint
 
 **Guarantees**:
+
 - ✅ Only one Worker can progress (attempt_id validation)
 - ✅ Tool executed once (Ledger arbitration)
 
@@ -248,13 +263,13 @@ Replay (2024-11-20): Inject "Approve" from Effect Store (model=gpt-4o-2024-08-06
 
 ```yaml
 jobstore:
-  type: memory  # In-memory, no persistence
+  type: memory # In-memory, no persistence
 
 effect_store:
-  enabled: false  # Optional
+  enabled: false # Optional
 
 invocation_ledger:
-  enabled: false  # Optional
+  enabled: false # Optional
 ```
 
 **Guarantees**: Basic execution, no crash recovery, no at-most-once (tools may duplicate on retry)
@@ -272,15 +287,15 @@ jobstore:
     dsn: "postgres://aetheris:aetheris@localhost:5432/aetheris"
 
 effect_store:
-  enabled: true      # ← Required for at-most-once & LLM replay guard
+  enabled: true # ← Required for at-most-once & LLM replay guard
   type: postgres
 
 invocation_ledger:
-  enabled: true      # ← Required for Tool at-most-once
+  enabled: true # ← Required for Tool at-most-once
   type: postgres
 
 wakeup_queue:
-  type: redis        # ← Required for multi-worker signal delivery
+  type: redis # ← Required for multi-worker signal delivery
   redis:
     addr: "redis:6379"
 ```
@@ -297,17 +312,17 @@ A single **fault × guarantee × behavior × config** matrix is maintained in [d
 
 ## Guarantee Summary Table
 
-| What Could Go Wrong | What Happens | Guarantee | Required Config |
-|---------------------|--------------|-----------|-----------------|
-| Worker crash | Reclaim → another Worker resumes | Job not lost | Postgres JobStore |
-| Worker crash during Tool | Effect Store catch-up | Tool NOT re-executed | Effect Store |
-| Step timeout | Classified as retryable_failure | Timeout safe | step_timeout configured |
-| Signal lost | Retry signal (idempotent) | At-least-once delivery | (always) |
-| Two Workers same step | attempt_id validation | Only one succeeds | Event Store + Ledger |
-| LLM model update | Replay injects old output | Deterministic | Effect Store |
-| Tool schema change | Replay injects old result | Audit traceable | tool_version tracking |
-| Database rollback | Catch-up or barrier | Tool NOT re-executed | Effect Store |
-| Network partition | attempt_id mismatch | Split-brain safe | Shared JobStore |
+| What Could Go Wrong      | What Happens                     | Guarantee              | Required Config         |
+| ------------------------ | -------------------------------- | ---------------------- | ----------------------- |
+| Worker crash             | Reclaim → another Worker resumes | Job not lost           | Postgres JobStore       |
+| Worker crash during Tool | Effect Store catch-up            | Tool NOT re-executed   | Effect Store            |
+| Step timeout             | Classified as retryable_failure  | Timeout safe           | step_timeout configured |
+| Signal lost              | Retry signal (idempotent)        | At-least-once delivery | (always)                |
+| Two Workers same step    | attempt_id validation            | Only one succeeds      | Event Store + Ledger    |
+| LLM model update         | Replay injects old output        | Deterministic          | Effect Store            |
+| Tool schema change       | Replay injects old result        | Audit traceable        | tool_version tracking   |
+| Database rollback        | Catch-up or barrier              | Tool NOT re-executed   | Effect Store            |
+| Network partition        | attempt_id mismatch              | Split-brain safe       | Shared JobStore         |
 
 ---
 
@@ -345,7 +360,7 @@ go run ./cmd/worker
 ### Test 2: Signal Lost (Retry)
 
 ```bash
-# Create job with Wait node
+# Create job with Wait node (legacy facade example)
 POST /api/agents/agent-1/message
 
 # Job enters StatusParked
@@ -380,7 +395,7 @@ GET /api/jobs/job-xxx/replay
 # Terminal 1: go run ./cmd/worker
 # Terminal 2: go run ./cmd/worker
 
-# Create job
+# Create job (legacy facade example)
 POST /api/agents/agent-1/message
 
 # Observe logs:
@@ -410,16 +425,16 @@ After a Job completes (or fails), you can run **offline verification** to get an
 
 ### Output meanings
 
-| Output | Meaning |
-|--------|--------|
-| **Execution hash** | Deterministic digest of the execution path (plan + node_id/result_type sequence). |
-| **Event chain root hash** | Root hash of the event stream in order; any tampering or reorder changes this value. |
+| Output                           | Meaning                                                                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Execution hash**               | Deterministic digest of the execution path (plan + node_id/result_type sequence).                                                    |
+| **Event chain root hash**        | Root hash of the event stream in order; any tampering or reorder changes this value.                                                 |
 | **Tool invocation ledger proof** | Confirms every tool_invocation_started has a matching tool_invocation_finished (at-most-once). `ok: true` means no dangling started. |
-| **Replay proof result** | Read-only Replay (BuildFromEvents) succeeded; context is consistent with the event stream. |
+| **Replay proof result**          | Read-only Replay (BuildFromEvents) succeeded; context is consistent with the event stream.                                           |
 
 ### Relationship to Execution Proof Chain
 
-The **Execution Proof Chain** (Ledger, Confirmation Replay) is the *runtime* mechanism that enforces at-most-once and deterministic replay. **Verification Mode** is a *post-hoc*, read-only check and summary of the same event stream and derived state. It does not change any state; it only computes and returns hashes and proof results for audit or demo.
+The **Execution Proof Chain** (Ledger, Confirmation Replay) is the _runtime_ mechanism that enforces at-most-once and deterministic replay. **Verification Mode** is a _post-hoc_, read-only check and summary of the same event stream and derived state. It does not change any state; it only computes and returns hashes and proof results for audit or demo.
 
 See [design/verification-mode.md](../design/verification-mode.md) for the protocol (event chain digest, execution hash formula) and [design/1.0-runtime-semantics.md](../design/1.0-runtime-semantics.md) for the Execution Proof Chain.
 
@@ -430,6 +445,7 @@ See [design/verification-mode.md](../design/verification-mode.md) for the protoc
 ### Scenario 1: Effect Store Not Configured
 
 **Without Effect Store**:
+
 - ❌ at-most-once NOT guaranteed for Tools (may duplicate on crash before commit)
 - ❌ LLM replay guard weakened (Adapter layer still checks, but no two-phase commit)
 
@@ -440,6 +456,7 @@ See [design/verification-mode.md](../design/verification-mode.md) for the protoc
 ### Scenario 2: Ledger Not Configured
 
 **Without InvocationLedger**:
+
 - ❌ Tool at-most-once NOT guaranteed across Workers
 - ❌ Two Workers may execute same Tool (if both claim simultaneously)
 
@@ -450,6 +467,7 @@ See [design/verification-mode.md](../design/verification-mode.md) for the protoc
 ### Scenario 3: WakeupQueue Not Configured (Multi-Worker)
 
 **Without WakeupQueue**:
+
 - ⚠️ Signal delivery has delay (poll interval, default 2s)
 - ⚠️ Under high load (1k+ parked jobs), poll inefficient
 
@@ -460,6 +478,7 @@ See [design/verification-mode.md](../design/verification-mode.md) for the protoc
 ### Scenario 4: Violating Step Contract
 
 **If developer breaks [design/step-contract.md](../design/step-contract.md)**:
+
 - ❌ Step directly calls external API (not via Tool) → Replay will re-execute → duplicate side effect
 - ❌ Step reads `time.Now()` or `rand.Int()` → Replay non-deterministic
 - ❌ Step modifies global state → Replay behavior unpredictable
@@ -473,10 +492,12 @@ See [design/verification-mode.md](../design/verification-mode.md) for the protoc
 ### Scenario: Total Data Loss (Postgres Crash)
 
 **If JobStore/Event Store lost**:
+
 - ❌ All Jobs lost (no recovery)
 - ❌ Execution history lost (no audit)
 
 **Prevention**:
+
 - **Database backups**: pg_dump or continuous archiving
 - **Replicas**: Postgres streaming replication
 - **Disaster recovery plan**: RTO/RPO requirements
@@ -488,10 +509,12 @@ Aetheris provides runtime guarantees **given persistent storage**; storage layer
 ### Scenario: Ledger Corruption
 
 **If InvocationLedger inconsistent with event stream**:
+
 - ⚠️ Tool may be blocked (Ledger says "in progress", event stream says "finished")
 - ⚠️ Manual intervention: Query Ledger + Event Store, reconcile
 
 **Prevention**:
+
 - Use transactional stores (Postgres Ledger + Event Store in same DB)
 - Regular consistency checks:
   - API: `GET /api/forensics/consistency/:job_id`
@@ -503,31 +526,31 @@ Aetheris provides runtime guarantees **given persistent storage**; storage layer
 
 ### Latency
 
-| Operation | Latency | Note |
-|-----------|---------|------|
-| **Job creation** | ~50ms | POST /api/agents/:id/message → job_id |
-| **Worker claim** | ~20ms | Poll JobStore, return Pending job |
-| **Step execution** | Depends on Tool/LLM | Aetheris overhead ~5ms per step |
-| **Signal delivery** | <100ms | With WakeupQueue; ~2s without (poll interval) |
-| **Checkpoint save** | ~30ms | Write to Postgres |
-| **Replay** | ~50ms per 100 steps | Read event stream, inject results |
+| Operation                        | Latency             | Note                                          |
+| -------------------------------- | ------------------- | --------------------------------------------- |
+| **Job creation (legacy facade)** | ~50ms               | POST /api/agents/:id/message → job_id         |
+| **Worker claim**                 | ~20ms               | Poll JobStore, return Pending job             |
+| **Step execution**               | Depends on Tool/LLM | Aetheris overhead ~5ms per step               |
+| **Signal delivery**              | <100ms              | With WakeupQueue; ~2s without (poll interval) |
+| **Checkpoint save**              | ~30ms               | Write to Postgres                             |
+| **Replay**                       | ~50ms per 100 steps | Read event stream, inject results             |
 
 ### Throughput
 
-| Metric | Value | Note |
-|--------|-------|------|
-| **Jobs/sec** | ~100-500 | Single API, Postgres JobStore |
-| **Concurrent Jobs** | ~10k+ | With StatusParked (long-wait jobs don't block) |
-| **Workers** | Scales linearly | Add Workers → higher throughput |
-| **Event stream size** | ~1KB per step | 100-step job ≈ 100KB events |
+| Metric                | Value           | Note                                           |
+| --------------------- | --------------- | ---------------------------------------------- |
+| **Jobs/sec**          | ~100-500        | Single API, Postgres JobStore                  |
+| **Concurrent Jobs**   | ~10k+           | With StatusParked (long-wait jobs don't block) |
+| **Workers**           | Scales linearly | Add Workers → higher throughput                |
+| **Event stream size** | ~1KB per step   | 100-step job ≈ 100KB events                    |
 
 ### Resource Usage
 
-| Component | Memory | CPU | Disk |
-|-----------|--------|-----|------|
-| **API** | ~100MB | ~5% | Minimal (logs only) |
-| **Worker** | ~50MB per job | ~20% per job | Minimal |
-| **Postgres** | Depends on job count | ~10% | ~1MB per job (events + checkpoints) |
+| Component    | Memory               | CPU          | Disk                                |
+| ------------ | -------------------- | ------------ | ----------------------------------- |
+| **API**      | ~100MB               | ~5%          | Minimal (logs only)                 |
+| **Worker**   | ~50MB per job        | ~20% per job | Minimal                             |
+| **Postgres** | Depends on job count | ~10%         | ~1MB per job (events + checkpoints) |
 
 **Scaling**: Horizontal (add Workers) + Vertical (Postgres resources)
 
@@ -561,6 +584,7 @@ go test ./internal/agent/runtime/executor -run 'TestStress_MultiWorkerRace|TestS
 ```
 
 Expected:
+
 - No duplicate committed tool result for the same idempotency key.
 - Recovery path returns recorded result instead of re-executing tool side effects.
 
@@ -572,6 +596,7 @@ go test ./internal/api/http -run 'TestJobSignal_SuccessAndIdempotentUnblock|Test
 ```
 
 Expected:
+
 - Expired running jobs are reclaimed to Pending.
 - Another worker can claim and continue after reclaim.
 - Blocked jobs are not reclaimed until unblocked.
@@ -585,6 +610,7 @@ go test ./internal/agent/runtime/executor -run 'TestRunnerParallelLevel_TimeoutC
 ```
 
 Expected:
+
 - `context.DeadlineExceeded` is mapped to `retryable_failure` with reason `step timeout`.
 - Tool retries honor `RetryPolicy.MaxRetries` and `RetryPolicy.Backoff`.
 - Non-retryable errors stop immediately.
@@ -597,6 +623,7 @@ go test -race ./...
 ```
 
 Expected:
+
 - All runtime, reclaim, replay, and tool-contract tests pass under normal and race mode.
 
 ---

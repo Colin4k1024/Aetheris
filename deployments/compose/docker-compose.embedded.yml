@@ -1,0 +1,48 @@
+# Embedded local-first runtime (no external database dependency)
+# Run: docker compose -f deployments/compose/docker-compose.embedded.yml up -d
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: deployments/compose/Dockerfile
+    command: ["/usr/local/bin/api"]
+    working_dir: /app
+    volumes:
+      - ../../configs:/app/configs:ro
+      - embedded_data:/app/data
+    environment:
+      API_CONFIG_PATH: /app/configs/api.embedded.yaml
+      MODEL_CONFIG_PATH: /app/configs/model.yaml
+      MODEL_DEFAULTS_LLM: "openai.gpt_35_turbo"
+      MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://host.docker.internal:11434/v1"
+      MODEL_LLM_PROVIDERS_OPENAI_API_KEY: "ollama"
+      MODEL_LLM_PROVIDERS_OPENAI_MODELS_GPT_35_TURBO_NAME: "${OLLAMA_MODEL:-llama3}"
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: deployments/compose/Dockerfile
+    command: ["/usr/local/bin/worker"]
+    working_dir: /app
+    volumes:
+      - ../../configs:/app/configs:ro
+      - embedded_data:/app/data
+    environment:
+      WORKER_CONFIG_PATH: /app/configs/worker.embedded.yaml
+      MODEL_CONFIG_PATH: /app/configs/model.yaml
+      MODEL_DEFAULTS_LLM: "openai.gpt_35_turbo"
+      MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://host.docker.internal:11434/v1"
+      MODEL_LLM_PROVIDERS_OPENAI_API_KEY: "ollama"
+      MODEL_LLM_PROVIDERS_OPENAI_MODELS_GPT_35_TURBO_NAME: "${OLLAMA_MODEL:-llama3}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - api
+
+volumes:
+  embedded_data: {}

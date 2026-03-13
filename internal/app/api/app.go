@@ -22,18 +22,20 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"google.golang.org/grpc"
 
+	apigrpc "rag-platform/internal/api/grpc"
+
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 	hertzslog "github.com/hertz-contrib/logger/slog"
 	"github.com/hertz-contrib/obs-opentelemetry/provider"
 	hertztracing "github.com/hertz-contrib/obs-opentelemetry/tracing"
 	"github.com/jackc/pgx/v5/pgxpool"
-	apigrpc "rag-platform/internal/api/grpc"
 
 	"rag-platform/internal/agent"
 	"rag-platform/internal/agent/executor"
@@ -66,6 +68,12 @@ import (
 // otelProviderShutdown 用于优雅关闭时关闭 OpenTelemetry provider
 type otelProviderShutdown interface {
 	Shutdown(ctx context.Context) error
+}
+
+type defaultMCPInvoker struct{}
+
+func (i *defaultMCPInvoker) CallTool(ctx context.Context, server string, tool string, input map[string]any) (any, error) {
+	return nil, fmt.Errorf("mcp invoker not configured: %s/%s", server, tool)
 }
 
 // App API 应用（装配 HTTP Router、Handler、Middleware；仅依赖 Engine + DocumentService）
@@ -264,6 +272,30 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	// Agent Runtime：agent/tools.Registry（Session 感知）+ Builtin + Planner + Executor + Memory + Agent
 	toolsReg := tools.NewRegistry()
 	tools.RegisterBuiltin(toolsReg, engine, generatorForAgent)
+	// MCP Host bridge: register MCP tools as first-class runtime tools.
+	mcpHost := tools.NewMCPHost(&defaultMCPInvoker{})
+	for _, server := range strings.Split(os.Getenv("AETHERIS_MCP_SERVERS"), ",") {
+		server = strings.TrimSpace(server)
+		if server == "" {
+			continue
+		}
+		mcpHost.RegisterServer(server)
+	}
+	// Reference adapters for common enterprise integrations.
+	referenceMCPTools := []tools.ToolManifest{
+		{Name: "github_issue_read", Description: "Read GitHub issue", InputSchema: map[string]any{"type": "object"}},
+		{Name: "slack_post_message", Description: "Post message to Slack", InputSchema: map[string]any{"type": "object"}},
+		{Name: "sql_query", Description: "Run SQL query", InputSchema: map[string]any{"type": "object"}},
+	}
+	for _, server := range strings.Split(os.Getenv("AETHERIS_MCP_SERVERS"), ",") {
+		server = strings.TrimSpace(server)
+		if server == "" {
+			continue
+		}
+		for _, m := range referenceMCPTools {
+			_ = mcpHost.RegisterToolAdapter(toolsReg, server, m)
+		}
+	}
 	plannerAgent := planner.NewLLMPlanner(llmClientForAgent)
 	execAgent := executor.NewSessionRegistryExecutor(toolsReg)
 	agentRunner := agent.New(plannerAgent, execAgent, toolsReg)
@@ -319,6 +351,7 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	// Job 元数据存储：postgres 时与 Worker 共享 jobs 表，否则内存（仅 API 进程内）
 	var jobStore job.JobStore
 	var jobEventStore jobstore.JobStore
+	embeddedBaseDir := embeddedDataDir(bootstrap.Config)
 	if bootstrap.Config != nil && bootstrap.Config.JobStore.Type == "postgres" && bootstrap.Config.JobStore.DSN != "" {
 		dsn := bootstrap.Config.JobStore.DSN
 		leaseDur := 30 * time.Second
@@ -338,6 +371,20 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 		}
 		jobStore = pgJobStore
 		bootstrap.Logger.Info("JobStore 使用 PostgreSQL 后端", "dsn", dsn)
+	} else if bootstrap.Config != nil && bootstrap.Config.JobStore.Type == "embedded" {
+		embeddedEventsPath := filepath.Join(embeddedBaseDir, "job_events.json")
+		embeddedJobsPath := filepath.Join(embeddedBaseDir, "jobs.json")
+		embeddedEventStore, err := jobstore.NewEmbeddedStore(embeddedEventsPath)
+		if err != nil {
+			return nil, fmt.Errorf("初始化 JobStore 事件(embedded) failed: %w", err)
+		}
+		embeddedJobStore, err := job.NewJobStoreEmbedded(embeddedJobsPath)
+		if err != nil {
+			return nil, fmt.Errorf("初始化 Job 元数据(embedded) failed: %w", err)
+		}
+		jobEventStore = embeddedEventStore
+		jobStore = embeddedJobStore
+		bootstrap.Logger.Info("JobStore 使用 Embedded 后端", "path", embeddedBaseDir)
 	} else {
 		jobStore = job.NewJobStoreMem()
 		jobEventStore = jobstore.NewMemoryStore()
@@ -353,6 +400,13 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 			return nil, fmt.Errorf("创建 ToolInvocationStore 连接池failed: %w", errPool)
 		}
 		invocationStore = agentexec.NewToolInvocationStorePg(invPool)
+	} else if bootstrap.Config != nil && (bootstrap.Config.EffectStore.Type == "embedded" || bootstrap.Config.JobStore.Type == "embedded") {
+		embeddedInvocationPath := filepath.Join(embeddedBaseDir, "tool_invocations.json")
+		embeddedInvocationStore, err := agentexec.NewToolInvocationStoreEmbedded(embeddedInvocationPath)
+		if err != nil {
+			return nil, fmt.Errorf("初始化 ToolInvocationStore(embedded) failed: %w", err)
+		}
+		invocationStore = embeddedInvocationStore
 	} else {
 		invocationStore = agentexec.NewToolInvocationStoreMem()
 	}
@@ -367,6 +421,13 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 			return nil, fmt.Errorf("创建 EffectStore 连接池failed: %w", errPool)
 		}
 		effectStore = agentexec.NewEffectStorePg(effPool)
+	} else if bootstrap.Config != nil && (bootstrap.Config.EffectStore.Type == "embedded" || bootstrap.Config.JobStore.Type == "embedded") {
+		embeddedEffectsPath := filepath.Join(embeddedBaseDir, "effects.json")
+		embeddedEffectStore, err := agentexec.NewEffectStoreEmbedded(embeddedEffectsPath)
+		if err != nil {
+			return nil, fmt.Errorf("初始化 EffectStore(embedded) failed: %w", err)
+		}
+		effectStore = embeddedEffectStore
 	} else {
 		effectStore = agentexec.NewEffectStoreMem()
 	}
@@ -405,6 +466,13 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 			return nil, fmt.Errorf("初始化 AgentStateStore(postgres) failed: %w", errState)
 		}
 		agentStateStore = pgState
+	} else if bootstrap.Config != nil && bootstrap.Config.JobStore.Type == "embedded" {
+		embeddedStatePath := filepath.Join(embeddedBaseDir, "agent_state.json")
+		embeddedStateStore, errState := runtime.NewAgentStateStoreEmbedded(embeddedStatePath)
+		if errState != nil {
+			return nil, fmt.Errorf("初始化 AgentStateStore(embedded) failed: %w", errState)
+		}
+		agentStateStore = embeddedStateStore
 	} else {
 		agentStateStore = runtime.NewAgentStateStoreMem()
 	}
@@ -449,6 +517,13 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 			return nil, fmt.Errorf("创建 CheckpointStore 连接池failed: %w", errPool)
 		}
 		checkpointStore = runtime.NewCheckpointStorePg(cpPool)
+	} else if bootstrap.Config != nil && (bootstrap.Config.CheckpointStore.Type == "embedded" || bootstrap.Config.JobStore.Type == "embedded") {
+		embeddedCheckpointPath := filepath.Join(embeddedBaseDir, "checkpoints.json")
+		embeddedCheckpointStore, err := runtime.NewCheckpointStoreEmbedded(embeddedCheckpointPath)
+		if err != nil {
+			return nil, fmt.Errorf("初始化 CheckpointStore(embedded) failed: %w", err)
+		}
+		checkpointStore = embeddedCheckpointStore
 	}
 	dagRunner.SetCheckpointStores(checkpointStore, &jobStoreForRunnerAdapter{JobStore: jobStore})
 	dagRunner.SetPlanGeneratedSink(NewPlanGeneratedSink(jobEventStore))
@@ -583,7 +658,17 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	}
 
 	// RBAC：RoleStore + AuthZ 中间件（与 JWT 配合使用 tenant_id/user_id）
-	roleStore := auth.NewMemoryRoleStore()
+	var roleStore auth.RoleStore = auth.NewMemoryRoleStore()
+	if bootstrap.Config != nil && bootstrap.Config.JobStore.Type == "postgres" && bootstrap.Config.JobStore.DSN != "" {
+		if rolePoolCfg, err := pgxpool.ParseConfig(bootstrap.Config.JobStore.DSN); err == nil {
+			if rolePool, err := pgxpool.NewWithConfig(context.Background(), rolePoolCfg); err == nil {
+				if pgRoleStore, err := auth.NewPostgresRoleStore(rolePool); err == nil {
+					_ = pgRoleStore.InitSchema(context.Background())
+					roleStore = pgRoleStore
+				}
+			}
+		}
+	}
 	// 预置开发账号角色，避免启用 JWT+RBAC 后本地环境无法创建 Agent。
 	_ = roleStore.SetUserRole(context.Background(), "default", "admin", auth.RoleAdmin)
 	_ = roleStore.SetUserRole(context.Background(), "default", "test", auth.RoleUser)
@@ -595,6 +680,15 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	}
 	rbacChecker := auth.NewSimpleRBACChecker(roleStore)
 	router.SetAuthZ(middleware.NewAuthZMiddleware(rbacChecker))
+	if bootstrap.Config != nil && bootstrap.Config.JobStore.Type == "postgres" && bootstrap.Config.JobStore.DSN != "" {
+		if auditPoolCfg, err := pgxpool.ParseConfig(bootstrap.Config.JobStore.DSN); err == nil {
+			if auditPool, err := pgxpool.NewWithConfig(context.Background(), auditPoolCfg); err == nil {
+				if auditStore := middleware.NewPostgresAuditStore(auditPool); auditStore != nil {
+					router.SetAudit(middleware.NewAuditMiddleware(auditStore))
+				}
+			}
+		}
+	}
 
 	appObj := &App{
 		config:       bootstrap,
@@ -727,6 +821,16 @@ func parseDuration(s string, defaultVal time.Duration) time.Duration {
 		return defaultVal
 	}
 	return d
+}
+
+func embeddedDataDir(cfg *config.Config) string {
+	if cfg == nil {
+		return filepath.Join("data", "embedded")
+	}
+	if cfg.JobStore.DSN != "" {
+		return cfg.JobStore.DSN
+	}
+	return filepath.Join("data", "embedded")
 }
 
 // containsDefaultPassword checks if DSN contains the default password

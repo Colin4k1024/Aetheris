@@ -96,8 +96,14 @@ go run ./cmd/worker &
 # 测试 CLI 命令
 aetheris version
 
-# 创建测试 job
+# 创建测试 job（legacy facade 示例）
 aetheris agent create test-agent
+# runtime-first canonical: POST /api/runs
+
+# runtime-first canonical 示例
+curl -s -X POST http://localhost:8080/api/runs \
+  -H "Content-Type: application/json" \
+  -d '{"workflow_id":"agent_message","input":{"goal":"m1 migration check"}}'
 
 # 导出证据包（如果有 job）
 aetheris export <job_id> --output test-evidence.zip
@@ -209,15 +215,15 @@ EOF
 
 ## 兼容性矩阵
 
-| 功能 | 1.0 | M1 | M2 | M3 |
-|------|-----|----|----|-----|
-| Event 存储 | ✓ | ✓ | ✓ | ✓ |
-| Proof chain | - | ✓ | ✓ | ✓ |
-| Evidence export | - | ✓ | ✓ | ✓ |
-| Offline verify | - | ✓ | ✓ | ✓ |
-| RBAC | - | - | ✓ | ✓ |
-| 脱敏 | - | - | ✓ | ✓ |
-| Forensics API | - | - | - | ✓ |
+| 功能            | 1.0 | M1  | M2  | M3  |
+| --------------- | --- | --- | --- | --- |
+| Event 存储      | ✓   | ✓   | ✓   | ✓   |
+| Proof chain     | -   | ✓   | ✓   | ✓   |
+| Evidence export | -   | ✓   | ✓   | ✓   |
+| Offline verify  | -   | ✓   | ✓   | ✓   |
+| RBAC            | -   | -   | ✓   | ✓   |
+| 脱敏            | -   | -   | ✓   | ✓   |
+| Forensics API   | -   | -   | -   | ✓   |
 
 ---
 
@@ -251,6 +257,7 @@ Export failed: context deadline exceeded
 **原因**：Job 事件数量过多（> 10 万）。
 
 **解决**：
+
 1. 增加 API timeout 配置
 2. 使用异步导出（M2 特性）
 
@@ -259,6 +266,7 @@ Export failed: context deadline exceeded
 ## 技术支持
 
 如有问题，请：
+
 1. 查看 `docs/evidence-package.md`
 2. 运行 `aetheris debug <job_id>` 检查 job 状态
 3. 提交 GitHub Issue（附上 `aetheris version` 输出）
@@ -268,6 +276,7 @@ Export failed: context deadline exceeded
 ## 下一步
 
 升级完成后，建议：
+
 1. 运行测试导出/验证
 2. 更新监控告警（关注 hash 计算延迟）
 3. 阅读 M2 规划（RBAC + 脱敏）
