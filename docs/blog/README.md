@@ -32,6 +32,7 @@ Welcome to the Aetheris blog! Here you'll find tutorials, guides, and insights a
 ### Choosing Aetheris
 
 - [何时选择 Aetheris：与 LangGraph、Temporal 的对比](./11-when-to-choose-aetheris.md) — 适用场景、反例、选型对比表
+- [构建灵活的多框架 Agent：Aetheris 多框架支持](./12-multi-framework-agent-support.md) — LangChainGo、LangGraphGo、Google ADK 等框架集成
 
 ## Quick Links
 
