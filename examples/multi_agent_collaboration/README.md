@@ -193,5 +193,4 @@ Generate → Review → (needs revision?) → Generate
 ## See Also
 
 - [Human Approval Example](../human_approval_agent/)
-- [LangGraph Adapter](../langgraph_agent/)
-- [Getting Started](../../docs/getting-started-agents.md)
+- [Getting Started](../../docs/guides/getting-started-agents.md)

@@ -215,6 +215,6 @@ curl http://localhost:8080/api/jobs/{job_id}/replay
 
 ## See Also
 
-- [Getting Started with Agents](../../docs/getting-started-agents.md)
-- [Runtime Guarantees](../../docs/runtime-guarantees.md)
-- [API Reference](../../docs/api.md)
+- [Getting Started with Agents](../../docs/guides/getting-started-agents.md)
+- [Runtime Guarantees](../../docs/guides/runtime-guarantees.md)
+- [API Reference](../../docs/reference/api-contract.md)
