@@ -48,9 +48,9 @@ type ToolExecutor interface {
 // 实现真正的 ReAct 循环: Think -> Action -> Observe -> Think -> ... -> Final
 type EinoNodeAdapter struct {
 	// LLM 是 eino ChatModel，用于执行 agent
-	LLM            EinoChatModel
-	ToolCallingLLM EinoToolCallingChatModel // 支持工具调用的 LLM
-	Tools          ToolExecutor              // 工具执行器
+	LLM              EinoChatModel
+	ToolCallingLLM   EinoToolCallingChatModel // 支持工具调用的 LLM
+	Tools            ToolExecutor             // 工具执行器
 	CommandEventSink CommandEventSink
 	EffectStore      EffectStore
 	// NodeType 指定 agent 类型：eino_react, eino_deer, eino_manus
@@ -125,10 +125,10 @@ func (a *EinoNodeAdapter) runNode(ctx context.Context, taskID string, cfg map[st
 	// 发送开始事件
 	if a.CommandEventSink != nil && jobID != "" {
 		inputBytes, _ := json.Marshal(map[string]any{
-			"goal":    p.Goal,
-			"type":    a.NodeType,
-			"system":  systemPrompt,
-			"tools":   len(tools),
+			"goal":   p.Goal,
+			"type":   a.NodeType,
+			"system": systemPrompt,
+			"tools":  len(tools),
 		})
 		_ = a.CommandEventSink.AppendCommandEmitted(ctx, jobID, taskID, taskID, a.NodeType, inputBytes)
 	}
@@ -174,9 +174,9 @@ func (a *EinoNodeAdapter) runNode(ctx context.Context, taskID string, cfg map[st
 
 				// 记录工具调用
 				toolCallsMade = append(toolCallsMade, map[string]any{
-					"name":       toolName,
-					"arguments":  args,
-					"id":         tc.ID,
+					"name":      toolName,
+					"arguments": args,
+					"id":        tc.ID,
 				})
 
 				// 发送工具调用开始事件
@@ -212,10 +212,10 @@ func (a *EinoNodeAdapter) runNode(ctx context.Context, taskID string, cfg map[st
 
 				// 4. Observe: 添加工具结果到消息历史
 				toolMsg := &schema.Message{
-					Role:      schema.Tool,
+					Role:       schema.Tool,
 					ToolCallID: tc.ID,
-					ToolName:  toolName,
-					Content:   toolResult,
+					ToolName:   toolName,
+					Content:    toolResult,
 				}
 				messages = append(messages, toolMsg)
 			}
@@ -244,12 +244,12 @@ func (a *EinoNodeAdapter) runNode(ctx context.Context, taskID string, cfg map[st
 
 	// 构建结果
 	agentResult := map[string]any{
-		"output":            finalOutput,
-		"type":              a.NodeType,
-		"model":             "eino",
-		"iterations":        iterations,
-		"tool_calls_made":   toolCallsMade,
-		"had_tool_calls":    len(toolCallsMade) > 0,
+		"output":          finalOutput,
+		"type":            a.NodeType,
+		"model":           "eino",
+		"iterations":      iterations,
+		"tool_calls_made": toolCallsMade,
+		"had_tool_calls":  len(toolCallsMade) > 0,
 	}
 
 	// 存储 effect
