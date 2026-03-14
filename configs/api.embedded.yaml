@@ -43,6 +43,7 @@ agent:
     retry_max: 2
     backoff: "1s"
   adk:
+    enabled: true
     checkpoint_store: "memory"
 
 storage:

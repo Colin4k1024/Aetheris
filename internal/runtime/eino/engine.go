@@ -213,8 +213,9 @@ func (e *Engine) createChatModel(ctx context.Context) (*openai.ChatModel, error)
 	}
 
 	chatModel, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
-		Model:  mi.Name,
-		APIKey: pc.APIKey,
+		Model:   mi.Name,
+		APIKey:  pc.APIKey,
+		BaseURL: pc.BaseURL,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create OpenAI ChatModel failed: %w", err)

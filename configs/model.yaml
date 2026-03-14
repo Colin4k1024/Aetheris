@@ -1,8 +1,22 @@
 # 模型配置（Qwen 需设置环境变量 DASHSCOPE_API_KEY，阿里云 DashScope 控制台获取）
+# 本地运行可用 Ollama（设置环境变量 OLLAMA_API_KEY，或直接设置 api_key: "ollama"）
 model:
   # LLM 模型配置
   llm:
     providers:
+      # 本地 Ollama（OpenAI 兼容接口）
+      ollama:
+        api_key: "ollama"
+        base_url: "http://localhost:11434/v1"
+        models:
+          llama3:
+            name: "llama3"
+            context_window: 8192
+            temperature: 0.1
+          qwen:
+            name: "qwen3:30b"
+            context_window: 32768
+            temperature: 0.1
       # 通义千问（DashScope OpenAI 兼容接口）
       qwen:
         api_key: "${DASHSCOPE_API_KEY}"
@@ -85,8 +99,8 @@ model:
             max_tokens: 4096
             temperature: 0.1
 
-  # 默认模型选择（LLM/Embedding/Vision 默认 Qwen；未配置 DASHSCOPE_API_KEY 时可改为 openai 对应项）
+  # 默认模型选择（本地开发使用 ollama，生产环境使用 qwen）
   defaults:
-    llm: "qwen.qwen3_max"
+    llm: "ollama.qwen"
     embedding: "qwen.text_embedding_v2"
     vision: "qwen.qwen_vl_plus"

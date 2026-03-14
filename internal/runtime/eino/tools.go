@@ -116,18 +116,47 @@ func CreateRetrieverTool(engine *Engine) tool.BaseTool {
 // CreateGeneratorTool 创建生成工具（若 engine.Generator 已注入则对接真实生成）
 func CreateGeneratorTool(engine *Engine) tool.BaseTool {
 	if engine != nil && engine.Generator != nil {
-		return inferToolOrUnavailable("generator", "根据提示生成回答。input 为提示文本或 JSON {\"prompt\":\"...\"}", func(ctx context.Context, input string) (string, error) {
-			prompt := input
-			var in struct {
-				Prompt string `json:"prompt"`
-			}
-			if err := json.Unmarshal([]byte(input), &in); err == nil && in.Prompt != "" {
-				prompt = in.Prompt
-			}
-			return engine.Generator.Generate(ctx, prompt)
-		})
+		// 创建支持对象输入的工具
+		genTool := &generatorTool{
+			generator: engine.Generator,
+		}
+		return genTool
 	}
 	return createPlaceholderTool("generator", "生成回答")
+}
+
+// generatorTool 支持对象输入的生成工具
+type generatorTool struct {
+	generator Generator
+}
+
+func (g *generatorTool) Info(ctx context.Context) (*schema.ToolInfo, error) {
+	return &schema.ToolInfo{
+		Name: "generator",
+		Desc: "根据提示生成回答",
+		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+			"prompt": {
+				Type:     schema.String,
+				Desc:     "生成提示文本",
+				Required: true,
+			},
+		}),
+	}, nil
+}
+
+func (g *generatorTool) InvokableRun(ctx context.Context, argumentsInJSON string, opts ...tool.Option) (string, error) {
+	// 解析输入
+	var input struct {
+		Prompt string `json:"prompt"`
+	}
+	if err := json.Unmarshal([]byte(argumentsInJSON), &input); err != nil {
+		// 如果解析失败，尝试直接使用原始输入
+		input.Prompt = argumentsInJSON
+	}
+	if input.Prompt == "" {
+		return "", fmt.Errorf("generator: prompt is required")
+	}
+	return g.generator.Generate(ctx, input.Prompt)
 }
 
 // docInput 文档类工具入参（path 或 文档 JSON）
