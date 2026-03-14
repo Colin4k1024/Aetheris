@@ -145,14 +145,11 @@ func (r *Router) Build(addr string, opts ...config.Option) *server.Hertz {
 		agentGroup.POST("/stream", r.authChainWith(auth.PermissionJobCreate, r.handler.AgentStream)...)
 	}
 
-	// v1 Agent 中心 API（POST/GET 同时注册 "" 与 "/" 以兼容带/不带尾部斜杠的请求）
+	// v1 Agent 中心 API - 本地模式：agent 从配置加载，不再支持远程创建
 	agents := api.Group("/agents")
 	agents.Use(r.middleware.Legacy("/api/runs + /api/jobs"))
 	{
-		agents.POST("", r.authChainWith(auth.PermissionAgentManage, r.handler.CreateAgent)...)
-		agents.POST("/", r.authChainWith(auth.PermissionAgentManage, r.handler.CreateAgent)...)
-		agents.GET("", r.authChainWith(auth.PermissionJobView, r.handler.ListAgents)...)
-		agents.GET("/", r.authChainWith(auth.PermissionJobView, r.handler.ListAgents)...)
+		// 已移除 CreateAgent/ListAgents：agent 从配置文件加载
 		agents.POST("/:id/message", r.authChainWith(auth.PermissionJobCreate, r.handler.AgentMessage)...)
 		agents.GET("/:id/state", r.authChainWith(auth.PermissionJobView, r.handler.AgentState)...)
 		agents.POST("/:id/resume", r.authChainWith(auth.PermissionJobCreate, r.handler.AgentResume)...)

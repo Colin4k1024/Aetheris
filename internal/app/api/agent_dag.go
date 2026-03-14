@@ -17,8 +17,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"os"
-	"strings"
 
 	einomodel "github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
@@ -30,6 +28,7 @@ import (
 	"rag-platform/internal/model/llm"
 	"rag-platform/internal/runtime/eino"
 	runtimesession "rag-platform/internal/runtime/session"
+	"rag-platform/pkg/config"
 )
 
 // llmGenAdapter 将 llm.Client 适配为 executor.LLMGen
@@ -127,11 +126,12 @@ func (a *workflowExecAdapter) ExecuteWorkflow(ctx context.Context, name string, 
 
 // NewDAGCompiler 创建 TaskGraph→eino DAG 的编译器（注册 llm/tool/workflow 适配器）；toolEventSink/commandEventSink 可选；invocationStore 可选；effectStore 可选，非 nil 时启用两步提交与强 Replay catch-up；resourceVerifier 可选；attemptValidator 可选，非 nil 时 Ledger Commit 前校验 attempt（Lease fencing）
 func NewDAGCompiler(llmClient llm.Client, toolsReg *tools.Registry, engine *eino.Engine, toolEventSink agentexec.ToolEventSink, commandEventSink agentexec.CommandEventSink, invocationStore agentexec.ToolInvocationStore, effectStore agentexec.EffectStore, resourceVerifier agentexec.ResourceVerifier, attemptValidator agentexec.AttemptValidator) *agentexec.Compiler {
-	return NewDAGCompilerWithOptions(llmClient, toolsReg, engine, toolEventSink, commandEventSink, invocationStore, effectStore, resourceVerifier, attemptValidator, nil)
+	return NewDAGCompilerWithOptions(llmClient, toolsReg, engine, toolEventSink, commandEventSink, invocationStore, effectStore, resourceVerifier, attemptValidator, nil, nil)
 }
 
 // NewDAGCompilerWithOptions 创建 DAG 编译器，支持可选的 Tool 限流器。
-func NewDAGCompilerWithOptions(llmClient llm.Client, toolsReg *tools.Registry, engine *eino.Engine, toolEventSink agentexec.ToolEventSink, commandEventSink agentexec.CommandEventSink, invocationStore agentexec.ToolInvocationStore, effectStore agentexec.EffectStore, resourceVerifier agentexec.ResourceVerifier, attemptValidator agentexec.AttemptValidator, toolRateLimiter *agentexec.ToolRateLimiter) *agentexec.Compiler {
+// agentsConfig 参数可选，用于从配置文件加载本地 agent 配置。
+func NewDAGCompilerWithOptions(llmClient llm.Client, toolsReg *tools.Registry, engine *eino.Engine, toolEventSink agentexec.ToolEventSink, commandEventSink agentexec.CommandEventSink, invocationStore agentexec.ToolInvocationStore, effectStore agentexec.EffectStore, resourceVerifier agentexec.ResourceVerifier, attemptValidator agentexec.AttemptValidator, toolRateLimiter *agentexec.ToolRateLimiter, agentsConfig *config.AgentsConfig) *agentexec.Compiler {
 	toolAdapter := &agentexec.ToolNodeAdapter{
 		Tools:              &toolExecAdapter{reg: toolsReg},
 		ToolCapabilityFunc: toolsReg.GetCapability,
@@ -217,17 +217,76 @@ func NewDAGCompilerWithOptions(llmClient llm.Client, toolsReg *tools.Registry, e
 		planner.NodeEinoDEER:  einoDEERAdapter,
 		planner.NodeEinoManus: einoManusAdapter,
 	}
-	if legacyNodeAdaptersEnabled() {
-		adapters[planner.NodeLangChainGo] = &agentexec.LangChainGoNodeAdapter{}
-		adapters[planner.NodeLangGraphGo] = &agentexec.LangGraphGoNodeAdapter{}
-		adapters[planner.NodeADK] = &agentexec.ADKNodeAdapter{}
-		adapters[planner.NodeGenkit] = &agentexec.GenkitNodeAdapter{}
-		adapters[planner.NodeProtocolLattice] = &agentexec.ProtocolLatticeNodeAdapter{}
-		adapters[planner.NodeLinGoose] = &agentexec.LinGooseNodeAdapter{}
-		adapters[planner.NodeAnyi] = &agentexec.AnyiNodeAdapter{}
-		adapters[planner.NodeAgentSDK] = &agentexec.AgentSDKNodeAdapter{}
+
+	// 如果提供了 agentsConfig，根据配置加载本地 agent
+	if agentsConfig != nil && len(agentsConfig.Agents) > 0 {
+		logger := NewDAGCompilerLogger()
+		loadLocalAgents(adapters, agentsConfig, toolCallingLLM, builtinTools, logger)
 	}
+
 	return agentexec.NewCompiler(adapters)
+}
+
+// loadLocalAgents 根据 agentsConfig 配置加载本地 agent 适配器
+func loadLocalAgents(adapters map[string]agentexec.NodeAdapter, cfg *config.AgentsConfig, toolCallingLLM agentexec.EinoToolCallingChatModel, builtinTools *agentexec.BuiltinTools, logger *DAGCompilerLogger) {
+	for name, agentCfg := range cfg.Agents {
+		maxIterations := agentCfg.MaxIterations
+		if maxIterations <= 0 {
+			maxIterations = 10
+		}
+
+		// 根据配置类型创建对应的适配器
+		switch agentCfg.Type {
+		case "react":
+			adapter := &agentexec.EinoNodeAdapter{
+				NodeType:       "local_" + name,
+				Tools:          builtinTools,
+				ToolCallingLLM: toolCallingLLM,
+				MaxIterations:  maxIterations,
+			}
+			adapters["local_"+name] = adapter
+			logger.Info("加载本地 Agent: %s (type=react, max_iterations=%d)", name, maxIterations)
+
+		case "deer":
+			adapter := &agentexec.EinoNodeAdapter{
+				NodeType:       "local_" + name,
+				Tools:          builtinTools,
+				ToolCallingLLM: toolCallingLLM,
+				MaxIterations:  maxIterations,
+			}
+			adapters["local_"+name] = adapter
+			logger.Info("加载本地 Agent: %s (type=deer, max_iterations=%d)", name, maxIterations)
+
+		case "manus":
+			adapter := &agentexec.EinoNodeAdapter{
+				NodeType:       "local_" + name,
+				Tools:          builtinTools,
+				ToolCallingLLM: toolCallingLLM,
+				MaxIterations:  maxIterations,
+			}
+			adapters["local_"+name] = adapter
+			logger.Info("加载本地 Agent: %s (type=manus, max_iterations=%d)", name, maxIterations)
+
+		default:
+			logger.Warn("未知的 agent 类型: %s (type=%s)", name, agentCfg.Type)
+		}
+	}
+}
+
+// DAGCompilerLogger 用于 DAG 编译器的日志
+type DAGCompilerLogger struct{}
+
+func NewDAGCompilerLogger() *DAGCompilerLogger {
+	return &DAGCompilerLogger{}
+}
+
+func (l *DAGCompilerLogger) Info(msg string, args ...interface{}) {
+	// 简化日志输出
+	_ = fmt.Sprintf(msg, args...)
+}
+
+func (l *DAGCompilerLogger) Warn(msg string, args ...interface{}) {
+	_ = fmt.Sprintf(msg, args...)
 }
 
 // NewDAGRunner 创建 DAG 执行 Runner
@@ -261,9 +320,4 @@ func lastUserMessage(s *runtime.Session) string {
 		}
 	}
 	return ""
-}
-
-func legacyNodeAdaptersEnabled() bool {
-	v := strings.TrimSpace(strings.ToLower(os.Getenv("AETHERIS_ENABLE_LEGACY_NODE_ADAPTERS")))
-	return v == "1" || v == "true" || v == "yes" || v == "on"
 }

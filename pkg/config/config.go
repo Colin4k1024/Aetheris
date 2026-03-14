@@ -28,6 +28,7 @@ import (
 type Config struct {
 	API             APIConfig             `mapstructure:"api"`
 	Agent           AgentConfig           `mapstructure:"agent"`
+	Agents          AgentsConfig          `mapstructure:"agents"`
 	Runtime         RuntimeConfig         `mapstructure:"runtime"`
 	JobStore        JobStoreConfig        `mapstructure:"jobstore"`
 	EffectStore     EffectStoreConfig     `mapstructure:"effect_store"`
@@ -131,6 +132,64 @@ type CheckpointStoreConfig struct {
 type AgentConfig struct {
 	JobScheduler JobSchedulerConfig `mapstructure:"job_scheduler"`
 	ADK          AgentADKConfig     `mapstructure:"adk"` // Eino ADK 主 Runner（对话 run/resume/stream）
+}
+
+// AgentsConfig 本地 Agent 配置（从配置文件加载）
+type AgentsConfig struct {
+	Agents map[string]AgentDefConfig `mapstructure:"agents"`
+	LLM    AgentLLMConfig            `mapstructure:"llm"`
+	Tools  ToolsConfig               `mapstructure:"tools"`
+}
+
+// AgentDefConfig 单个 Agent 的配置
+type AgentDefConfig struct {
+	Type          string         `mapstructure:"type"`           // react, deer, manus, chain, graph, workflow
+	Description   string         `mapstructure:"description"`    // 描述
+	LLM           string         `mapstructure:"llm"`            // 使用的 LLM
+	MaxIterations int            `mapstructure:"max_iterations"` // 最大迭代次数
+	SystemPrompt  string         `mapstructure:"system_prompt"`  // 系统提示词
+	ChainType     string         `mapstructure:"chain_type"`     // chain 类型
+	GraphType     string         `mapstructure:"graph_type"`     // graph 类型
+	WorkflowType  string         `mapstructure:"workflow_type"`  // workflow 类型
+	Config        map[string]any `mapstructure:"config"`         // 其他配置
+}
+
+// AgentLLMConfig 默认 LLM 配置（用于本地 Agent）
+type AgentLLMConfig struct {
+	Provider string `mapstructure:"provider"` // openai, anthropic, ollama 等
+	Model    string `mapstructure:"model"`
+	APIKey   string `mapstructure:"api_key"`
+}
+
+// ToolsConfig 工具配置
+type ToolsConfig struct {
+	Enabled     []string              `mapstructure:"enabled"`
+	WebSearch   WebSearchToolConfig   `mapstructure:"web_search"`
+	Calculator  CalculatorToolConfig  `mapstructure:"calculator"`
+	FileReader  FileReaderToolConfig  `mapstructure:"file_reader"`
+	HTTPRequest HTTPRequestToolConfig `mapstructure:"http_request"`
+}
+
+// WebSearchToolConfig 网页搜索工具配置
+type WebSearchToolConfig struct {
+	APIKey string `mapstructure:"api_key"`
+	Engine string `mapstructure:"engine"`
+}
+
+// CalculatorToolConfig 计算器工具配置
+type CalculatorToolConfig struct {
+	Precision int `mapstructure:"precision"`
+}
+
+// FileReaderToolConfig 文件读取工具配置
+type FileReaderToolConfig struct {
+	AllowedPaths []string `mapstructure:"allowed_paths"`
+}
+
+// HTTPRequestToolConfig HTTP 请求工具配置
+type HTTPRequestToolConfig struct {
+	Timeout    int `mapstructure:"timeout"`
+	MaxRetries int `mapstructure:"max_retries"`
 }
 
 // AgentADKConfig ADK Runner 配置（主对话入口）

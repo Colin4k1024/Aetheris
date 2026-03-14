@@ -457,7 +457,7 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 		toolRateLimiter = agentexec.NewToolRateLimiter(toolLimiterConfigs, toolDefaults)
 		bootstrap.Logger.Info("Tool 限流已启用", "tools", len(toolLimiterConfigs))
 	}
-	dagCompiler = NewDAGCompilerWithOptions(llmClientForAgent, toolsReg, engine, nodeEventSink, nodeEventSink, invocationStore, effectStore, resourceVerifier, NewAttemptValidator(jobEventStore), toolRateLimiter)
+	dagCompiler = NewDAGCompilerWithOptions(llmClientForAgent, toolsReg, engine, nodeEventSink, nodeEventSink, invocationStore, effectStore, resourceVerifier, NewAttemptValidator(jobEventStore), toolRateLimiter, nil)
 	dagRunner = NewDAGRunner(dagCompiler)
 	var agentStateStore runtime.AgentStateStore
 	if bootstrap.Config != nil && bootstrap.Config.JobStore.Type == "postgres" && bootstrap.Config.JobStore.DSN != "" {

@@ -1,0 +1,88 @@
+# 本地 Agent 配置文件
+# Agent 从配置中加载，不再支持远程创建
+# Worker 启动时根据此配置初始化 Eino 适配器
+
+agents:
+  # ReAct Agent - 基础的思考-行动-观察循环
+  react:
+    type: "react"
+    description: "ReAct (Reasoning + Acting) 智能体"
+    llm: "default"
+    max_iterations: 10
+    system_prompt: |
+      You are a helpful AI assistant.
+      Think step by step to solve problems.
+      Use tools when needed to gather information.
+
+  # DEER Agent - 增强的推理和执行
+  deer:
+    type: "deer"
+    description: "DEER-Go 增强推理智能体"
+    llm: "default"
+    max_iterations: 15
+    system_prompt: |
+      You are an advanced reasoning agent.
+      Decompose complex problems into smaller steps.
+      Use tools efficiently to gather information.
+
+  # Manus Agent - 自主执行智能体
+  manus:
+    type: "manus"
+    description: "Manus 自主执行智能体"
+    llm: "default"
+    max_iterations: 20
+    system_prompt: |
+      You are an autonomous agent capable of completing complex tasks.
+      Plan your approach and execute step by step.
+      Always verify your results.
+
+  # Chain - 简单链式调用
+  conversation:
+    type: "chain"
+    chain_type: "conversation"
+    description: "简单对话链"
+    llm: "default"
+
+  # Graph - 有向无环图
+  chat_graph:
+    type: "graph"
+    graph_type: "directed"
+    description: "对话图"
+    llm: "default"
+
+  # Workflow - 线性工作流
+  linear_workflow:
+    type: "workflow"
+    workflow_type: "linear"
+    description: "线性工作流"
+    llm: "default"
+
+# 默认 LLM 配置
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  api_key: "${OPENAI_API_KEY}"
+
+# 工具配置
+tools:
+  enabled:
+    - "web_search"
+    - "calculator"
+    - "file_reader"
+    - "http_request"
+
+  web_search:
+    api_key: "${SEARCH_API_KEY}"
+    engine: "duckduckgo"
+
+  calculator:
+    precision: 10
+
+  file_reader:
+    allowed_paths:
+      - "./data"
+      - "/tmp"
+
+  http_request:
+    timeout: 30
+    max_retries: 3

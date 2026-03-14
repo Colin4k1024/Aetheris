@@ -213,7 +213,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 			}
 			toolRateLimiter = agentexec.NewToolRateLimiter(toolLimiterConfigs, toolDefaults)
 		}
-		dagCompiler := api.NewDAGCompilerWithOptions(llmClient, toolsReg, engine, nodeEventSink, nodeEventSink, invocationStore, effectStore, resourceVerifier, api.NewAttemptValidator(pgEventStore), toolRateLimiter)
+		dagCompiler := api.NewDAGCompilerWithOptions(llmClient, toolsReg, engine, nodeEventSink, nodeEventSink, invocationStore, effectStore, resourceVerifier, api.NewAttemptValidator(pgEventStore), toolRateLimiter, &cfg.Agents)
 		dagRunner := api.NewDAGRunner(dagCompiler)
 		checkpointStore := runtime.NewCheckpointStoreMem()
 		if cfg.CheckpointStore.Type == "postgres" && cfg.CheckpointStore.DSN != "" {
@@ -404,7 +404,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 		if err != nil {
 			return nil, fmt.Errorf("初始化 EffectStore(embedded) failed: %w", err)
 		}
-		dagCompiler := api.NewDAGCompilerWithOptions(llmClientRaw, toolsReg, engine, nodeEventSink, nodeEventSink, embeddedInvocationStore, embeddedEffectStore, nil, api.NewAttemptValidator(embeddedEventStore), nil)
+		dagCompiler := api.NewDAGCompilerWithOptions(llmClientRaw, toolsReg, engine, nodeEventSink, nodeEventSink, embeddedInvocationStore, embeddedEffectStore, nil, api.NewAttemptValidator(embeddedEventStore), nil, &cfg.Agents)
 		dagRunner := api.NewDAGRunner(dagCompiler)
 		embeddedCheckpointStore, err := runtime.NewCheckpointStoreEmbedded(filepath.Join(embeddedBaseDir, "checkpoints.json"))
 		if err != nil {

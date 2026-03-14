@@ -207,9 +207,14 @@ func main() {
 	}
 
 	// ============ 4. 创建 ReAct Agent ============
+	// 将 tools 转换为 []interface{}
+	toolsIfaces := make([]interface{}, len(tools))
+	for i, t := range tools {
+		toolsIfaces[i] = t
+	}
 	reactAdapter := eino_examples.NewReactAgentAdapter(
 		chatModel,
-		tools,
+		toolsIfaces,
 		eino_examples.WithTemperature(0.7),
 	)
 

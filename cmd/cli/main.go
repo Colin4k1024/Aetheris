@@ -76,17 +76,6 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Usage: aetheris worker start\n")
 			os.Exit(1)
 		}
-	case "agent":
-		if len(args) > 0 && args[0] == "create" {
-			name := ""
-			if len(args) > 1 {
-				name = args[1]
-			}
-			runAgentCreate(name)
-		} else {
-			fmt.Fprintf(os.Stderr, "Usage: aetheris agent create [name]\n")
-			os.Exit(1)
-		}
 	case "chat":
 		runChat(args)
 	case "jobs":
@@ -188,7 +177,6 @@ func printUsage() {
 	fmt.Println("  config          - 显示配置概要")
 	fmt.Println("  server start    - 启动 API 服务（go run ./cmd/api）")
 	fmt.Println("  worker start    - 启动 Worker 服务（go run ./cmd/worker）")
-	fmt.Println("  agent create [name] - [legacy] 创建 Agent，返回 agent_id")
 	fmt.Println("  chat [agent_id] - [legacy] 交互式对话（未传 agent_id 时需环境 AETHERIS_AGENT_ID）")
 	fmt.Println("  jobs <agent_id> - 列出该 Agent 的 Jobs（runtime-first 建议使用 job_id 进行后续操作）")
 	fmt.Println("  trace <job_id>  - 输出 Job 执行时间线，并打印 Trace 页面 URL")
@@ -276,19 +264,6 @@ func runWorkerStart() {
 		fmt.Fprintf(os.Stderr, "worker start: %v\n", err)
 		os.Exit(1)
 	}
-}
-
-func runAgentCreate(name string) {
-	fmt.Fprintln(os.Stderr, "warning: `agent create` is a legacy facade; prefer runtime-first `/api/runs` + `/api/jobs`.")
-	if name == "" {
-		name = "default"
-	}
-	id, err := createAgent(name)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "创建 Agent 失败: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Println(id)
 }
 
 func runChat(args []string) {
