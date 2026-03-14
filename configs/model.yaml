@@ -101,6 +101,6 @@ model:
 
   # 默认模型选择（本地开发使用 ollama，生产环境使用 qwen）
   defaults:
-    llm: "ollama.qwen"
+    llm: "qwen.qwen3_max"
     embedding: "qwen.text_embedding_v2"
     vision: "qwen.qwen_vl_plus"
