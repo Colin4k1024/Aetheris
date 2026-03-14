@@ -30,9 +30,11 @@
   go run ./cmd/cli --help
   ```
 
-- **模型配置**：[configs/model.yaml](../configs/model.yaml) 中至少配置一种 LLM + Embedding：
-  - 当前默认使用 Qwen（需在 `model.yaml` 中填写有效 `api_key`，或设置 `DASHSCOPE_API_KEY`）
-  - 或设置 `OPENAI_API_KEY`，并将 `defaults.llm` / `defaults.embedding` 改为 `openai.gpt_35_turbo`、`openai.text_embedding_ada_002` 等
+- **模型配置**：[configs/model.yaml](../configs/model.yaml) 中支持多种 LLM Provider：
+  - **Qwen（默认）**：设置 `DASHSCOPE_API_KEY` 环境变量，或在 model.yaml 中填写有效 `api_key`
+  - **OpenAI**：设置 `OPENAI_API_KEY`，并将 `defaults.llm` 改为 `openai.gpt_35_turbo` 等
+  - **Ollama（本地）**：配置 `ollama` provider，设置 `base_url: "http://localhost:11434/v1"` 和 `api_key: "ollama"`
+  - **注意**：Ollama 部分模型（如 llama3）不支持 tool calling，生产环境推荐使用 Qwen
 - **可选：Postgres**：仅当要跑「完整运行时测试」（崩溃恢复、API 重启后 Job 不丢、多 Worker）时需要。默认 [configs/api.yaml](../configs/api.yaml) 中 `jobstore.type` 为 `postgres`；若使用内存模式则无需 Postgres（见下节）。
 
 ---

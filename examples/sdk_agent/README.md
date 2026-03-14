@@ -11,9 +11,25 @@ This example showcases the full SDK capabilities:
 - Runtime context usage
 - Comparison with Job/Runner patterns
 
+## Prerequisites
+
+- Go 1.25.7+
+- **Cloud LLM**: Set `DASHSCOPE_API_KEY` (Qwen) or `OPENAI_API_KEY` (OpenAI)
+
 ## Usage
 
+### With Qwen (Recommended)
+
 ```bash
+export DASHSCOPE_API_KEY="your-api-key"
+cd examples/sdk_agent
+go run .
+```
+
+### With OpenAI
+
+```bash
+export OPENAI_API_KEY="your-api-key"
 cd examples/sdk_agent
 go run .
 ```

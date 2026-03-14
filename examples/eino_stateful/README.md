@@ -8,11 +8,26 @@ This example shows:
 - Session state management (conversation history)
 - Context preservation across multiple turns
 - Checkpoint mechanism implementation
-- Integration with CoRag persistence
+- Integration with Aetheris persistence
+
+## Prerequisites
+
+- Go 1.25.7+
+- **Cloud LLM**: Set `DASHSCOPE_API_KEY` (Qwen) or `OPENAI_API_KEY` (OpenAI)
 
 ## Running
 
+### With Qwen (Recommended)
+
 ```bash
+export DASHSCOPE_API_KEY="your-api-key"
+go run ./examples/eino_stateful/main.go
+```
+
+### With OpenAI
+
+```bash
+export OPENAI_API_KEY="your-api-key"
 go run ./examples/eino_stateful/main.go
 ```
 

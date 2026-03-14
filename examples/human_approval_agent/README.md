@@ -2,6 +2,11 @@
 
 This example demonstrates how to build human-in-the-loop workflows with Aetheris.
 
+## Prerequisites
+
+- Go 1.25.7+
+- **Cloud LLM**: Set `DASHSCOPE_API_KEY` (Qwen) or `OPENAI_API_KEY` (OpenAI)
+
 ## Overview
 
 Aetheris supports pausing agent execution and waiting for human input before continuing. This is essential for:

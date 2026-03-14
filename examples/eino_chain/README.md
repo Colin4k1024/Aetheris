@@ -1,6 +1,6 @@
 # Eino Chain Example
 
-This example demonstrates how to use Chain and Workflow composition patterns with eino_examples in CoRag.
+This example demonstrates how to use Chain and Workflow composition patterns with eino_examples in Aetheris.
 
 ## Overview
 
@@ -8,11 +8,26 @@ This example shows:
 - Chain composition - sequential node execution
 - Workflow composition - conditional branching
 - State passing between nodes
-- Integration with CoRag executor
+- Integration with Aetheris executor
+
+## Prerequisites
+
+- Go 1.25.7+
+- **Cloud LLM**: Set `DASHSCOPE_API_KEY` (Qwen) or `OPENAI_API_KEY` (OpenAI)
 
 ## Running
 
+### With Qwen (Recommended)
+
 ```bash
+export DASHSCOPE_API_KEY="your-api-key"
+go run ./examples/eino_chain/main.go
+```
+
+### With OpenAI
+
+```bash
+export OPENAI_API_KEY="your-api-key"
 go run ./examples/eino_chain/main.go
 ```
 

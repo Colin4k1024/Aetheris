@@ -10,9 +10,25 @@ This example shows how to build a simple conversational agent:
 - Response generation
 - Session management
 
+## Prerequisites
+
+- Go 1.25.7+
+- **Cloud LLM**: Set `DASHSCOPE_API_KEY` (Qwen) or `OPENAI_API_KEY` (OpenAI)
+
 ## Usage
 
+### With Qwen (Recommended)
+
 ```bash
+export DASHSCOPE_API_KEY="your-api-key"
+cd examples/simple_chat_agent
+go run .
+```
+
+### With OpenAI
+
+```bash
+export OPENAI_API_KEY="your-api-key"
 cd examples/simple_chat_agent
 go run .
 ```
