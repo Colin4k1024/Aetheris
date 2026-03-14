@@ -34,6 +34,41 @@ answer, err := agent.Run(ctx, "用户问题")
 
 - [examples/sdk_agent](examples/sdk_agent) — 使用 MockRuntime 的极简示例，可直接 `go run ./examples/sdk_agent`。
 
+## AgentFactory 集成（推荐）
+
+对于新项目，推荐通过 `AgentFactory` 配置驱动创建 Agent，而非手动组装 Planner + Executor：
+
+```go
+import "rag-platform/internal/runtime/eino"
+
+// 获取已从 agents.yaml 加载的 Runner
+runner, ok := agentFactory.GetRunner("my_agent")
+if !ok {
+    log.Fatal("agent not found")
+}
+
+// 或编程式创建
+runner, err := agentFactory.CreateAgent(ctx, eino.AgentBuildConfig{
+    Name:        "custom_agent",
+    Instruction: "你是一个有帮助的 AI 助手。",
+    Type:        "react",
+    Tools:       []string{"web_search"}, // 空 = 全部工具
+    MaxSteps:    10,
+    Streaming:   true,
+})
+```
+
+`AgentFactory` 的优势：
+
+- **配置驱动**：Agent 定义在 `configs/agents.yaml`，无需修改代码即可新增/调整 Agent
+- **工具自动桥接**：通过 `RegistryToolBridge` 自动将 `RuntimeTool` 转为 Eino `InvokableTool`
+- **Runner 缓存**：同名 Agent 复用已创建的 Runner 实例
+- **工具过滤**：通过 `tools:` 字段限制每个 Agent 可用的工具子集
+
+与 SDK 的关系：SDK 的 `AgentRuntime.Submit` 最终通过 `AgentFactory` 获取 Runner 执行。新接入建议直接使用 `AgentFactory`，SDK 层面做轻量封装。
+
+详见 [concepts/adk.md](../concepts/adk.md)。
+
 ## Step Programming Model（2.0）
 
 编写 Step 时须遵守强约束，否则 Replay 与 at-most-once 保证失效。

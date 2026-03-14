@@ -41,6 +41,9 @@ type Engine struct {
 	mu          sync.RWMutex
 	workflowsMu sync.RWMutex
 
+	// AgentFactory 基于 Eino ADK 的 Agent 工厂（所有 Agent 构建的唯一入口）
+	agentFactory *AgentFactory
+
 	// 可选组件（由 app 注入后工具链对接真实实现）
 	Retriever         Retriever
 	Generator         Generator
@@ -107,6 +110,20 @@ func (e *Engine) SetEinoDocumentComponents(loader document.Loader, transformer d
 	e.EinoDocTransformer = transformer
 }
 
+// SetAgentFactory 设置 Agent 工厂（由 app 层在工具注册完成后调用）
+func (e *Engine) SetAgentFactory(factory *AgentFactory) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.agentFactory = factory
+}
+
+// GetAgentFactory 获取 Agent 工厂
+func (e *Engine) GetAgentFactory() *AgentFactory {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.agentFactory
+}
+
 // ensureRunner 懒创建并注册 Runner
 func (e *Engine) ensureRunner(agentID string) (*adk.Runner, error) {
 	e.mu.Lock()
@@ -117,6 +134,15 @@ func (e *Engine) ensureRunner(agentID string) (*adk.Runner, error) {
 	ctx := context.Background()
 	var runner *adk.Runner
 	var err error
+
+	// 优先从 AgentFactory 获取（统一入口）
+	if e.agentFactory != nil {
+		if r, ok := e.agentFactory.GetRunner(agentID); ok {
+			e.runners[agentID] = r
+			return r, nil
+		}
+	}
+
 	switch agentID {
 	case "qa_agent":
 		runner, err = e.createQARunner(ctx)

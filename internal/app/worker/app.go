@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -41,6 +42,7 @@ import (
 	agentexec "rag-platform/internal/agent/runtime/executor"
 	"rag-platform/internal/agent/runtime/executor/verifier"
 	"rag-platform/internal/agent/tools"
+	"rag-platform/internal/agent/tools/mcp"
 	"rag-platform/internal/app"
 	"rag-platform/internal/app/api"
 	"rag-platform/internal/ingestqueue"
@@ -66,6 +68,7 @@ type App struct {
 	agentJobCancel context.CancelFunc
 	jobEventStore  jobstore.JobStore // 用于 Snapshot 自动化与 GC goroutine（仅 postgres 模式下非 nil）
 	replayBuilder  replay.ReplayContextBuilder
+	mcpManager     *mcp.Manager
 }
 
 // NewApp 创建新的 Worker 应用
@@ -161,7 +164,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 		}
 		toolsReg := tools.NewRegistry()
 		tools.RegisterBuiltin(toolsReg, engine, nil)
-		registerMCPReferenceTools(toolsReg)
+		appObj.mcpManager = initMCPManager(cfg, toolsReg, logger)
 		var v1Planner planner.Planner
 		if os.Getenv("PLANNER_TYPE") == "rule" {
 			v1Planner = planner.NewRulePlanner()
@@ -393,7 +396,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 		}
 		toolsReg := tools.NewRegistry()
 		tools.RegisterBuiltin(toolsReg, engine, nil)
-		registerMCPReferenceTools(toolsReg)
+		appObj.mcpManager = initMCPManager(cfg, toolsReg, logger)
 		v1Planner := planner.NewLLMPlanner(llmClientRaw)
 		nodeEventSink := api.NewNodeEventSink(embeddedEventStore)
 		embeddedInvocationStore, err := agentexec.NewToolInvocationStoreEmbedded(filepath.Join(embeddedBaseDir, "tool_invocations.json"))
@@ -645,7 +648,12 @@ func (a *App) Shutdown(ctx context.Context) error {
 		close(a.shutdown)
 	}
 
-	// 3. 关闭存储
+	// 3. 关闭 MCP 连接
+	if a.mcpManager != nil {
+		_ = a.mcpManager.Close()
+	}
+
+	// 4. 关闭存储
 	if err := a.metadataStore.Close(); err != nil {
 		a.logger.Error("关闭元数据存储failed", "error", err)
 	}
@@ -654,7 +662,7 @@ func (a *App) Shutdown(ctx context.Context) error {
 		a.logger.Error("关闭向量存储failed", "error", err)
 	}
 
-	// 4. 关闭 eino 引擎
+	// 5. 关闭 eino 引擎
 	if err := a.engine.Shutdown(); err != nil {
 		a.logger.Error("关闭 eino 引擎failed", "error", err)
 	}
@@ -749,32 +757,36 @@ func embeddedDataDir(cfg *config.Config) string {
 	return filepath.Join("data", "embedded")
 }
 
-type defaultMCPInvoker struct{}
-
-func (i *defaultMCPInvoker) CallTool(ctx context.Context, server string, tool string, input map[string]any) (any, error) {
-	return nil, fmt.Errorf("mcp invoker not configured: %s/%s", server, tool)
-}
-
-func registerMCPReferenceTools(reg *tools.Registry) {
-	if reg == nil {
-		return
-	}
-	host := tools.NewMCPHost(&defaultMCPInvoker{})
-	manifests := []tools.ToolManifest{
-		{Name: "github_issue_read", Description: "Read GitHub issue", InputSchema: map[string]any{"type": "object"}},
-		{Name: "slack_post_message", Description: "Post message to Slack", InputSchema: map[string]any{"type": "object"}},
-		{Name: "sql_query", Description: "Run SQL query", InputSchema: map[string]any{"type": "object"}},
-	}
-	for _, server := range strings.Split(os.Getenv("AETHERIS_MCP_SERVERS"), ",") {
-		server = strings.TrimSpace(server)
-		if server == "" {
-			continue
+// initMCPManager creates and connects the MCP Manager from config, registers discovered tools.
+func initMCPManager(cfg *config.Config, reg *tools.Registry, logger *log.Logger) *mcp.Manager {
+	mcpMgr := mcp.NewManager(slog.Default())
+	if cfg != nil && len(cfg.MCP.Servers) > 0 {
+		mcpCfg := mcp.ManagerConfig{
+			Servers:     make(map[string]mcp.ServerConfig, len(cfg.MCP.Servers)),
+			InitTimeout: cfg.MCP.InitTimeout,
 		}
-		host.RegisterServer(server)
-		for _, m := range manifests {
-			_ = host.RegisterToolAdapter(reg, server, m)
+		for name, sc := range cfg.MCP.Servers {
+			mcpCfg.Servers[name] = mcp.ServerConfig{
+				Type:    sc.Type,
+				Command: sc.Command,
+				Args:    sc.Args,
+				Env:     sc.Env,
+				Dir:     sc.Dir,
+				URL:     sc.URL,
+				Headers: sc.Headers,
+				Timeout: sc.Timeout,
+			}
+		}
+		if err := mcpMgr.ConnectAll(context.Background(), mcpCfg); err != nil {
+			logger.Warn("mcp connect error (non-fatal)", "error", err)
 		}
 	}
+	mcpHost := tools.NewMCPHost(mcpMgr)
+	count := mcpHost.RegisterFromManager(reg, mcpMgr)
+	if count > 0 {
+		logger.Info("MCP 工具已注册", "count", count, "servers", len(mcpMgr.ServerNames()))
+	}
+	return mcpMgr
 }
 
 func (a *App) runIngestQueueLoop(queue ingestqueue.IngestQueue, workerID string, pollInterval time.Duration) {

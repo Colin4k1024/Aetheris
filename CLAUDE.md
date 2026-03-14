@@ -58,7 +58,10 @@ Aetheris treats agents as **virtual processes** — workers schedule and host pr
 | **API Server**    | `cmd/api/`                                | HTTP server (Hertz), creates/interacts with agents                           |
 | **Worker**        | `cmd/worker/`                             | Background execution worker, schedules and executes jobs                     |
 | **CLI**           | `cmd/cli/`                                | Command-line tool (`aetheris init`, `chat`, `jobs`, `trace`, `replay`, etc.) |
-| **Agent Runtime** | `internal/agent/runtime/`                 | Core execution engine                                                        |
+| **AgentFactory**  | `internal/runtime/eino/agent_factory.go`  | Config-driven Eino ADK agent creation (recommended entry point)              |
+| **Tool Bridge**   | `internal/runtime/eino/tool_bridge.go`    | Converts Aetheris RuntimeTool → Eino InvokableTool (interface abstraction)   |
+| **Eino Engine**   | `internal/runtime/eino/engine.go`         | Workflow compilation, runner management, integrates AgentFactory              |
+| **Agent Runtime** | `internal/agent/runtime/`                 | Core execution engine (DAG compiler + runner)                                |
 | **Job Store**     | `internal/agent/runtime/job/`             | Event-sourced durable execution history (PostgreSQL)                         |
 | **Scheduler**     | `internal/agent/runtime/job/scheduler.go` | Leases and retries tasks with lease fencing                                  |
 | **Runner**        | `internal/agent/runtime/runner/`          | Step-level execution with checkpointing                                      |
@@ -66,10 +69,16 @@ Aetheris treats agents as **virtual processes** — workers schedule and host pr
 | **Executor**      | `internal/agent/runtime/executor/`        | Executes DAG nodes using eino framework                                      |
 | **Effects**       | `internal/agent/effects/`                 | At-most-once tool execution guarantee via Ledger                             |
 
+> **Note:** `internal/agent/agent.go` (legacy Agent struct) is deprecated. Use `AgentFactory` for all new agent construction.
+
 ### Execution Flow
 
 ```
-User → Agent API → Job → Scheduler → Runner → Planner → TaskGraph → Tool/Workflow Nodes
+User → Agent API → AgentFactory (config-driven) → Eino ADK Runner
+                  → Job → Scheduler → Runner → Planner → TaskGraph → Tool/Workflow Nodes
+
+Tool Flow:
+  Tool Registry → RegistryToolBridge → Eino InvokableTool → ADK Agent ToolsConfig
 ```
 
 ### Key Design Documents

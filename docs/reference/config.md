@@ -169,3 +169,92 @@ Same as API for log; monitoring.prometheus port can be set per Worker; use env *
 | AETHERIS_REGION | Region for regional scheduling (v2.2.0+) |
 
 For more on startup and typical flows see the "Environment variables and configuration" section in [usage.md](usage.md).
+
+---
+
+## agents.yaml
+
+Agent 定义配置文件，由 `AgentFactory` 在启动时加载。路径：`configs/agents.yaml`。
+
+### 结构
+
+```yaml
+agents:
+  <agent_name>:
+    type: "react"              # Agent 类型：react, deer, manus, chain, graph, workflow
+    description: "描述"         # Agent 描述
+    llm: "default"             # LLM 配置引用
+    max_iterations: 10         # ReAct 最大迭代步数
+    tools:                     # 可选：工具过滤列表；空或省略 = 使用全部可用工具
+      - "web_search"
+      - "calculator"
+    system_prompt: |           # 系统提示词
+      You are a helpful assistant.
+```
+
+### agents 字段说明
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Agent 类型。`react` = ReAct 循环；`deer` = 增强推理；`manus` = 自主执行；`chain` = 简单链式；`graph` = DAG；`workflow` = 线性工作流 |
+| `description` | string | No | Agent 描述，用于标识 |
+| `llm` | string | No | LLM 配置引用，`"default"` 使用 `model.yaml` 中的默认配置 |
+| `max_iterations` | int | No | ReAct 最大迭代步数，超过则停止。默认 10 |
+| `tools` | []string | No | 工具名称列表，用于过滤该 Agent 可使用的工具子集。空列表或省略表示使用全部注册工具（Engine 内置 + Registry + MCP） |
+| `system_prompt` | string | No | Agent 系统提示词，注入到 Eino ADK Agent 的 Instruction 字段 |
+| `chain_type` | string | No | 当 `type=chain` 时的链类型（如 `conversation`） |
+| `graph_type` | string | No | 当 `type=graph` 时的图类型（如 `directed`） |
+| `workflow_type` | string | No | 当 `type=workflow` 时的工作流类型（如 `linear`） |
+
+### AgentFactory 加载流程
+
+1. `internal/app/api/app.go` 调用 `agentFactory.GetOrCreateFromConfig(ctx, &bootstrap.Config.Agents)`
+2. 遍历 `agents` map，为每个 agent 构建 `AgentBuildConfig`
+3. 调用 `AgentFactory.CreateAgent()` 创建 Eino ADK Runner
+4. Runner 缓存在 factory 中，通过 `GetRunner(name)` 获取
+
+### 工具收集逻辑
+
+`AgentFactory.collectTools(toolNames)` 合并以下来源：
+
+- **Engine 内置工具**：`GetDefaultTools(engine)` — retriever, generator, document_loader, document_parser, splitter, embedding, index_builder
+- **Registry 工具**：通过 `RegistryToolBridge.EinoTools()` 从 `RuntimeToolRegistry` 转换（包含 native + MCP 工具）
+- 若 `tools` 字段非空，则按名称过滤；否则返回全部
+
+### 示例
+
+```yaml
+agents:
+  # 带工具过滤的 Agent
+  search_agent:
+    type: "react"
+    description: "搜索专用 Agent"
+    max_iterations: 10
+    tools:
+      - "web_search"
+      - "http_request"
+    system_prompt: "你是一个搜索助手。"
+
+  # 使用全部工具的 Agent
+  general_agent:
+    type: "react"
+    description: "通用 Agent"
+    max_iterations: 15
+    system_prompt: "你是一个通用助手。"
+```
+
+### Go 类型对应
+
+`pkg/config/config.go` 中的 `AgentDefConfig`：
+
+```go
+type AgentDefConfig struct {
+    Type          string   `mapstructure:"type"`
+    Description   string   `mapstructure:"description"`
+    LLM           string   `mapstructure:"llm"`
+    MaxIterations int      `mapstructure:"max_iterations"`
+    SystemPrompt  string   `mapstructure:"system_prompt"`
+    Tools         []string `mapstructure:"tools"`
+    // ...
+}
+```

@@ -4,6 +4,50 @@
 
 ## [Unreleased]
 
+### Added
+
+- **AgentFactory — 配置驱动的 Agent 创建**:
+  - 新增 `internal/runtime/eino/agent_factory.go`：`AgentFactory` + `AgentBuildConfig`
+  - 从 `configs/agents.yaml` 自动加载并批量创建 Agent（`GetOrCreateFromConfig`）
+  - 支持编程式创建（`CreateAgent`）和带 Checkpoint 创建（`CreateAgentWithCheckpoint`）
+  - Runner 缓存机制，同名 Agent 复用已创建实例
+  - 工具过滤：`agents.yaml` 中 `tools` 字段限制每个 Agent 可用工具子集
+
+- **Tool Bridge — 工具桥接层**:
+  - 新增 `internal/runtime/eino/tool_bridge.go`：`RegistryToolBridge` + `registryToolAdapter`
+  - `RuntimeTool` / `RuntimeToolRegistry` 接口抽象（解决 `agent/tools` ↔ `runtime/eino` 循环引用）
+  - 自动将 Aetheris 工具（Native + MCP）转为 Eino `InvokableTool`
+  - Schema 映射：JSON Schema / 简单 key-value → Eino `ParameterInfo`
+  - Context-based Session 传递（`WithSession` / `sessionFromContext`）
+
+- **Engine 集成**:
+  - `Engine` 新增 `agentFactory` 字段及 `SetAgentFactory()` / `GetAgentFactory()` 方法
+  - `ensureRunner()` 优先查询 AgentFactory
+  - `configs/agents.yaml` 新增 `tools` 字段支持
+
+- **测试**:
+  - 新增 `tool_bridge_test.go`（13 个测试）和 `agent_factory_test.go`（6 个测试）
+
+### Changed
+
+- `internal/app/api/app.go`：主 ADK Runner 优先通过 `AgentFactory.CreateAgentWithCheckpoint()` 创建，回退到旧路径
+- `internal/api/http/handler.go`：新增 `agentFactory` 字段暂露到 HTTP 层
+- `pkg/config/config.go`：`AgentDefConfig` 新增 `Tools []string` 字段
+
+### Deprecated
+
+- `internal/agent/agent.go`：`Agent` struct、`New()`、`RunWithSession()`、`Run()` 均标记为 Deprecated，应使用 `eino.AgentFactory` 替代
+
+### Documentation
+
+- AGENTS.md：更新 Important Files、Project Structure，新增 Config-Driven Agent 和 Tool Bridge 使用指南
+- CLAUDE.md：更新 Core Components 表和 Execution Flow
+- docs/concepts/adk.md：重写，新增 AgentFactory + Tool Bridge 架构说明
+- docs/guides/getting-started-agents.md：新增「快速开始：配置驱动 Agent」推荐路径
+- docs/guides/sdk.md：新增 AgentFactory 集成说明
+- docs/reference/config.md：新增 agents.yaml 配置参考
+- design/core.md：新增 4.2 AgentFactory 和 4.3 Tool Bridge Layer 小节
+
 ---
 
 ## [2.2.0] - 2026-03-04

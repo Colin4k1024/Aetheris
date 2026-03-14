@@ -89,6 +89,9 @@ type Handler struct {
 	// adkRunner 主 ADK Runner；非空时 POST /api/agent/run 与 resume/stream 使用 ADK
 	adkRunner *adk.Runner
 
+	// agentFactory Eino Agent 工厂（所有 Agent 构建的统一入口）
+	agentFactory *eino.AgentFactory
+
 	// ingestQueue 可选；postgres 时用于异步入库入队与状态查询
 	ingestQueue IngestQueueForAPI
 
@@ -146,6 +149,11 @@ func (h *Handler) SetSessionManager(m SessionManager) {
 // SetADKRunner 设置主 ADK Runner；设置后 /api/agent/run、/api/agent/resume、/api/agent/stream 使用 ADK 执行
 func (h *Handler) SetADKRunner(runner *adk.Runner) {
 	h.adkRunner = runner
+}
+
+// SetAgentFactory 设置 Eino Agent 工厂（统一 Agent 构建入口）
+func (h *Handler) SetAgentFactory(factory *eino.AgentFactory) {
+	h.agentFactory = factory
 }
 
 // SetAgentRuntime 设置 v1 Agent Manager、Scheduler 与可选 Creator（用于 /api/agents 系列）

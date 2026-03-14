@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"rag-platform/internal/agent/tools/mcp"
 	"rag-platform/internal/runtime/session"
 )
 
@@ -57,6 +58,31 @@ func (h *MCPHost) RegisterToolAdapter(reg *Registry, server string, manifest Too
 		invoker:  h.invoker,
 	})
 	return nil
+}
+
+// RegisterFromManager connects to all configured MCP servers via the Manager,
+// discovers tools dynamically via tools/list, and registers them into the Registry.
+func (h *MCPHost) RegisterFromManager(reg *Registry, mgr *mcp.Manager) int {
+	if mgr == nil || reg == nil {
+		return 0
+	}
+	count := 0
+	for serverName, toolDefs := range mgr.AllTools() {
+		h.RegisterServer(serverName)
+		for _, td := range toolDefs {
+			manifest := ToolManifest{
+				Name:        td.Name,
+				Description: td.Description,
+				InputSchema: td.InputSchema,
+				Protocol:    "mcp",
+				Source:      serverName,
+			}
+			if err := h.RegisterToolAdapter(reg, serverName, manifest); err == nil {
+				count++
+			}
+		}
+	}
+	return count
 }
 
 type mcpToolAdapter struct {

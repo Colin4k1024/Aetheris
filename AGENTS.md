@@ -269,6 +269,7 @@ func (h *Handler) Query(ctx context.Context, c *app.RequestContext) {
 cmd/              # Entry points (api, worker, cli, devops)
 internal/         # Private application code
   agent/          # Agent runtime (execution, scheduling, recovery)
+    agent.go      # Deprecated: legacy Agent struct; use eino.AgentFactory instead
   api/            # HTTP/gRPC API
   app/            # Application core (bootstrap, services)
   einoext/        # Cloudwego eino extensions
@@ -276,6 +277,12 @@ internal/         # Private application code
   model/          # LLM, embedding, vision abstractions
   pipeline/       # Domain pipelines (query, specialized)
   runtime/        # Runtime core (eino workflow orchestration)
+    eino/
+      engine.go          # Eino Engine: workflow compilation, runner management
+      agent_factory.go   # AgentFactory: config-driven Eino ADK agent creation (recommended)
+      tool_bridge.go     # Tool Bridge: converts Aetheris tools → Eino InvokableTool
+      workflow.go        # Workflow definition and compilation
+      tools.go           # Built-in Eino tools (retriever, generator, etc.)
   splitter/       # Text splitting implementations
   storage/        # Data storage implementations
   tool/           # Tool definitions and implementations
@@ -285,6 +292,7 @@ pkg/              # Public libraries (errors moved to experimental/)
   tracing/        # Tracing utilities
   experimental/   # Unused packages pending 3.0 or removal
 configs/          # Configuration files
+  agents.yaml    # Agent definitions (loaded by AgentFactory at startup)
 examples/         # Example code
 design/           # Design documentation (public in root; internal/ for implementation details)
 deployments/      # Docker, K8s configurations
@@ -308,11 +316,18 @@ deployments/      # Docker, K8s configurations
 
 - `go.mod`: Module definition and dependencies
 - `configs/*.yaml`: Configuration files
+- `configs/agents.yaml`: Agent definitions (loaded by `AgentFactory` at startup)
+- `internal/runtime/eino/engine.go`: Eino Engine — workflow compilation, runner management
+- `internal/runtime/eino/agent_factory.go`: **AgentFactory** — config-driven Eino ADK agent creation (recommended entry point for all agent construction)
+- `internal/runtime/eino/tool_bridge.go`: **Tool Bridge** — converts Aetheris `RuntimeTool` to Eino `InvokableTool` (resolves import cycle via interface abstraction)
 - `internal/runtime/eino/workflow.go`: Workflow implementation
 - `internal/api/http/handler.go`: HTTP handlers
-- `internal/app/bootstrap.go`, `internal/app/api/app.go`: Bootstrap and API assembly (startup and wiring)
+- `internal/app/api/app.go`: API assembly — creates `AgentFactory`, wires tools, registers agents from config
+- `internal/app/bootstrap.go`: Bootstrap and shared initialization
+- `pkg/config/config.go`: Configuration types (includes `AgentDefConfig` with `Tools` field)
 - `pkg/errors/errors.go`: Error utilities
-- `internal/agent/runtime/executor.go`: Agent execution runtime
+- `internal/agent/agent.go`: **Deprecated** — legacy Agent struct; use `eino.AgentFactory` instead
+- `internal/agent/runtime/executor.go`: Agent execution runtime (DAG compiler + runner)
 - `Makefile`: Build and run commands (use `make run` to start all services)
 
 ## Common Tasks
@@ -329,6 +344,51 @@ deployments/      # Docker, K8s configurations
 1. Implement interface in `internal/model/llm/` or similar
 2. Register provider in config
 3. Use `NewLLMClientFromConfig` pattern
+
+### Adding a New Agent (Config-Driven, Recommended)
+
+All agent construction goes through `AgentFactory` using Eino ADK. The legacy `runtime.NewAgent()` is deprecated.
+
+1. Define the agent in `configs/agents.yaml`:
+
+```yaml
+agents:
+  my_agent:
+    type: "react"
+    description: "My custom agent"
+    llm: "default"
+    max_iterations: 10
+    tools:                    # Optional: filter available tools; empty = all
+      - "web_search"
+      - "calculator"
+    system_prompt: |
+      You are a helpful assistant.
+```
+
+2. `AgentFactory.GetOrCreateFromConfig()` loads all agents at startup (in `internal/app/api/app.go`)
+3. Access the runner via `agentFactory.GetRunner("my_agent")`
+4. For programmatic creation, use `AgentFactory.CreateAgent(ctx, eino.AgentBuildConfig{...})`
+
+### Adding a Custom Tool (via Tool Bridge)
+
+1. Implement the `RuntimeTool` interface in your tool package:
+
+```go
+type MyTool struct{}
+
+func (t *MyTool) Name() string            { return "my_tool" }
+func (t *MyTool) Description() string      { return "Description" }
+func (t *MyTool) Schema() map[string]any   { return map[string]any{...} }
+func (t *MyTool) Execute(ctx context.Context, sess *session.Session, input map[string]any, state interface{}) (any, error) {
+    // Tool logic here
+    return "result", nil
+}
+```
+
+2. Register with the tool registry: `registry.Register("my_tool", &MyTool{})`
+3. The `RegistryToolBridge` automatically converts registered tools to Eino `InvokableTool`
+4. `AgentFactory.collectTools()` merges registry tools + engine built-in tools for each agent
+5. Optionally limit which agents see this tool via `tools:` list in `agents.yaml`
 
 ### Adding a New API Endpoint
 

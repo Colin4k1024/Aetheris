@@ -129,7 +129,93 @@ eino Runtime
 **执行保证契约**：步至少/至多执行一次、Signal 交付、Replay 确定性、崩溃后不重复副作用等正式语义见 [execution-guarantees.md](execution-guarantees.md)。
 
 ---
+## 4.2 AgentFactory — 配置驱动的 Agent 构建
 
+所有 Agent 构建统一经由 `AgentFactory`（`internal/runtime/eino/agent_factory.go`），不再维护自定义 Plan→Execute 循环。
+
+### 设计原则
+
+- **配置驱动**：Agent 定义在 `configs/agents.yaml`，启动时批量创建
+- **单一入口**：无论配置加载还是编程式创建，都经由 `AgentFactory`
+- **工具自动合并**：Engine 内置工具 + Registry 工具（via Tool Bridge）自动合并，支持按名称过滤
+- **Runner 缓存**：同名 Agent 复用已创建的 Eino ADK Runner
+
+### 构建流程
+
+```
+configs/agents.yaml
+  → AgentFactory.GetOrCreateFromConfig(ctx, agentsCfg)
+    → for each agent definition:
+      → AgentBuildConfig{Name, Instruction, Tools, MaxSteps, ...}
+      → collectTools(toolNames):
+        ├─ GetDefaultTools(engine)         [retriever, generator, ...]
+        └─ RegistryToolBridge.EinoTools()  [native + MCP tools]
+        → (optional) filter by tool names
+      → engine.CreateChatModel(ctx)
+      → adk.NewChatModelAgent(ctx, cfg)
+      → adk.NewRunner(ctx, RunnerConfig{Agent, EnableStreaming, CheckPointStore})
+      → cache in factory.runners[name]
+```
+
+### 关键类型
+
+| 类型 | 说明 |
+|------|------|
+| `AgentBuildConfig` | 单个 Agent 的构建参数（Name, Description, Instruction, Type, Tools, MaxSteps, Streaming） |
+| `AgentFactory` | 工厂实例，持有 Engine + Registry + Bridge + Runner 缓存 |
+
+### 旧路径弃用
+
+`internal/agent/agent.go` 中的 `Agent` struct、`New()`、`RunWithSession()`、`Run()` 已标记 `Deprecated`。新代码应使用 `eino.AgentFactory`。
+
+---
+
+## 4.3 Tool Bridge Layer — 工具桥接
+
+`RegistryToolBridge`（`internal/runtime/eino/tool_bridge.go`）解决 Aetheris 工具生态与 Eino 工具体系的对接，同时避免 `agent/tools` ↔ `runtime/eino` 的循环引用。
+
+### 架构
+
+```
+agent/tools.Registry (native + MCP tools)
+  ↓ adapter (app/api/adk_agent.go)
+RuntimeToolRegistry interface (eino package)
+  ↓
+RegistryToolBridge.EinoTools()
+  ↓ for each RuntimeTool:
+registryToolAdapter (implements tool.InvokableTool)
+  ├─ Info(ctx)          → schema.ToolInfo (映射 Schema → ParameterInfo)
+  └─ InvokableRun(ctx)  → 反序列化 JSON → Tool.Execute(ctx, sess, input, state)
+  ↓
+[]tool.BaseTool → ADK Agent ToolsConfig
+```
+
+### 接口抽象（解决循环引用）
+
+```go
+// 定义在 internal/runtime/eino/tool_bridge.go（不 import agent/tools）
+type RuntimeTool interface {
+    Name() string
+    Description() string
+    Schema() map[string]any
+    Execute(ctx context.Context, sess *session.Session, input map[string]any, state interface{}) (any, error)
+}
+
+type RuntimeToolRegistry interface {
+    List() []RuntimeTool
+}
+```
+
+`internal/app/api/adk_agent.go` 中的 `registryAdapter` 桥接 `*tools.Registry` → `RuntimeToolRegistry`，因为 `app/api` 可以同时 import 两个包。
+
+### Session 传递
+
+Eino `InvokableTool.InvokableRun(ctx, json)` 不接受 Session 参数。通过 context 传递：
+
+- `WithSession(ctx, sess)` — 注入 Session 到 context
+- `sessionFromContext(ctx)` — 在 adapter 内取出 Session 传给 Tool.Execute
+
+---
 ## 5. Domain Pipelines（Go Native）
 
 所有 Pipeline 均为 **Go 原生实现**，仅关注“业务步骤”，不关心执行顺序。

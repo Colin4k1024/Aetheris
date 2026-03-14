@@ -38,7 +38,9 @@ type SchemaProvider interface {
 	SchemasForLLM() ([]byte, error)
 }
 
-// Agent 入口：持有 Planner、Executor、SchemaProvider，执行 Plan -> Execute -> 循环；记忆由 Session 承载
+// Deprecated: Agent 自定义 Plan→Execute 循环已被 Eino ADK Agent 取代。
+// 新代码应使用 eino.AgentFactory 创建基于 Eino 的 Agent Runner。
+// 此类型保留用于向后兼容，将在未来版本中移除。
 type Agent struct {
 	planner        planner.Planner
 	executor       executor.Executor
@@ -56,7 +58,7 @@ func WithMaxSteps(n int) AgentOption {
 	}
 }
 
-// New 创建 Agent（schemaProvider 可为 tool/registry.Registry 或 agent/tools.Registry）
+// Deprecated: New 创建 Agent（新代码应使用 eino.AgentFactory）
 func New(planner planner.Planner, exec executor.Executor, schemaProvider SchemaProvider, opts ...AgentOption) *Agent {
 	a := &Agent{
 		planner:        planner,
@@ -70,7 +72,7 @@ func New(planner planner.Planner, exec executor.Executor, schemaProvider SchemaP
 	return a
 }
 
-// RunWithSession 基于 Session 执行一次任务（Runtime 入口）：先取 session 历史，执行后写回 session
+// Deprecated: RunWithSession 基于 Session 执行一次任务（新代码应使用 Eino ADK Runner.Query）
 func (a *Agent) RunWithSession(ctx context.Context, sess *session.Session, userQuery string) (*RunResult, error) {
 	if sess == nil {
 		return a.Run(ctx, "", userQuery, nil)
@@ -85,7 +87,7 @@ func (a *Agent) RunWithSession(ctx context.Context, sess *session.Session, userQ
 	return result, nil
 }
 
-// Run 执行一次任务：Plan -> ExecuteStep(s) -> 若 next==continue 则带结果再 Plan，直到 finish 或超步数
+// Deprecated: Run 执行一次任务（新代码应使用 Eino ADK Runner.Query）
 func (a *Agent) Run(ctx context.Context, sessionID string, userQuery string, history []llm.Message) (*RunResult, error) {
 	return a.runInternal(ctx, sessionID, userQuery, history, nil)
 }

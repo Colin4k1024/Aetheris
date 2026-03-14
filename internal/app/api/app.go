@@ -48,6 +48,7 @@ import (
 	agentexec "rag-platform/internal/agent/runtime/executor"
 	"rag-platform/internal/agent/runtime/executor/verifier"
 	"rag-platform/internal/agent/tools"
+	"rag-platform/internal/agent/tools/mcp"
 	"rag-platform/internal/api/http"
 	"rag-platform/internal/api/http/middleware"
 	"rag-platform/internal/app"
@@ -70,12 +71,6 @@ type otelProviderShutdown interface {
 	Shutdown(ctx context.Context) error
 }
 
-type defaultMCPInvoker struct{}
-
-func (i *defaultMCPInvoker) CallTool(ctx context.Context, server string, tool string, input map[string]any) (any, error) {
-	return nil, fmt.Errorf("mcp invoker not configured: %s/%s", server, tool)
-}
-
 // App API 应用（装配 HTTP Router、Handler、Middleware；仅依赖 Engine + DocumentService）
 type App struct {
 	config       *app.Bootstrap
@@ -86,6 +81,7 @@ type App struct {
 	grpcServer   *grpcRun
 	otelProvider otelProviderShutdown
 	jobScheduler *job.Scheduler
+	mcpManager   *mcp.Manager
 }
 
 // jobStoreForRunnerAdapter 将 job.JobStore 适配为 agentexec.JobStoreForRunner（status int）
@@ -273,29 +269,42 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	toolsReg := tools.NewRegistry()
 	tools.RegisterBuiltin(toolsReg, engine, generatorForAgent)
 	// MCP Host bridge: register MCP tools as first-class runtime tools.
-	mcpHost := tools.NewMCPHost(&defaultMCPInvoker{})
-	for _, server := range strings.Split(os.Getenv("AETHERIS_MCP_SERVERS"), ",") {
-		server = strings.TrimSpace(server)
-		if server == "" {
-			continue
+	// MCP Host: connect configured MCP servers and dynamically discover tools.
+	mcpMgr := mcp.NewManager(slog.Default())
+	if bootstrap.Config != nil && len(bootstrap.Config.MCP.Servers) > 0 {
+		mcpCfg := mcp.ManagerConfig{
+			Servers:     make(map[string]mcp.ServerConfig, len(bootstrap.Config.MCP.Servers)),
+			InitTimeout: bootstrap.Config.MCP.InitTimeout,
 		}
-		mcpHost.RegisterServer(server)
-	}
-	// Reference adapters for common enterprise integrations.
-	referenceMCPTools := []tools.ToolManifest{
-		{Name: "github_issue_read", Description: "Read GitHub issue", InputSchema: map[string]any{"type": "object"}},
-		{Name: "slack_post_message", Description: "Post message to Slack", InputSchema: map[string]any{"type": "object"}},
-		{Name: "sql_query", Description: "Run SQL query", InputSchema: map[string]any{"type": "object"}},
-	}
-	for _, server := range strings.Split(os.Getenv("AETHERIS_MCP_SERVERS"), ",") {
-		server = strings.TrimSpace(server)
-		if server == "" {
-			continue
+		for name, sc := range bootstrap.Config.MCP.Servers {
+			mcpCfg.Servers[name] = mcp.ServerConfig{
+				Type:    sc.Type,
+				Command: sc.Command,
+				Args:    sc.Args,
+				Env:     sc.Env,
+				Dir:     sc.Dir,
+				URL:     sc.URL,
+				Headers: sc.Headers,
+				Timeout: sc.Timeout,
+			}
 		}
-		for _, m := range referenceMCPTools {
-			_ = mcpHost.RegisterToolAdapter(toolsReg, server, m)
+		if err := mcpMgr.ConnectAll(context.Background(), mcpCfg); err != nil {
+			slog.Warn("mcp connect error (non-fatal)", "error", err)
 		}
 	}
+	mcpHost := tools.NewMCPHost(mcpMgr)
+	mcpHost.RegisterFromManager(toolsReg, mcpMgr)
+
+	// Eino AgentFactory：所有 Agent 构建的唯一入口（基于 Eino ADK）
+	agentFactory := eino.NewAgentFactory(engine, RegistryAsRuntimeToolRegistry(toolsReg))
+	engine.SetAgentFactory(agentFactory)
+	// 从 agents.yaml 加载预定义 Agent（若有）
+	if bootstrap.Config != nil && len(bootstrap.Config.Agents.Agents) > 0 {
+		if err := agentFactory.GetOrCreateFromConfig(context.Background(), &bootstrap.Config.Agents); err != nil {
+			bootstrap.Logger.Info("从配置加载 Agent failed（非致命）", "error", err)
+		}
+	}
+
 	plannerAgent := planner.NewLLMPlanner(llmClientForAgent)
 	execAgent := executor.NewSessionRegistryExecutor(toolsReg)
 	agentRunner := agent.New(plannerAgent, execAgent, toolsReg)
@@ -307,6 +316,7 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	handler.SetRuntimeRunStore(runtimeRunStore)
 	handler.SetAgent(agentRunner)
 	handler.SetSessionManager(sessionManager)
+	handler.SetAgentFactory(agentFactory)
 	// 主 ADK Runner：当启用时 /api/agent/run、resume、stream 使用 ADK 执行
 	if engine != nil {
 		adkEnabled := true
@@ -315,11 +325,23 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 		}
 		if adkEnabled {
 			cps := NewMemoryCheckPointStore()
-			adkRunner, errADK := NewMainADKRunner(context.Background(), engine, cps)
+			// 优先使用 AgentFactory 创建主 Agent（统一 Eino 入口）
+			adkRunner, errADK := agentFactory.CreateAgentWithCheckpoint(context.Background(), eino.AgentBuildConfig{
+				Name:        "main_agent",
+				Description: mainAgentDescription,
+				Instruction: "你是一个有帮助的助手，可以使用检索、生成、文档加载与解析、切片、向量化、建索引等工具完成任务。",
+				Type:        "react",
+				Streaming:   true,
+			}, cps)
 			if errADK == nil && adkRunner != nil {
 				handler.SetADKRunner(adkRunner)
 			} else if errADK != nil {
-				bootstrap.Logger.Info("创建主 ADK Runner failed，将使用原 Agent", "error", errADK)
+				// 回退到旧方式
+				bootstrap.Logger.Info("AgentFactory 创建主 Agent failed，回退旧方式", "error", errADK)
+				adkRunner, errADK = NewMainADKRunner(context.Background(), engine, cps)
+				if errADK == nil && adkRunner != nil {
+					handler.SetADKRunner(adkRunner)
+				}
 			}
 		}
 	}
@@ -697,6 +719,7 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 		router:       router,
 		hertz:        nil,
 		jobScheduler: jobScheduler,
+		mcpManager:   mcpMgr,
 	}
 	if bootstrap.Config != nil && bootstrap.Config.API.Grpc.Enable && bootstrap.Config.API.Grpc.Port > 0 {
 		gs, err := startGRPC(engine, docService, bootstrap.Config.API.Grpc.Port)
@@ -791,6 +814,9 @@ func (a *App) Run(addr string) error {
 
 // Shutdown 优雅关闭（传入 ctx 以支持超时，如 cmd 层 WithTimeout）
 func (a *App) Shutdown(ctx context.Context) error {
+	if a.mcpManager != nil {
+		_ = a.mcpManager.Close()
+	}
 	if a.jobScheduler != nil {
 		a.jobScheduler.Stop()
 	}

@@ -40,6 +40,7 @@ type Config struct {
 	Monitoring      MonitoringConfig      `mapstructure:"monitoring"`
 	RateLimits      RateLimitsConfig      `mapstructure:"rate_limits"`
 	Security        SecurityConfig        `mapstructure:"security"`
+	MCP             MCPConfig             `mapstructure:"mcp"`
 }
 
 // RuntimeConfig 运行时环境配置
@@ -148,6 +149,7 @@ type AgentDefConfig struct {
 	LLM           string         `mapstructure:"llm"`            // 使用的 LLM
 	MaxIterations int            `mapstructure:"max_iterations"` // 最大迭代次数
 	SystemPrompt  string         `mapstructure:"system_prompt"`  // 系统提示词
+	Tools         []string       `mapstructure:"tools"`          // 工具名列表（空 = 全部）
 	ChainType     string         `mapstructure:"chain_type"`     // chain 类型
 	GraphType     string         `mapstructure:"graph_type"`     // graph 类型
 	WorkflowType  string         `mapstructure:"workflow_type"`  // workflow 类型
@@ -190,6 +192,34 @@ type FileReaderToolConfig struct {
 type HTTPRequestToolConfig struct {
 	Timeout    int `mapstructure:"timeout"`
 	MaxRetries int `mapstructure:"max_retries"`
+}
+
+// MCPConfig MCP (Model Context Protocol) overall configuration
+type MCPConfig struct {
+	// Servers maps server names to their connection configurations.
+	Servers map[string]MCPServerConfig `mapstructure:"servers"`
+	// InitTimeout is how long to wait for each server's initialize handshake, e.g. "30s".
+	InitTimeout string `mapstructure:"init_timeout"`
+}
+
+// MCPServerConfig configures a single MCP server connection.
+type MCPServerConfig struct {
+	// Type is the transport type: "stdio" or "sse".
+	Type string `mapstructure:"type"`
+	// Command is the executable to launch for stdio transport.
+	Command string `mapstructure:"command"`
+	// Args are command arguments for stdio transport.
+	Args []string `mapstructure:"args"`
+	// Env are additional environment variables (KEY: VALUE) for stdio transport.
+	Env map[string]string `mapstructure:"env"`
+	// Dir is the working directory for stdio transport.
+	Dir string `mapstructure:"dir"`
+	// URL is the endpoint URL for SSE transport.
+	URL string `mapstructure:"url"`
+	// Headers are optional HTTP headers for SSE transport.
+	Headers map[string]string `mapstructure:"headers"`
+	// Timeout is per-call timeout, e.g. "60s".
+	Timeout string `mapstructure:"timeout"`
 }
 
 // AgentADKConfig ADK Runner 配置（主对话入口）

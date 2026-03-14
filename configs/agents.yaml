@@ -9,6 +9,9 @@ agents:
     description: "ReAct (Reasoning + Acting) 智能体"
     llm: "default"
     max_iterations: 10
+    tools:                        # 可选：限制工具子集；空或省略 = 全部工具
+      - "web_search"
+      - "calculator"
     system_prompt: |
       You are a helpful AI assistant.
       Think step by step to solve problems.
@@ -20,6 +23,7 @@ agents:
     description: "DEER-Go 增强推理智能体"
     llm: "default"
     max_iterations: 15
+    tools: []                     # 空列表 = 使用全部可用工具
     system_prompt: |
       You are an advanced reasoning agent.
       Decompose complex problems into smaller steps.
@@ -31,6 +35,11 @@ agents:
     description: "Manus 自主执行智能体"
     llm: "default"
     max_iterations: 20
+    tools:                        # 指定工具子集
+      - "web_search"
+      - "calculator"
+      - "file_reader"
+      - "http_request"
     system_prompt: |
       You are an autonomous agent capable of completing complex tasks.
       Plan your approach and execute step by step.

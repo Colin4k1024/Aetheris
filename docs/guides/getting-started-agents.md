@@ -2,15 +2,117 @@
 
 This guide walks you through the official path: build your agent with **Eino**, then run it on **Aetheris runtime** for durability, replay, and auditability.
 
+> **推荐路径**：使用 `configs/agents.yaml` + `AgentFactory` 配置驱动创建 Agent（见下方「快速开始：配置驱动 Agent」）。手动 Planner + Executor 路径仍可使用，适用于需要完全自定义 TaskGraph 的高级场景。
+
 > Migration note: legacy `/api/agents/*` construction endpoints remain available for compatibility, but runtime-first `/api/runs/*` and `/api/jobs/*` are the default path for new users.
 
 **What you'll learn**:
 
+- **（推荐）** 通过 `agents.yaml` 配置创建 Agent，由 `AgentFactory` 自动构建 Eino ADK Runner
+- **（推荐）** 通过 Tool Bridge 注册自定义工具，自动桥接到 Eino 生态
 - Define Tools with idempotency (no duplicate side effects)
 - Create Eino workflow/graph with Wait node (human-in-the-loop)
 - Send signals to resume execution
 - View execution trace and evidence
 - Replay for debugging (deterministic)
+
+---
+
+## 快速开始：配置驱动 Agent（推荐）
+
+对于大多数场景，推荐使用 **AgentFactory** 配置驱动方式创建 Agent，无需手动编写 Planner 和 TaskGraph。
+
+### 1. 在 `configs/agents.yaml` 中定义 Agent
+
+```yaml
+agents:
+  refund_agent:
+    type: "react"
+    description: "退款审批 Agent"
+    llm: "default"
+    max_iterations: 15
+    tools:                        # 可选：限制工具子集；空 = 使用全部
+      - "query_order"
+      - "send_refund"
+    system_prompt: |
+      你是一个退款处理助手。
+      根据订单信息判断是否需要审批。
+      使用工具查询订单和执行退款。
+```
+
+### 2. 注册自定义工具
+
+工具通过 `RuntimeTool` 接口注册，`RegistryToolBridge` 自动将其转为 Eino `InvokableTool`：
+
+```go
+package main
+
+import (
+    "context"
+    "rag-platform/internal/agent/tools"
+    "rag-platform/internal/runtime/session"
+)
+
+type QueryOrderTool struct{}
+
+func (t *QueryOrderTool) Name() string          { return "query_order" }
+func (t *QueryOrderTool) Description() string    { return "查询订单状态" }
+func (t *QueryOrderTool) Schema() map[string]any {
+    return map[string]any{
+        "type": "object",
+        "properties": map[string]any{
+            "order_id": map[string]any{
+                "type":        "string",
+                "description": "订单 ID",
+            },
+        },
+        "required": []any{"order_id"},
+    }
+}
+func (t *QueryOrderTool) Execute(ctx context.Context, sess *session.Session, input map[string]any, state interface{}) (any, error) {
+    orderID, _ := input["order_id"].(string)
+    // 查询订单逻辑...
+    return map[string]any{"order_id": orderID, "status": "completed", "amount": 100.0}, nil
+}
+
+// 注册
+registry := tools.NewRegistry()
+registry.Register("query_order", &QueryOrderTool{})
+registry.Register("send_refund", &SendRefundTool{})
+```
+
+### 3. AgentFactory 自动构建
+
+在 `internal/app/api/app.go` 中，启动时自动完成：
+
+```go
+// AgentFactory 创建（已内置于 app.go）
+agentFactory := eino.NewAgentFactory(engine, RegistryAsRuntimeToolRegistry(toolsReg))
+engine.SetAgentFactory(agentFactory)
+
+// 从 agents.yaml 加载所有 agent 定义
+agentFactory.GetOrCreateFromConfig(ctx, &bootstrap.Config.Agents)
+
+// 获取 Runner 执行
+runner, ok := agentFactory.GetRunner("refund_agent")
+```
+
+### 4. 运行
+
+```bash
+make run    # 启动 API + Worker
+curl -X POST http://localhost:8080/api/agent/run \
+  -H "Content-Type: application/json" \
+  -d '{"query": "请退款订单 order-123"}'
+```
+
+**工具流转**：Tool Registry → RegistryToolBridge → Eino InvokableTool → ADK Agent ToolsConfig → LLM 调用
+
+---
+
+## 高级场景：手动 Planner + Executor（自定义 TaskGraph）
+
+以下内容适用于需要完全控制 TaskGraph（DAG）结构的高级场景，例如复杂的多步审批流程、条件分支、长时间等待等。
 
 ---
 

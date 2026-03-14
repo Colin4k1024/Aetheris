@@ -22,6 +22,7 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 
+	"rag-platform/internal/agent/tools"
 	"rag-platform/internal/runtime/eino"
 	"rag-platform/internal/runtime/session"
 )
@@ -158,4 +159,23 @@ func NewMainADKRunner(ctx context.Context, engine *eino.Engine, checkpointStore 
 		CheckPointStore: checkpointStore,
 	}
 	return adk.NewRunner(ctx, runnerCfg), nil
+}
+
+// registryAdapter 将 agent/tools.Registry 适配为 eino.RuntimeToolRegistry（打破循环依赖）
+type registryAdapter struct {
+	reg *tools.Registry
+}
+
+func (a *registryAdapter) List() []eino.RuntimeTool {
+	list := a.reg.List()
+	out := make([]eino.RuntimeTool, len(list))
+	for i, t := range list {
+		out[i] = t // tools.Tool 已满足 RuntimeTool 接口
+	}
+	return out
+}
+
+// RegistryAsRuntimeToolRegistry 将 agent/tools.Registry 转为 eino.RuntimeToolRegistry
+func RegistryAsRuntimeToolRegistry(reg *tools.Registry) eino.RuntimeToolRegistry {
+	return &registryAdapter{reg: reg}
 }
