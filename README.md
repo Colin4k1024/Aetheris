@@ -196,6 +196,68 @@ flowchart LR
 
 **The flow:** Eino authoring → Aetheris runtime submission → scheduler/runner execution → durable events/checkpoints/effects → replay/verify/audit.
 
+### Core Components
+
+| Component | Path | Responsibility |
+| --------- | ---- | --------------- |
+| **API Server** | `cmd/api/` | HTTP server (Hertz), creates and interacts with agents |
+| **Worker** | `cmd/worker/` | Background execution worker, schedules and executes jobs |
+| **CLI** | `cmd/cli/` | Command-line tool (`init`, `chat`, `jobs`, `trace`, `replay`, etc.) |
+| **AgentFactory** | `internal/runtime/eino/agent_factory.go` | Config-driven Eino ADK agent creation (recommended entry point) |
+| **Tool Bridge** | `internal/runtime/eino/tool_bridge.go` | Converts Aetheris RuntimeTool → Eino InvokableTool |
+| **Eino Engine** | `internal/runtime/eino/engine.go` | Workflow compilation, runner management |
+| **Agent Runtime** | `internal/agent/runtime/` | Core execution engine (DAG compiler + runner) |
+| **Job Store** | `internal/agent/runtime/job/` | Event-sourced durable execution history (PostgreSQL) |
+| **Scheduler** | `internal/agent/runtime/job/scheduler.go` | Leases and retries tasks with lease fencing |
+| **Runner** | `internal/agent/runtime/runner/` | Step-level execution with checkpointing |
+| **Planner** | `internal/agent/planner/` | Produces TaskGraph from goals |
+| **Executor** | `internal/agent/runtime/executor/` | Executes DAG nodes using eino framework |
+| **Effects** | `internal/agent/effects/` | At-most-once tool execution guarantee via Ledger |
+
+### Execution Flow
+
+```
+User Message → API creates Job (dual-write: event stream + stateful Job)
+  → Scheduler picks up pending Job
+  → Runner.RunForJob: if Job.Cursor exists, restore from Checkpoint;
+     otherwise PlanGoal → TaskGraph → Compiler → DAG
+  → Steppable executes nodes one by one
+  → Each node writes Checkpoint, updates Session.LastCheckpoint and Job.Cursor
+  → Recovery resumes from next node
+```
+
+### Key Concepts
+
+| Concept | Description |
+| ------- | ------------ |
+| **Job** | Durable task unit, survives worker crashes |
+| **Step** | Single execution unit within a Job |
+| **Checkpoint** | State snapshot after step completion, enables resume |
+| **Effect** | External side effect record (API calls, DB writes) |
+| **Ledger** | Tool invocation authorization ledger (guarantees at-most-once) |
+| **TaskGraph** | Directed acyclic graph of step dependencies |
+
+### StepOutcome Semantics
+
+Each step produces exactly one outcome:
+
+| Outcome | Meaning |
+| ------- | -------- |
+| **Pure** | No side effects; safe to replay |
+| **SideEffectCommitted** | World changed; must not re-execute |
+| **Retryable** | Failure, world unchanged; retry allowed |
+| **PermanentFailure** | Failure; job cannot continue |
+| **Compensated** | Rollback applied; terminal state |
+
+### Execution Guarantees
+
+| Guarantee | Description |
+| --------- | ------------ |
+| **At-Most-Once** | Tool calls never repeat, even after crashes |
+| **Crash Recovery** | Agents resume from checkpoints, not from scratch |
+| **Deterministic Replay** | Reproduce any run for debugging or auditing |
+| **Event Sourcing** | Full execution history as append-only event stream |
+
 ---
 
 ## 🧭 Strategy
