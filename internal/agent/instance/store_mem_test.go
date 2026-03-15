@@ -59,3 +59,85 @@ func TestStoreMem_GetCreateUpdate(t *testing.T) {
 		t.Fatalf("ListByTenant: got %+v", list)
 	}
 }
+
+func TestStoreMem_CreateNilInstance(t *testing.T) {
+	ctx := context.Background()
+	s := NewStoreMem()
+
+	err := s.Create(ctx, nil)
+	if err != nil {
+		t.Errorf("expected nil error for nil instance, got %v", err)
+	}
+
+	err = s.Create(ctx, &AgentInstance{})
+	if err != nil {
+		t.Errorf("expected nil error for empty ID, got %v", err)
+	}
+}
+
+func TestStoreMem_Update(t *testing.T) {
+	ctx := context.Background()
+	s := NewStoreMem()
+
+	// Create first
+	inst := &AgentInstance{ID: "agent-1", Name: "Test", Status: StatusIdle, TenantID: "tenant-1"}
+	s.Create(ctx, inst)
+
+	// Update
+	err := s.Update(ctx, &AgentInstance{ID: "agent-1", Name: "Updated", Status: StatusRunning})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, _ := s.Get(ctx, "agent-1")
+	if got.Name != "Updated" {
+		t.Errorf("expected name 'Updated', got %s", got.Name)
+	}
+}
+
+func TestStoreMem_UpdateNonExistent(t *testing.T) {
+	ctx := context.Background()
+	s := NewStoreMem()
+
+	err := s.Update(ctx, &AgentInstance{ID: "non-existent", Name: "Test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStoreMem_UpdateCurrentJob(t *testing.T) {
+	ctx := context.Background()
+	s := NewStoreMem()
+
+	s.Create(ctx, &AgentInstance{ID: "agent-1", Status: StatusIdle})
+
+	err := s.UpdateCurrentJob(ctx, "agent-1", "job-123")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, _ := s.Get(ctx, "agent-1")
+	if got.CurrentJobID != "job-123" {
+		t.Errorf("expected job-123, got %s", got.CurrentJobID)
+	}
+}
+
+func TestStoreMem_ListByTenant_Filter(t *testing.T) {
+	ctx := context.Background()
+	s := NewStoreMem()
+
+	s.Create(ctx, &AgentInstance{ID: "agent-1", TenantID: "tenant-1"})
+	s.Create(ctx, &AgentInstance{ID: "agent-2", TenantID: "tenant-2"})
+	s.Create(ctx, &AgentInstance{ID: "agent-3", TenantID: "tenant-1"})
+
+	list, _ := s.ListByTenant(ctx, "tenant-1", 10)
+	if len(list) != 2 {
+		t.Errorf("expected 2, got %d", len(list))
+	}
+
+	// Test limit
+	list, _ = s.ListByTenant(ctx, "", 1)
+	if len(list) != 1 {
+		t.Errorf("expected 1, got %d", len(list))
+	}
+}
