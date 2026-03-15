@@ -74,7 +74,7 @@ func main() {
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Println("Supervisor Agent Example")
 	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println(`
+	fmt.Print(`
 Supervisor Agent 模式说明：
 
 ┌─────────────────────────────────────────────────────────────┐
@@ -187,7 +187,7 @@ When user asks a question:
 	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("完整 Supervisor Agent 创建代码:")
 	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println(`
+	fmt.Print(`
 import (
 	"context"
 
@@ -241,7 +241,7 @@ result := runner.Query(ctx, "your question")
 	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("Supervisor Agent 模式的优势:")
 	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println(`
+	fmt.Print(`
 ✓ 任务分解：将复杂任务分解为可管理的子任务
 ✓ 专业分工：每个子智能体专注于特定领域
 ✓ 可扩展性：轻松添加新的子智能体
