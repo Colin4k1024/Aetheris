@@ -211,3 +211,86 @@ func TestHasPermission(t *testing.T) {
 		}
 	}
 }
+
+func TestMemoryRoleStore(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryRoleStore()
+
+	// Get default role (should be RoleUser)
+	role, err := store.GetUserRole(ctx, "tenant-1", "user-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if role != RoleUser {
+		t.Errorf("expected RoleUser, got %s", role)
+	}
+
+	// Set role
+	err = store.SetUserRole(ctx, "tenant-1", "user-1", RoleAdmin)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Get updated role
+	role, err = store.GetUserRole(ctx, "tenant-1", "user-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if role != RoleAdmin {
+		t.Errorf("expected RoleAdmin, got %s", role)
+	}
+
+	// Different tenant should still be RoleUser
+	role, err = store.GetUserRole(ctx, "tenant-2", "user-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if role != RoleUser {
+		t.Errorf("expected RoleUser for different tenant, got %s", role)
+	}
+}
+
+func TestSimpleRBACChecker(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryRoleStore()
+	store.SetUserRole(ctx, "tenant-1", "user-1", RoleAdmin)
+
+	checker := NewSimpleRBACChecker(store)
+
+	// Admin should have all permissions
+	allowed, err := checker.CheckPermission(ctx, "tenant-1", "user-1", PermissionJobCreate, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !allowed {
+		t.Error("expected admin to have permission")
+	}
+
+	// Non-existent user gets default RoleUser which has PermissionJobView
+	allowed, err = checker.CheckPermission(ctx, "tenant-1", "user-unknown", PermissionJobView, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !allowed {
+		t.Error("expected default user to have view permission")
+	}
+}
+
+func TestSimpleRBACChecker_AssignRole(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryRoleStore()
+	checker := NewSimpleRBACChecker(store)
+
+	err := checker.AssignRole(ctx, "tenant-1", "user-1", RoleOperator)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	role, err := checker.GetUserRole(ctx, "tenant-1", "user-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if role != RoleOperator {
+		t.Errorf("expected RoleOperator, got %s", role)
+	}
+}

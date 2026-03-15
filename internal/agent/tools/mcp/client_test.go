@@ -213,3 +213,21 @@ func TestManager_EmptyConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, mgr.ServerNames())
 }
+
+func TestManager_ServerNames_Empty(t *testing.T) {
+	mgr := NewManager(nil)
+	names := mgr.ServerNames()
+	require.Empty(t, names)
+}
+
+func TestManager_ServerTools_NotFound(t *testing.T) {
+	mgr := NewManager(nil)
+	tools := mgr.ServerTools("unknown-server")
+	require.Nil(t, tools)
+}
+
+func TestManager_AllTools_Empty(t *testing.T) {
+	mgr := NewManager(nil)
+	allTools := mgr.AllTools()
+	require.Empty(t, allTools)
+}
