@@ -252,3 +252,45 @@ func (r *nopRecorder) RecordRandom(ctx context.Context, effectID string, source 
 func (r *nopRecorder) RecordSleep(ctx context.Context, effectID string, durationMs int64) error {
 	return nil
 }
+
+func TestNewLLMRequest(t *testing.T) {
+	req := NewLLMRequest("gpt-4", "hello")
+	if req.Model != "gpt-4" {
+		t.Errorf("expected gpt-4, got %s", req.Model)
+	}
+	if len(req.Messages) != 1 || req.Messages[0].Content != "hello" {
+		t.Errorf("unexpected messages: %+v", req.Messages)
+	}
+}
+
+func TestLLMRequest_Builder(t *testing.T) {
+	req := NewLLMRequest("gpt-4", "hello").
+		WithSystemMessage("You are helpful").
+		WithTemperature(0.7).
+		WithMaxTokens(100).
+		AddMessage("user", "follow up")
+
+	if req.Model != "gpt-4" {
+		t.Errorf("expected gpt-4, got %s", req.Model)
+	}
+	if req.SystemPrompt != "You are helpful" {
+		t.Errorf("expected system prompt, got %s", req.SystemPrompt)
+	}
+	if req.Params.Temperature == nil || *req.Params.Temperature != 0.7 {
+		t.Error("expected temperature 0.7")
+	}
+	if req.Params.MaxTokens == nil || *req.Params.MaxTokens != 100 {
+		t.Error("expected max tokens 100")
+	}
+	if len(req.Messages) != 2 {
+		t.Errorf("expected 2 messages, got %d", len(req.Messages))
+	}
+}
+
+func TestLLMEffect(t *testing.T) {
+	req := NewLLMRequest("gpt-4", "hello")
+	eff := LLMEffect(req)
+	if eff.Kind != KindLLM {
+		t.Errorf("expected KindLLM kind, got %s", eff.Kind)
+	}
+}

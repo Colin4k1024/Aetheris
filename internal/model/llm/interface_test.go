@@ -15,8 +15,35 @@
 package llm
 
 import (
+	"context"
 	"testing"
 )
+
+type mockInnerClient struct{}
+
+func (m *mockInnerClient) Generate(prompt string, options GenerateOptions) (string, error) {
+	return "response", nil
+}
+
+func (m *mockInnerClient) GenerateWithContext(ctx context.Context, prompt string, options GenerateOptions) (string, error) {
+	return "response", nil
+}
+
+func (m *mockInnerClient) Chat(messages []Message, options GenerateOptions) (string, error) {
+	return "response", nil
+}
+
+func (m *mockInnerClient) ChatWithContext(ctx context.Context, messages []Message, options GenerateOptions) (string, error) {
+	return "response", nil
+}
+
+func (m *mockInnerClient) Model() string { return "mock-model" }
+
+func (m *mockInnerClient) Provider() string { return "mock" }
+
+func (m *mockInnerClient) SetModel(model string) {}
+
+func (m *mockInnerClient) SetAPIKey(apiKey string) {}
 
 func TestNewClient_OpenAI(t *testing.T) {
 	client, err := NewClient("openai", "gpt-4", "test-key", "")
@@ -91,5 +118,46 @@ func TestMessage_Role(t *testing.T) {
 	}
 	if msg.Content != "hello" {
 		t.Errorf("expected content hello, got %s", msg.Content)
+	}
+}
+
+func TestNewRateLimitedClient(t *testing.T) {
+	inner := &mockInnerClient{}
+	limiter := NewLLMRateLimiter(map[string]LLMLimitConfig{}, nil)
+	client := NewRateLimitedClient(inner, limiter)
+
+	if client.Model() != "mock-model" {
+		t.Errorf("expected mock-model, got %s", client.Model())
+	}
+	if client.Provider() != "mock" {
+		t.Errorf("expected mock, got %s", client.Provider())
+	}
+}
+
+func TestRateLimitedClient_Generate(t *testing.T) {
+	inner := &mockInnerClient{}
+	limiter := NewLLMRateLimiter(map[string]LLMLimitConfig{}, nil)
+	client := NewRateLimitedClient(inner, limiter)
+
+	resp, err := client.Generate("test prompt", GenerateOptions{})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if resp != "response" {
+		t.Errorf("expected response, got %s", resp)
+	}
+}
+
+func TestRateLimitedClient_Chat(t *testing.T) {
+	inner := &mockInnerClient{}
+	limiter := NewLLMRateLimiter(map[string]LLMLimitConfig{}, nil)
+	client := NewRateLimitedClient(inner, limiter)
+
+	resp, err := client.Chat([]Message{{Role: "user", Content: "test"}}, GenerateOptions{})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if resp != "response" {
+		t.Errorf("expected response, got %s", resp)
 	}
 }

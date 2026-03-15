@@ -74,3 +74,50 @@ func TestRegistry_SchemasForLLM(t *testing.T) {
 		t.Errorf("SchemasForLLM: %+v", list)
 	}
 }
+
+func TestRegistry_GetCapability(t *testing.T) {
+	r := NewRegistry()
+	r.Register(mockTool{name: "tool1", desc: "desc1"})
+
+	// Tool without capability returns name
+	cap := r.GetCapability("tool1")
+	if cap != "tool1" {
+		t.Errorf("expected tool1, got %s", cap)
+	}
+
+	// Non-existent tool returns name
+	cap = r.GetCapability("missing")
+	if cap != "missing" {
+		t.Errorf("expected missing, got %s", cap)
+	}
+}
+
+func TestRegistry_Manifests(t *testing.T) {
+	r := NewRegistry()
+	r.Register(mockTool{name: "tool1", desc: "desc1"})
+
+	manifests := r.Manifests()
+	if len(manifests) != 1 {
+		t.Errorf("expected 1 manifest, got %d", len(manifests))
+	}
+}
+
+func TestRegistry_Manifest(t *testing.T) {
+	r := NewRegistry()
+	r.Register(mockTool{name: "tool1", desc: "desc1"})
+
+	// Existing tool
+	m := r.Manifest("tool1")
+	if m == nil {
+		t.Fatal("expected non-nil manifest")
+	}
+	if m.Name != "tool1" {
+		t.Errorf("expected tool1, got %s", m.Name)
+	}
+
+	// Non-existing tool
+	m = r.Manifest("missing")
+	if m != nil {
+		t.Error("expected nil manifest for missing tool")
+	}
+}
