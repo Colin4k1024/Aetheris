@@ -38,6 +38,8 @@ type Checkpoint struct {
 	PayloadResults []byte
 
 	CreatedAt time.Time
+	// ExpiresAt 检查点过期时间；用于自动清理
+	ExpiresAt *time.Time
 }
 
 // CheckpointStore 检查点存储接口
@@ -45,6 +47,8 @@ type CheckpointStore interface {
 	Save(ctx context.Context, cp *Checkpoint) (id string, err error)
 	Load(ctx context.Context, id string) (*Checkpoint, error)
 	ListByAgent(ctx context.Context, agentID string) ([]*Checkpoint, error)
+	// Cleanup 删除指定时间之前的检查点
+	Cleanup(ctx context.Context, olderThan time.Time) (deleted int, err error)
 }
 
 // NewCheckpoint 创建检查点（ID 可在 Save 时生成）
@@ -155,4 +159,26 @@ func (s *checkpointStoreMem) ListByAgent(ctx context.Context, agentID string) ([
 		}
 	}
 	return list, nil
+}
+
+// Cleanup 删除过期检查点
+func (s *checkpointStoreMem) Cleanup(ctx context.Context, olderThan time.Time) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var toDelete []string
+	for id, cp := range s.byID {
+		// 检查 CreatedAt
+		if cp.CreatedAt.Before(olderThan) {
+			toDelete = append(toDelete, id)
+			continue
+		}
+		// 检查 ExpiresAt
+		if cp.ExpiresAt != nil && cp.ExpiresAt.Before(olderThan) {
+			toDelete = append(toDelete, id)
+		}
+	}
+	for _, id := range toDelete {
+		delete(s.byID, id)
+	}
+	return len(toDelete), nil
 }

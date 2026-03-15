@@ -147,3 +147,15 @@ func (s *CheckpointStorePg) ListByAgent(ctx context.Context, agentID string) ([]
 	}
 	return out, rows.Err()
 }
+
+// Cleanup 实现 CheckpointStore - 删除过期检查点
+func (s *CheckpointStorePg) Cleanup(ctx context.Context, olderThan time.Time) (int, error) {
+	tag, err := s.pool.Exec(ctx,
+		`DELETE FROM checkpoints WHERE created_at < $1 OR (expires_at IS NOT NULL AND expires_at < $1)`,
+		olderThan,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
+}
