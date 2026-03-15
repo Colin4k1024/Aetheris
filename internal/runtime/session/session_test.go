@@ -16,6 +16,8 @@ package session
 
 import (
 	"testing"
+
+	"rag-platform/internal/model/llm"
 )
 
 func TestNew(t *testing.T) {
@@ -67,5 +69,64 @@ func TestSession_WorkingStateGet_WorkingStateSet(t *testing.T) {
 	_, ok = s.WorkingStateGet("missing")
 	if ok {
 		t.Error("WorkingStateGet missing should be false")
+	}
+}
+
+func TestNewManager(t *testing.T) {
+	store := NewMemoryStore()
+	m := NewManager(store)
+	if m == nil {
+		t.Fatal("NewManager should not return nil")
+	}
+}
+
+func TestMemoryStore_PutAndGet(t *testing.T) {
+	store := NewMemoryStore()
+	s := New("test-id")
+
+	err := store.Put(nil, s)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	got, err := store.Get(nil, "test-id")
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if got == nil || got.ID != "test-id" {
+		t.Error("expected to get the session back")
+	}
+}
+
+func TestMemoryStore_Get_NotFound(t *testing.T) {
+	store := NewMemoryStore()
+	got, err := store.Get(nil, "nonexistent")
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if got != nil {
+		t.Error("expected nil for nonexistent key")
+	}
+}
+
+func TestMessage_FromLLM(t *testing.T) {
+	llmMsg := llm.Message{
+		Role:    "user",
+		Content: "hello",
+	}
+	msg := FromLLM(llmMsg)
+	if msg.Role != "user" || msg.Content != "hello" {
+		t.Errorf("expected user/hello, got %s/%s", msg.Role, msg.Content)
+	}
+}
+
+func TestMessage_MessagesToLLM(t *testing.T) {
+	msgs := []*Message{
+		{Role: "user", Content: "hello"},
+		{Role: "assistant", Content: "hi"},
+	}
+	llmMsgs := MessagesToLLM(msgs)
+	if len(llmMsgs) != 2 {
+		t.Errorf("expected 2, got %d", len(llmMsgs))
 	}
 }

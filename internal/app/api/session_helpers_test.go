@@ -58,3 +58,34 @@ func TestLastUserMessage(t *testing.T) {
 		}
 	})
 }
+
+func TestToSchemaMessages(t *testing.T) {
+	t.Run("nil session", func(t *testing.T) {
+		msgs := toSchemaMessages(nil)
+		if len(msgs) != 0 {
+			t.Fatalf("expected 0 messages, got %d", len(msgs))
+		}
+	})
+
+	t.Run("empty session", func(t *testing.T) {
+		s := runtime.NewSession("", "agent-1")
+		msgs := toSchemaMessages(s)
+		if len(msgs) != 0 {
+			t.Fatalf("expected 0 messages, got %d", len(msgs))
+		}
+	})
+
+	t.Run("session with messages", func(t *testing.T) {
+		s := runtime.NewSession("", "agent-1")
+		s.AddMessage("user", "hello")
+		s.AddMessage("assistant", "hi there")
+
+		msgs := toSchemaMessages(s)
+		if len(msgs) != 2 {
+			t.Fatalf("expected 2 messages, got %d", len(msgs))
+		}
+		if msgs[0].GetRole() != schema.User {
+			t.Errorf("expected first role to be user")
+		}
+	})
+}
