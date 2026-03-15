@@ -24,133 +24,89 @@
 
 ## 🤔 Why Aetheris?
 
-Your AI agent worked perfectly in testing. Then production happened.
+Your AI agent worked in testing. But production is different.
 
 ```
-❌ Worker crashed mid-task? → Everything starts over
-❌ Tool called twice? → Duplicate payments, duplicated emails
-❌ Need to audit why AI made a decision? → No trace, no proof
-❌ Agent waiting for human approval? → Consumes resources forever
-❌ Need to replay a failed run for debugging? → Impossible
+❌ Worker crashed → Restart from beginning
+❌ Tool called twice → Duplicate payments
+❌ Need to audit AI decisions → No trace
+❌ Agent waiting for approval → Wastes resources
+❌ Need to replay failed run → Impossible
 ```
 
-**This is the reality of most AI agent deployments.** The Go agent frameworks (LangChainGo, LangGraphGo, Google ADK, Genkit) are great for _building_ agents, but they don't handle _running_ agents in production.
-
-**Aetheris fills that gap.**
+Go agent frameworks (LangChainGo, LangGraphGo, ADK) build agents. **Aetheris runs them in production.**
 
 ---
 
 ## 🎯 What is Aetheris?
 
-> **Aetheris = Kubernetes for AI Agents**
+> **Kubernetes for AI Agents**
 
-Just as Kubernetes manages containers, **Aetheris manages agents** — providing the durability, reliability, and observability that production systems require.
+Aetheris manages agents — providing durability, reliability, and observability for production systems.
 
-It is built as **B2D infrastructure** for enterprise AI systems: developers and architects use Aetheris when durability, compliance evidence, and local-first deployment are non-negotiable.
+**It's not:**
+- ❌ Chatbot framework
+- ❌ Prompt library
+- ❌ RAG system
+- ❌ Another way to write agents
 
-It's not:
-
-- ❌ A chatbot framework
-- ❌ A prompt library
-- ❌ A RAG system
-- ❌ Another way to _write_ agents (use LangChainGo, LangGraphGo, Google ADK, Genkit for that)
-
-It is:
-
-- ✅ An **agent execution runtime** — host your LangChainGo/LangGraphGo/ADK agents on Aetheris
-- ✅ A **durable execution engine** — agents survive crashes and resume from checkpoints
-- ✅ A **reliable orchestrator** — at-most-once tool execution guarantees
-- ✅ An **auditable system** — full decision history with evidence chain
+**It is:**
+- ✅ Agent execution runtime — host LangChainGo/LangGraphGo/ADK agents
+- ✅ Durable execution — survive crashes, resume from checkpoints
+- ✅ Reliable orchestrator — at-most-once tool execution
+- ✅ Auditable system — full decision history
 
 ---
 
 ## ✨ Key Features
 
-| Feature                       | What It Means for You                                        |
-| ----------------------------- | ------------------------------------------------------------ |
-| **🛡️ At-Most-Once Execution** | Tool calls never repeat. Even after crashes. Period.         |
-| **💥 Crash Recovery**         | Agents resume from checkpoints, not from scratch             |
-| **🔄 Deterministic Replay**   | Reproduce any run for debugging or auditing                  |
-| **👤 Human-in-the-Loop**      | Pause for approval, resume later — without wasting resources |
-| **📋 Full Audit Trail**       | Every decision traced — who, what, when, why                 |
-| **🔌 Multi-Framework**        | Already using LangChainGo/LangGraphGo/ADK? Just plug them in |
+| Feature | What It Means |
+| ------- | --------------- |
+| **At-Most-Once** | Tool calls never repeat, even after crashes |
+| **Crash Recovery** | Resume from checkpoints, not from scratch |
+| **Deterministic Replay** | Reproduce any run for debugging |
+| **Human-in-the-Loop** | Pause for approval, resume without waste |
+| **Full Audit Trail** | Every decision traced |
+| **Multi-Framework** | Plug in LangChainGo/LangGraphGo/ADK |
 
 ---
 
-## 📊 Three Core Use Cases
+## 📊 Use Cases
 
-### 1. Human-in-the-Loop Operations
-
-> _"Our refund agent waits for human approval, then continues automatically."_
-
-Legal contracts, payment approvals, support escalations — agents can pause for days and resume with full context.
-
-### 2. Compliance and Auditable Decisioning
-
-> _"Every API call and model decision is reconstructable for auditors."_
-
-Financial risk checks, legal controls, healthcare approvals — with event-sourced traceability and replayable evidence.
-
-### 3. Local-First and Air-Gapped Deployment
-
-> _"Core context stays on our private network, not a hosted SaaS backend."_
-
-Private cloud, on-prem, and air-gapped environments — with embedded local stores and deterministic recovery.
+| Use Case | Description |
+| -------- | ------------- |
+| **Human-in-the-Loop** | Agents pause for approval, resume with full context |
+| **Compliance & Audit** | Event-sourced traceability, replayable evidence |
+| **Local-First** | Private cloud, air-gapped environments |
 
 ---
 
-## 🚀 Installation
-
-### Quick Install
+## 🚀 Quick Start
 
 ```bash
-# One-liner install (macOS/Linux)
-curl -sSL https://raw.githubusercontent.com/Colin4k1024/Aetheris/main/scripts/install.sh | bash
-
-# Or from source
+# Install
 go install github.com/Colin4k1024/Aetheris/cmd/cli@latest
-```
 
-### Docker (Fastest Way)
-
-```bash
-# Start a complete local stack in 30 seconds
+# Or use Docker
 ./scripts/local-2.0-stack.sh start
 
-# Verify it's running
-curl http://localhost:8080/api/health
-```
-
----
-
-## ⚡ Quick Start
-
-```bash
-# 1. Initialize a new agent project
+# Initialize
 aetheris init my-agent
-
-# 2. Run it
 cd my-agent
 aetheris run
 
-# 3. Monitor
+# Monitor
 aetheris jobs list
 aetheris trace <job_id>
 ```
 
-**That's it.** Your first production-ready agent is running.
-
-For a complete walkthrough: [Getting Started Guide](docs/guides/getting-started-agents.md)
+See [Getting Started Guide](docs/guides/getting-started-agents.md) for details.
 
 ---
 
-## 🔗 Authoring Strategy (Eino-first)
+## 🔗 Authoring Strategy
 
-Build agent logic in **Eino** first, then submit runs/jobs to Aetheris for durable execution.
-
-- ✅ Default path: Eino agent/workflow authoring + Aetheris runtime execution
-- ✅ Aetheris focus: durability, replay, scheduling, audit, MCP tool plane
-- ⚠️ Legacy adapter paths are still available for migration, but no longer the recommended default
+Build agents in **Eino**, run them on Aetheris for durability, replay, and audit.
 
 ---
 
@@ -260,12 +216,6 @@ Each step produces exactly one outcome:
 
 ---
 
-## 🧭 Strategy
-
-Aetheris is explicitly positioned as a **B2D runtime foundation** (not a generic end-user SaaS application).  
-See [Strategy and User Stories](docs/strategy-and-user-stories.md) for strategic goals, user stories, and four-phase transformation status.
-
----
 
 ## 📈 Why This Matters
 
@@ -274,32 +224,23 @@ LLMs made agents possible.
 Aetheris makes agents production-ready.
 ```
 
-Current AI stacks focus on model intelligence. **Aetheris focuses on execution reliability.**
+
 
 | Problem               | Without Aetheris           | With Aetheris           |
 | --------------------- | -------------------------- | ----------------------- |
-| Worker crash mid-task | Restart from beginning     | Resume from checkpoint  |
-| Duplicate tool calls  | Possible ($$$ loss)        | Guaranteed at-most-once |
-| Debug failed runs     | Guess what happened        | Deterministic replay    |
-| Audit AI decisions    | Impossible                 | Full evidence chain     |
-| Human approval waits  | Consumes resources forever | StatusParked, no waste  |
+| Worker crash | Restart from beginning     | Resume from checkpoint  |
+| Duplicate calls  | Possible ($$$ loss)        | Guaranteed at-most-once |
+| Debug     | Guess what happened        | Deterministic replay    |
+| Audit    | Impossible                 | Full evidence chain     |
+| Human approval  | Wastes resources | StatusParked  |
 
 ---
 
-## 🌍 Community & Support
+## 🌍 Community
 
-<div align="center">
+[Discord](https://discord.gg/PrrK2Mua) • [Discussions](https://github.com/Colin4k1024/Aetheris/discussions) • [Docs](https://docs.aetheris.ai)
 
-| Platform              | Link                                                                 |
-| --------------------- | -------------------------------------------------------------------- |
-| 💬 Discord            | [Join the community](https://discord.gg/PrrK2Mua)                    |
-| 🐦 GitHub Discussions | [Q&A and ideas](https://github.com/Colin4k1024/Aetheris/discussions) |
-| 📖 Documentation      | [docs.aetheris.ai](https://docs.aetheris.ai)                         |
-| 🐙 Star us on GitHub  | [Colin4k1024/Aetheris](https://github.com/Colin4k1024/Aetheris)      |
-
-**If Aetheris helps you build production agents, please ⭐ star us on GitHub!**
-
-</div>
+⭐ Star us on [GitHub](https://github.com/Colin4k1024/Aetheris)!
 
 ---
 
@@ -309,9 +250,9 @@ Apache License 2.0 — free for commercial use.
 
 ---
 
-## 🙏 Acknowledgments
+## 🙏 Thanks
 
-Built with [cloudwego/eino](https://github.com/cloudwego/eino), [cloudwego/hertz](https://github.com/cloudwego/hertz), [jackc/pgx](https://github.com/jackc/pgx).
+Built with [eino](https://github.com/cloudwego/eino), [hertz](https://github.com/cloudwego/hertz), [pgx](https://github.com/jackc/pgx).
 
 ---
 
