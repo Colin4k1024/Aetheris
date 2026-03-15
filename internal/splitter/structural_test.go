@@ -83,3 +83,25 @@ func TestStructuralSplitter_Split_MultipleParagraphs(t *testing.T) {
 		t.Error("expected at least one chunk")
 	}
 }
+
+func TestStructuralSplitter_Split_LongParagraph(t *testing.T) {
+	ss := NewStructuralSplitter()
+
+	// Create a long paragraph that exceeds chunk_size
+	longContent := ""
+	for i := 0; i < 50; i++ {
+		longContent += "This is a very long paragraph that contains a lot of text. "
+	}
+
+	chunks, err := ss.Split(longContent, map[string]interface{}{
+		"chunk_size":    100,
+		"chunk_overlap": 20,
+	})
+	if err != nil {
+		t.Fatalf("Split error: %v", err)
+	}
+	// Should produce multiple chunks from the long paragraph
+	if len(chunks) <= 1 {
+		t.Errorf("expected multiple chunks from long paragraph, got %d", len(chunks))
+	}
+}
