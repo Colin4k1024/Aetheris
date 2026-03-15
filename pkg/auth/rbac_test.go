@@ -134,3 +134,80 @@ func TestRBAC_AuditorCanViewAndExport(t *testing.T) {
 		t.Error("auditor should not have stop permission")
 	}
 }
+
+func TestContext_WithTenantID(t *testing.T) {
+	ctx := context.Background()
+	ctx = WithTenantID(ctx, "tenant-123")
+
+	tenantID := GetTenantID(ctx)
+	if tenantID != "tenant-123" {
+		t.Errorf("expected tenant-123, got %s", tenantID)
+	}
+}
+
+func TestContext_GetTenantID_Empty(t *testing.T) {
+	ctx := context.Background()
+	tenantID := GetTenantID(ctx)
+	if tenantID != "" {
+		t.Errorf("expected empty, got %s", tenantID)
+	}
+}
+
+func TestContext_WithUserID(t *testing.T) {
+	ctx := context.Background()
+	ctx = WithUserID(ctx, "user-456")
+
+	userID := GetUserID(ctx)
+	if userID != "user-456" {
+		t.Errorf("expected user-456, got %s", userID)
+	}
+}
+
+func TestContext_GetUserID_Empty(t *testing.T) {
+	ctx := context.Background()
+	userID := GetUserID(ctx)
+	if userID != "" {
+		t.Errorf("expected empty, got %s", userID)
+	}
+}
+
+func TestContext_WithRole(t *testing.T) {
+	ctx := context.Background()
+	ctx = WithRole(ctx, RoleAdmin)
+
+	role := GetRole(ctx)
+	if role != RoleAdmin {
+		t.Errorf("expected RoleAdmin, got %s", role)
+	}
+}
+
+func TestContext_GetRole_Default(t *testing.T) {
+	ctx := context.Background()
+	role := GetRole(ctx)
+	if role != RoleUser {
+		t.Errorf("expected RoleUser default, got %s", role)
+	}
+}
+
+func TestHasPermission(t *testing.T) {
+	tests := []struct {
+		role       Role
+		permission Permission
+		expected   bool
+	}{
+		{RoleAdmin, PermissionJobCreate, true},
+		{RoleAdmin, PermissionJobView, true},
+		{RoleUser, PermissionJobView, true},
+		{RoleUser, PermissionJobExport, false},
+		{RoleAuditor, PermissionJobExport, true},
+		{RoleAuditor, PermissionJobCreate, false},
+		{RoleOperator, PermissionJobStop, true},
+	}
+
+	for _, tt := range tests {
+		result := HasPermission(tt.role, tt.permission)
+		if result != tt.expected {
+			t.Errorf("HasPermission(%s, %s) = %v, want %v", tt.role, tt.permission, result, tt.expected)
+		}
+	}
+}

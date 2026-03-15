@@ -94,3 +94,80 @@ func TestNewCompositeMemory_NoBackends(t *testing.T) {
 		t.Errorf("Store with no backends: %v", err)
 	}
 }
+
+// TestShortTerm_NewShortTerm tests short term memory creation
+func TestShortTerm_NewShortTerm(t *testing.T) {
+	st := NewShortTerm(0)
+	if st.maxPer != 50 {
+		t.Errorf("expected default 50, got %d", st.maxPer)
+	}
+
+	st2 := NewShortTerm(100)
+	if st2.maxPer != 100 {
+		t.Errorf("expected 100, got %d", st2.maxPer)
+	}
+}
+
+// TestShortTerm_GetMessages tests getting messages
+func TestShortTerm_GetMessages(t *testing.T) {
+	st := NewShortTerm(10)
+
+	// Empty session
+	msgs := st.GetMessages("nonexistent")
+	if len(msgs) != 0 {
+		t.Errorf("expected empty, got %d", len(msgs))
+	}
+
+	// Add messages
+	st.Append("session1", "user", "hello")
+	st.Append("session1", "assistant", "hi")
+
+	msgs = st.GetMessages("session1")
+	if len(msgs) != 2 {
+		t.Errorf("expected 2, got %d", len(msgs))
+	}
+}
+
+// TestShortTerm_Append tests appending messages with truncation
+func TestShortTerm_Append(t *testing.T) {
+	st := NewShortTerm(3)
+
+	// Add more than max
+	st.Append("s1", "user", "1")
+	st.Append("s1", "user", "2")
+	st.Append("s1", "user", "3")
+	st.Append("s1", "user", "4") // Should trigger truncation
+
+	msgs := st.GetMessages("s1")
+	if len(msgs) != 3 {
+		t.Errorf("expected 3, got %d", len(msgs))
+	}
+	if msgs[0].Content != "2" {
+		t.Errorf("expected first to be '2', got '%s'", msgs[0].Content)
+	}
+}
+
+// TestShortTerm_Clear tests clearing session
+func TestShortTerm_Clear(t *testing.T) {
+	st := NewShortTerm(10)
+	st.Append("s1", "user", "hello")
+
+	st.Clear("s1")
+	msgs := st.GetMessages("s1")
+	if len(msgs) != 0 {
+		t.Errorf("expected 0 after clear, got %d", len(msgs))
+	}
+}
+
+// TestEpisodic_NewEpisodic tests episodic memory creation
+func TestEpisodic_NewEpisodic(t *testing.T) {
+	ep := NewEpisodic(0)
+	if ep.limit != 1000 {
+		t.Errorf("expected default 1000, got %d", ep.limit)
+	}
+
+	ep2 := NewEpisodic(50)
+	if ep2.limit != 50 {
+		t.Errorf("expected 50, got %d", ep2.limit)
+	}
+}

@@ -47,3 +47,10 @@ log:
 		t.Errorf("Log.Level: got %q", cfg.Log.Level)
 	}
 }
+
+func TestLoadConfig_InvalidPath(t *testing.T) {
+	_, err := LoadConfig("/nonexistent/path/config.yaml")
+	if err == nil {
+		t.Error("expected error for invalid path")
+	}
+}
