@@ -53,3 +53,31 @@ func TestNewRetrieverAdapter_WithThreshold(t *testing.T) {
 		t.Fatal("expected non-nil adapter")
 	}
 }
+
+func TestEinoEmbedderAdapter_EmbedStrings(t *testing.T) {
+	ctx := context.Background()
+	embedder := &mockEmbedderForAPI{}
+	adapter := NewEinoEmbedderAdapter(embedder)
+
+	result, err := adapter.EmbedStrings(ctx, []string{"hello", "world"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 2 {
+		t.Errorf("expected 2 results, got %d", len(result))
+	}
+}
+
+func TestEinoEmbedderAdapter_EmptyTexts(t *testing.T) {
+	ctx := context.Background()
+	embedder := &mockEmbedderForAPI{}
+	adapter := NewEinoEmbedderAdapter(embedder)
+
+	result, err := adapter.EmbedStrings(ctx, []string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != nil {
+		t.Error("expected nil result for empty texts")
+	}
+}
