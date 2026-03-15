@@ -41,6 +41,23 @@ jobs:
       - name: Test coverage
         run: go test -coverprofile=coverage.out -covermode=atomic ./...
 
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total: | awk '{print $3}' | sed 's/%//')
+          echo "Coverage: $COVERAGE%"
+          # Use awk for comparison (more portable than bc)
+          if [ "$(echo "$COVERAGE < 60" | awk -F'.' '{print ($1*100+$2)<6000}')" = "1" ]; then
+            echo "ERROR: Code coverage is below 60%"
+            exit 1
+          fi
+          echo "Coverage check passed!"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.out
+          flags: unittests
+
   postgres-integration:
     name: Postgres Integration
     runs-on: ubuntu-latest
