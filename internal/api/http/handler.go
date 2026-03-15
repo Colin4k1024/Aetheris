@@ -12,6 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// TODO(refactor): handler.go is too large (2576 lines). Split into:
+// - handler_health.go: HealthCheck, SystemMetrics
+// - handler_document.go: Document upload/list/get/delete
+// - handler_knowledge.go: Collection CRUD
+// - handler_run.go: Run management
+// - handler_agent.go: Agent operations
+// - handler_job.go: Job operations
+// - handler_forensics.go: Forensics APIs
+// - handler_tool.go: Tool registry
+// - handler_system.go: System status
+// See router.go for route definitions.
+
 package http
 
 import (
