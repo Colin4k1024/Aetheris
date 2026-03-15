@@ -136,7 +136,7 @@ func main() {
 	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("Skill Agent 使用指南:")
 	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println(`
+	fmt.Print(`
 Skill 渐进式加载机制：
 
 1. 发现阶段 (Discovery):
