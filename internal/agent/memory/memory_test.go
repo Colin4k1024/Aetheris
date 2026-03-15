@@ -171,3 +171,74 @@ func TestEpisodic_NewEpisodic(t *testing.T) {
 		t.Errorf("expected 50, got %d", ep2.limit)
 	}
 }
+
+// TestSemantic_New tests semantic memory creation
+func TestSemantic_New(t *testing.T) {
+	s := NewSemantic(nil, 0)
+	if s.topK != 10 {
+		t.Errorf("expected default topK 10, got %d", s.topK)
+	}
+
+	s2 := NewSemantic(nil, 5)
+	if s2.topK != 5 {
+		t.Errorf("expected topK 5, got %d", s2.topK)
+	}
+}
+
+// TestSemantic_Recall_NilRetriever tests recall with nil retriever
+func TestSemantic_Recall_NilRetriever(t *testing.T) {
+	s := NewSemantic(nil, 10)
+	ctx := context.Background()
+	items, err := s.Recall(ctx, "test query")
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if items != nil {
+		t.Error("expected nil items for nil retriever")
+	}
+}
+
+// TestSemantic_Recall tests semantic recall
+func TestSemantic_Recall(t *testing.T) {
+	mockRetriever := &mockSemanticRetriever{}
+	s := NewSemantic(mockRetriever, 10)
+	ctx := context.Background()
+	items, err := s.Recall(ctx, "test query")
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if len(items) != 1 {
+		t.Errorf("expected 1 item, got %d", len(items))
+	}
+}
+
+// TestSemantic_Store tests semantic store (no-op)
+func TestSemantic_Store(t *testing.T) {
+	s := NewSemantic(nil, 10)
+	ctx := context.Background()
+	err := s.Store(ctx, MemoryItem{Type: "semantic", Content: "test"})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+type mockSemanticRetriever struct {
+	results []struct {
+		Content  string
+		Metadata map[string]any
+	}
+	err error
+}
+
+func (m *mockSemanticRetriever) Search(ctx context.Context, query string, topK int) ([]struct {
+	Content  string
+	Metadata map[string]any
+}, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return []struct {
+		Content  string
+		Metadata map[string]any
+	}{{Content: "semantic content", Metadata: nil}}, nil
+}

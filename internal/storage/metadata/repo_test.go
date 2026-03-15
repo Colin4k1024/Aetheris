@@ -79,8 +79,8 @@ func TestRepository_GetDocument_NotFound(t *testing.T) {
 	repo := NewRepository(store)
 
 	got, err := repo.GetDocument(context.Background(), "nonexistent")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if err == nil {
+		t.Fatal("expected error for nonexistent document")
 	}
 	if got != nil {
 		t.Error("expected nil for nonexistent document")

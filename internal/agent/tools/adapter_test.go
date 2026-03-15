@@ -51,8 +51,13 @@ func TestWrappedTool_Execute(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	if result != "executed" {
-		t.Errorf("expected 'executed', got '%v'", result)
+	// Result is tool.ToolResult which has String() method
+	tr, ok := result.(tool.ToolResult)
+	if !ok {
+		t.Fatalf("expected tool.ToolResult, got %T", result)
+	}
+	if tr.Content != "executed" {
+		t.Errorf("expected 'executed', got '%s'", tr.Content)
 	}
 }
 
