@@ -127,6 +127,7 @@ type EffectStoreConfig struct {
 type CheckpointStoreConfig struct {
 	Type string `mapstructure:"type"` // memory | postgres | embedded
 	DSN  string `mapstructure:"dsn"`  // Postgres 连接串；embedded 时可为空（沿用 jobstore.dsn）
+	TTL  int    `mapstructure:"ttl"`  // Checkpoint 过期天数，0 表示不过期
 }
 
 // AgentConfig Agent 与 Job 调度相关配置

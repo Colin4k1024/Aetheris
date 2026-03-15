@@ -131,11 +131,13 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     cursor_node      TEXT,
     payload_results  BYTEA,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at       TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_checkpoints_agent_id ON checkpoints (agent_id);
 CREATE INDEX IF NOT EXISTS idx_checkpoints_job_id ON checkpoints (job_id) WHERE job_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_checkpoints_created_at ON checkpoints (created_at);
+CREATE INDEX IF NOT EXISTS idx_checkpoints_expires_at ON checkpoints (expires_at) WHERE expires_at IS NOT NULL;
 
 -- 入库任务队列（API 入队、Worker 认领执行 ingest_pipeline）
 CREATE TABLE IF NOT EXISTS ingest_tasks (

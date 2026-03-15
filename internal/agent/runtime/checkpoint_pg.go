@@ -159,3 +159,8 @@ func (s *CheckpointStorePg) Cleanup(ctx context.Context, olderThan time.Time) (i
 	}
 	return int(tag.RowsAffected()), nil
 }
+
+// CleanupCheckpoint 实现 jobstore.CheckpointCleanupStore - 供 GC 调用
+func (s *CheckpointStorePg) CleanupCheckpoint(ctx context.Context, cutoff time.Time) (int, error) {
+	return s.Cleanup(ctx, cutoff)
+}

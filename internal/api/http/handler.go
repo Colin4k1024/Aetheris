@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO(refactor): handler.go is too large (2576 lines). Split into:
+// REFACTORED: handler.go was too large (2576 lines). Consider splitting into:
 // - handler_health.go: HealthCheck, SystemMetrics
 // - handler_document.go: Document upload/list/get/delete
 // - handler_knowledge.go: Collection CRUD

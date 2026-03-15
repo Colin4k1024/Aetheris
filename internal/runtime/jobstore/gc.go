@@ -52,12 +52,34 @@ func DefaultGCConfig() GCConfig {
 	}
 }
 
+// CheckpointCleanupStore 可选扩展接口：支持清理过期的 Checkpoint
+type CheckpointCleanupStore interface {
+	// CleanupCheckpoint 删除 expires_at < cutoff 或 created_at < cutoff 的检查点
+	CleanupCheckpoint(ctx context.Context, cutoff time.Time) (deleted int, err error)
+}
+
 // GC 执行 tool_invocations 表的垃圾回收
 func GC(ctx context.Context, store JobStore, config GCConfig) error {
 	if !config.Enable {
 		return nil
 	}
 
+	// 清理 tool_invocations
+	if err := gcToolInvocations(ctx, store, config); err != nil {
+		return err
+	}
+
+	// 清理 checkpoints（如果实现了 CheckpointCleanupStore）
+	if cpStore, ok := store.(CheckpointCleanupStore); ok {
+		if err := gcCheckpoints(ctx, cpStore, config); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func gcToolInvocations(ctx context.Context, store JobStore, config GCConfig) error {
 	lifecycleStore, ok := store.(EffectLifecycleStore)
 	if !ok {
 		// 兼容unsupported effect lifecycle 的 JobStore（memory/legacy）
@@ -100,4 +122,21 @@ func GC(ctx context.Context, store JobStore, config GCConfig) error {
 			return nil
 		}
 	}
+}
+
+func gcCheckpoints(ctx context.Context, store CheckpointCleanupStore, config GCConfig) error {
+	ttlDays := config.TTLDays
+	if ttlDays <= 0 {
+		ttlDays = 90
+	}
+
+	cutoff := time.Now().UTC().AddDate(0, 0, -ttlDays)
+	deleted, err := store.CleanupCheckpoint(ctx, cutoff)
+	if err != nil {
+		return fmt.Errorf("cleanup checkpoints: %w", err)
+	}
+	if deleted > 0 {
+		fmt.Printf("GC: cleaned up %d expired checkpoints\n", deleted)
+	}
+	return nil
 }
