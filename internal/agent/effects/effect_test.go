@@ -15,7 +15,10 @@
 package effects
 
 import (
+	"context"
 	"testing"
+
+	"rag-platform/internal/runtime/jobstore"
 )
 
 func TestEffectKind(t *testing.T) {
@@ -34,6 +37,59 @@ func TestEffectKind(t *testing.T) {
 		if string(tt.kind) != tt.expected {
 			t.Errorf("expected %s, got %s", tt.expected, tt.kind)
 		}
+	}
+}
+
+func TestEffectKindToEventType(t *testing.T) {
+	tests := []struct {
+		kind      EffectKind
+		wantEvent jobstore.EventType
+	}{
+		{EffectKindLLMResponseRecorded, jobstore.CommandCommitted},
+		{EffectKindToolResultRecorded, jobstore.CommandCommitted},
+		{EffectKindExternalCallRecorded, jobstore.CommandCommitted},
+		{EffectKindTimerScheduled, ""},
+		{EffectKindRetryDecision, ""},
+	}
+
+	for _, tt := range tests {
+		got := effectKindToEventType(tt.kind)
+		if got != tt.wantEvent {
+			t.Errorf("effectKindToEventType(%s) = %v, want %v", tt.kind, got, tt.wantEvent)
+		}
+	}
+}
+
+func TestNewJobStoreEffectLog(t *testing.T) {
+	log := NewJobStoreEffectLog(nil)
+	if log == nil {
+		t.Error("expected non-nil JobStoreEffectLog")
+	}
+}
+
+func TestJobStoreEffectLog_AppendEffect_NilStore(t *testing.T) {
+	log := NewJobStoreEffectLog(nil)
+	err := log.AppendEffect(context.Background(), "job-1", EffectKindLLMResponseRecorded, []byte(`{}`))
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestJobStoreEffectLog_AppendEffect_EmptyJobID(t *testing.T) {
+	// Using nil store to avoid needing a real store
+	log := NewJobStoreEffectLog(nil)
+	err := log.AppendEffect(context.Background(), "", EffectKindLLMResponseRecorded, []byte(`{}`))
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestJobStoreEffectLog_AppendEffect_UnmappedKind(t *testing.T) {
+	// Using nil store to avoid needing a real store
+	log := NewJobStoreEffectLog(nil)
+	err := log.AppendEffect(context.Background(), "job-1", EffectKindTimerScheduled, []byte(`{}`))
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 }
 

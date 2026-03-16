@@ -76,4 +76,12 @@ func TestMemoryStore_Clear(t *testing.T) {
 	}
 }
 
+func TestMemoryStore_Close(t *testing.T) {
+	s := NewMemoryStore()
+	err := s.Close()
+	if err != nil {
+		t.Errorf("Close: %v", err)
+	}
+}
+
 // Expiration 由实现用 Unix 秒判断，短 TTL 可能仍在同一秒内未过期，此处不测过期以保持稳定

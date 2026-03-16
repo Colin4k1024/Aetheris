@@ -89,3 +89,19 @@ func TestRedisOptionsFromVectorConfig_WithPassword(t *testing.T) {
 		t.Errorf("expected secret, got %s", opts.Password)
 	}
 }
+
+func TestRedisOptionsFromVectorConfig_Protocol(t *testing.T) {
+	cfg := config.VectorConfig{
+		Type: "redis",
+	}
+	opts, err := RedisOptionsFromVectorConfig(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if opts.Protocol != 2 {
+		t.Errorf("expected Protocol 2, got %d", opts.Protocol)
+	}
+	if !opts.UnstableResp3 {
+		t.Error("expected UnstableResp3 to be true")
+	}
+}

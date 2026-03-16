@@ -53,3 +53,64 @@ func TestMemoryStore_Get_NotFound(t *testing.T) {
 		t.Error("Get missing should error")
 	}
 }
+
+func TestMemoryStore_List(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemoryStore()
+
+	// Put some objects
+	_ = s.Put(ctx, "dir1/file1.txt", bytes.NewReader([]byte("a")), 0, nil)
+	_ = s.Put(ctx, "dir1/file2.txt", bytes.NewReader([]byte("b")), 0, nil)
+	_ = s.Put(ctx, "dir2/file3.txt", bytes.NewReader([]byte("c")), 0, nil)
+
+	// List
+	objs, err := s.List(ctx, "dir1/")
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(objs) != 2 {
+		t.Errorf("expected 2 objects, got %d", len(objs))
+	}
+}
+
+func TestMemoryStore_Exists(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemoryStore()
+
+	_ = s.Put(ctx, "exists.txt", bytes.NewReader([]byte("a")), 0, nil)
+
+	exists, err := s.Exists(ctx, "exists.txt")
+	if err != nil {
+		t.Fatalf("Exists: %v", err)
+	}
+	if !exists {
+		t.Error("expected exists=true")
+	}
+
+	exists, err = s.Exists(ctx, "missing.txt")
+	if err != nil {
+		t.Fatalf("Exists: %v", err)
+	}
+	if exists {
+		t.Error("expected exists=false")
+	}
+}
+
+func TestMemoryStore_GetMetadata(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemoryStore()
+
+	// GetMetadata for missing object should error
+	_, err := s.GetMetadata(ctx, "missing.txt")
+	if err == nil {
+		t.Error("expected error for missing object")
+	}
+}
+
+func TestMemoryStore_Close(t *testing.T) {
+	s := NewMemoryStore()
+	err := s.Close()
+	if err != nil {
+		t.Errorf("Close: %v", err)
+	}
+}

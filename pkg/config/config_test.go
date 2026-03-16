@@ -377,3 +377,424 @@ func TestConfig_ValidateProductionMode_MissingJWTKey(t *testing.T) {
 		t.Error("expected error for missing JWT key in production mode")
 	}
 }
+
+func TestRuntimeConfig(t *testing.T) {
+	cfg := RuntimeConfig{
+		Profile: "prod",
+		Strict:  true,
+	}
+	if cfg.Profile != "prod" {
+		t.Errorf("expected prod, got %s", cfg.Profile)
+	}
+	if !cfg.Strict {
+		t.Error("expected Strict to be true")
+	}
+}
+
+func TestRateLimitsConfig(t *testing.T) {
+	cfg := RateLimitsConfig{
+		Tools: map[string]ToolRateLimitConfig{
+			"calculator": {
+				QPS:           10,
+				MaxConcurrent: 5,
+				Burst:         20,
+			},
+		},
+		LLM: map[string]LLMRateLimitConfig{
+			"openai": {
+				TokensPerMinute:   100000,
+				RequestsPerMinute: 60,
+				MaxConcurrent:     10,
+			},
+		},
+	}
+	if len(cfg.Tools) != 1 {
+		t.Errorf("expected 1 tool, got %d", len(cfg.Tools))
+	}
+	if cfg.Tools["calculator"].QPS != 10 {
+		t.Errorf("expected QPS 10, got %f", cfg.Tools["calculator"].QPS)
+	}
+	if cfg.LLM["openai"].TokensPerMinute != 100000 {
+		t.Errorf("expected 100000 tokens, got %d", cfg.LLM["openai"].TokensPerMinute)
+	}
+}
+
+func TestWorkerConfig(t *testing.T) {
+	cfg := WorkerConfig{
+		Concurrency:    4,
+		QueueSize:     100,
+		RetryCount:    3,
+		RetryDelay:    "5s",
+		Timeout:       "60s",
+		PollInterval:  "2s",
+		MaxAttempts:   5,
+		Capabilities:  []string{"llm", "tool"},
+	}
+	if cfg.Concurrency != 4 {
+		t.Errorf("expected 4, got %d", cfg.Concurrency)
+	}
+	if cfg.QueueSize != 100 {
+		t.Errorf("expected 100, got %d", cfg.QueueSize)
+	}
+	if len(cfg.Capabilities) != 2 {
+		t.Errorf("expected 2 capabilities, got %d", len(cfg.Capabilities))
+	}
+}
+
+func TestModelConfig(t *testing.T) {
+	cfg := ModelConfig{
+		LLM: LLMConfig{
+			Providers: map[string]ProviderConfig{
+				"openai": {
+					APIKey:  "sk-test",
+					BaseURL: "https://api.openai.com/v1",
+					Models: map[string]ModelInfo{
+						"gpt-4": {
+							Name:          "gpt-4",
+							ContextWindow: 8192,
+							Temperature:   0.7,
+							MaxTokens:     4096,
+						},
+					},
+				},
+			},
+		},
+		Embedding: EmbeddingConfig{
+			Providers: map[string]ProviderConfig{
+				"cohere": {
+					APIKey:  "test-key",
+					Models: map[string]ModelInfo{
+						"embed-english-v3.0": {
+							Name:     "embed-english-v3.0",
+							Dimension: 1024,
+						},
+					},
+				},
+			},
+		},
+		Defaults: DefaultsConfig{
+			LLM:       "gpt-4",
+			Embedding: "cohere",
+		},
+	}
+	if cfg.Defaults.LLM != "gpt-4" {
+		t.Errorf("expected gpt-4, got %s", cfg.Defaults.LLM)
+	}
+	if cfg.LLM.Providers["openai"].Models["gpt-4"].MaxTokens != 4096 {
+		t.Errorf("expected 4096 max tokens, got %d", cfg.LLM.Providers["openai"].Models["gpt-4"].MaxTokens)
+	}
+}
+
+func TestProviderConfig(t *testing.T) {
+	cfg := ProviderConfig{
+		APIKey:  "sk-test",
+		BaseURL: "https://api.example.com",
+		Models: map[string]ModelInfo{
+			"model-1": {
+				Name:          "model-1",
+				ContextWindow: 4096,
+				Temperature:   0.5,
+				Dimension:     768,
+				InputLimit:    3000,
+				MaxTokens:     2000,
+			},
+		},
+	}
+	if cfg.APIKey != "sk-test" {
+		t.Errorf("expected sk-test, got %s", cfg.APIKey)
+	}
+	if cfg.Models["model-1"].Dimension != 768 {
+		t.Errorf("expected 768 dimension, got %d", cfg.Models["model-1"].Dimension)
+	}
+}
+
+func TestStorageConfig(t *testing.T) {
+	cfg := StorageConfig{
+		Metadata: MetadataConfig{
+			Type:     "postgres",
+			DSN:      "postgres://localhost:5432/metadata",
+			PoolSize: 20,
+		},
+		Vector: VectorConfig{
+			Type:       "redis",
+			Addr:       "localhost:6379",
+			DB:         "0",
+			Collection: "vectors",
+			Password:   "secret",
+		},
+		Object: ObjectConfig{
+			Type:     "s3",
+			Endpoint: "https://s3.amazonaws.com",
+			Bucket:   "my-bucket",
+			Region:   "us-east-1",
+		},
+		Cache: CacheConfig{
+			Type:     "redis",
+			Addr:     "localhost:6379",
+			DB:       1,
+			Password: "cache-secret",
+		},
+		Ingest: IngestConfig{
+			BatchSize:   1000,
+			Concurrency: 4,
+		},
+	}
+	if cfg.Metadata.Type != "postgres" {
+		t.Errorf("expected postgres, got %s", cfg.Metadata.Type)
+	}
+	if cfg.Vector.Type != "redis" {
+		t.Errorf("expected redis, got %s", cfg.Vector.Type)
+	}
+	if cfg.Cache.DB != 1 {
+		t.Errorf("expected DB 1, got %d", cfg.Cache.DB)
+	}
+}
+
+func TestLogConfig(t *testing.T) {
+	cfg := LogConfig{
+		Level:  "debug",
+		Format: "json",
+		File:   "/var/log/aetheris.log",
+	}
+	if cfg.Level != "debug" {
+		t.Errorf("expected debug, got %s", cfg.Level)
+	}
+	if cfg.Format != "json" {
+		t.Errorf("expected json, got %s", cfg.Format)
+	}
+}
+
+func TestMonitoringConfig(t *testing.T) {
+	cfg := MonitoringConfig{
+		Prometheus: PrometheusConfig{
+			Enable: true,
+			Port:   9090,
+		},
+		Tracing: TracingConfig{
+			Enable:         true,
+			ServiceName:    "aetheris-api",
+			ExportEndpoint: "localhost:4317",
+			Insecure:       true,
+		},
+	}
+	if !cfg.Prometheus.Enable {
+		t.Error("expected Prometheus to be enabled")
+	}
+	if cfg.Prometheus.Port != 9090 {
+		t.Errorf("expected port 9090, got %d", cfg.Prometheus.Port)
+	}
+	if !cfg.Tracing.Enable {
+		t.Error("expected Tracing to be enabled")
+	}
+}
+
+func TestCORSConfig(t *testing.T) {
+	cfg := CORSConfig{
+		Enable:       true,
+		AllowOrigins: []string{"https://example.com", "https://app.example.com"},
+	}
+	if !cfg.Enable {
+		t.Error("expected Enable to be true")
+	}
+	if len(cfg.AllowOrigins) != 2 {
+		t.Errorf("expected 2 origins, got %d", len(cfg.AllowOrigins))
+	}
+}
+
+func TestMiddlewareConfig(t *testing.T) {
+	cfg := MiddlewareConfig{
+		Auth:          true,
+		RateLimit:     true,
+		RateLimitRPS:  100,
+		JWTKey:        "secret-key",
+		JWTTimeout:    "24h",
+		JWTMaxRefresh: "7d",
+	}
+	if !cfg.Auth {
+		t.Error("expected Auth to be true")
+	}
+	if !cfg.RateLimit {
+		t.Error("expected RateLimit to be true")
+	}
+	if cfg.RateLimitRPS != 100 {
+		t.Errorf("expected 100 RPS, got %d", cfg.RateLimitRPS)
+	}
+}
+
+func TestGrpcConfig(t *testing.T) {
+	cfg := GrpcConfig{
+		Enable: true,
+		Port:   9000,
+	}
+	if !cfg.Enable {
+		t.Error("expected Enable to be true")
+	}
+	if cfg.Port != 9000 {
+		t.Errorf("expected port 9000, got %d", cfg.Port)
+	}
+}
+
+func TestAgentADKConfig(t *testing.T) {
+	enabled := true
+	cfg := AgentADKConfig{
+		Enabled:         &enabled,
+		CheckpointStore: "postgres",
+	}
+	if cfg.CheckpointStore != "postgres" {
+		t.Errorf("expected postgres, got %s", cfg.CheckpointStore)
+	}
+}
+
+func TestAgentsConfig(t *testing.T) {
+	cfg := AgentsConfig{
+		Agents: map[string]AgentDefConfig{
+			"my-agent": {
+				Type:          "react",
+				Description:   "A test agent",
+				LLM:           "gpt-4",
+				MaxIterations: 10,
+				SystemPrompt:  "You are helpful",
+				Tools:         []string{"web_search"},
+			},
+		},
+		LLM: AgentLLMConfig{
+			Provider: "openai",
+			Model:    "gpt-4",
+			APIKey:   "sk-test",
+		},
+		Tools: ToolsConfig{
+			Enabled:     []string{"web_search", "calculator"},
+			WebSearch:   WebSearchToolConfig{APIKey: "key", Engine: "google"},
+			Calculator:  CalculatorToolConfig{Precision: 2},
+		},
+	}
+	if len(cfg.Agents) != 1 {
+		t.Errorf("expected 1 agent, got %d", len(cfg.Agents))
+	}
+	if cfg.LLM.Provider != "openai" {
+		t.Errorf("expected openai, got %s", cfg.LLM.Provider)
+	}
+}
+
+func TestDefaultsConfig(t *testing.T) {
+	cfg := DefaultsConfig{
+		LLM:       "gpt-4",
+		Embedding: "cohere",
+		Vision:    "claude-3",
+	}
+	if cfg.LLM != "gpt-4" {
+		t.Errorf("expected gpt-4, got %s", cfg.LLM)
+	}
+}
+
+func TestVectorConfig_Memory(t *testing.T) {
+	cfg := VectorConfig{
+		Type: "memory",
+	}
+	if cfg.Type != "memory" {
+		t.Errorf("expected memory, got %s", cfg.Type)
+	}
+}
+
+func TestReplaceEnvVars_LLM(t *testing.T) {
+	// Set environment variable
+	t.Setenv("TEST_OPENAI_KEY", "env-api-key")
+
+	cfg := &Config{
+		Model: ModelConfig{
+			LLM: LLMConfig{
+				Providers: map[string]ProviderConfig{
+					"openai": {
+						APIKey: "${TEST_OPENAI_KEY}",
+					},
+				},
+			},
+		},
+	}
+
+	err := replaceEnvVars(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.Model.LLM.Providers["openai"].APIKey != "env-api-key" {
+		t.Errorf("expected env-api-key, got %s", cfg.Model.LLM.Providers["openai"].APIKey)
+	}
+}
+
+func TestReplaceEnvVars_Embedding(t *testing.T) {
+	t.Setenv("TEST_COHERE_KEY", "cohere-key")
+
+	cfg := &Config{
+		Model: ModelConfig{
+			Embedding: EmbeddingConfig{
+				Providers: map[string]ProviderConfig{
+					"cohere": {
+						APIKey: "${TEST_COHERE_KEY}",
+					},
+				},
+			},
+		},
+	}
+
+	err := replaceEnvVars(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.Model.Embedding.Providers["cohere"].APIKey != "cohere-key" {
+		t.Errorf("expected cohere-key, got %s", cfg.Model.Embedding.Providers["cohere"].APIKey)
+	}
+}
+
+func TestReplaceEnvVars_Vision(t *testing.T) {
+	t.Setenv("TEST_VISION_KEY", "vision-key")
+
+	cfg := &Config{
+		Model: ModelConfig{
+			Vision: VisionConfig{
+				Providers: map[string]ProviderConfig{
+					"openai": {
+						APIKey: "${TEST_VISION_KEY}",
+					},
+				},
+			},
+		},
+	}
+
+	err := replaceEnvVars(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.Model.Vision.Providers["openai"].APIKey != "vision-key" {
+		t.Errorf("expected vision-key, got %s", cfg.Model.Vision.Providers["openai"].APIKey)
+	}
+}
+
+func TestReplaceEnvVars_NoEnvVar(t *testing.T) {
+	// Make sure the env var is NOT set
+	os.Unsetenv("NON_EXISTENT_KEY")
+
+	cfg := &Config{
+		Model: ModelConfig{
+			LLM: LLMConfig{
+				Providers: map[string]ProviderConfig{
+					"openai": {
+						APIKey: "${NON_EXISTENT_KEY}",
+					},
+				},
+			},
+		},
+	}
+
+	err := replaceEnvVars(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Key should remain unchanged when env var is not set
+	if cfg.Model.LLM.Providers["openai"].APIKey != "${NON_EXISTENT_KEY}" {
+		t.Errorf("expected unchanged key, got %s", cfg.Model.LLM.Providers["openai"].APIKey)
+	}
+}

@@ -6,6 +6,66 @@ import (
 	"time"
 )
 
+func TestDefaultGCConfig(t *testing.T) {
+	cfg := DefaultGCConfig()
+
+	if cfg.Enable != false {
+		t.Errorf("expected Enable=false, got %v", cfg.Enable)
+	}
+	if cfg.TTLDays != 90 {
+		t.Errorf("expected TTLDays=90, got %d", cfg.TTLDays)
+	}
+	if cfg.ArchiveEnabled != false {
+		t.Errorf("expected ArchiveEnabled=false, got %v", cfg.ArchiveEnabled)
+	}
+	if cfg.RunInterval != 24*time.Hour {
+		t.Errorf("expected RunInterval=24h, got %v", cfg.RunInterval)
+	}
+	if cfg.BatchSize != 1000 {
+		t.Errorf("expected BatchSize=1000, got %d", cfg.BatchSize)
+	}
+}
+
+func TestToolInvocationRef(t *testing.T) {
+	ref := ToolInvocationRef{
+		JobID:          "job-1",
+		IdempotencyKey: "idem-1",
+	}
+
+	if ref.JobID != "job-1" {
+		t.Errorf("expected job-1, got %s", ref.JobID)
+	}
+	if ref.IdempotencyKey != "idem-1" {
+		t.Errorf("expected idem-1, got %s", ref.IdempotencyKey)
+	}
+}
+
+func TestGCConfig(t *testing.T) {
+	cfg := GCConfig{
+		Enable:         true,
+		TTLDays:        30,
+		ArchiveEnabled: true,
+		RunInterval:    time.Hour,
+		BatchSize:      500,
+	}
+
+	if !cfg.Enable {
+		t.Error("expected Enable=true")
+	}
+	if cfg.TTLDays != 30 {
+		t.Errorf("expected 30, got %d", cfg.TTLDays)
+	}
+	if !cfg.ArchiveEnabled {
+		t.Error("expected ArchiveEnabled=true")
+	}
+	if cfg.RunInterval != time.Hour {
+		t.Errorf("expected 1h, got %v", cfg.RunInterval)
+	}
+	if cfg.BatchSize != 500 {
+		t.Errorf("expected 500, got %d", cfg.BatchSize)
+	}
+}
+
 type fakeLifecycleStore struct {
 	JobStore
 	expiredBatches [][]ToolInvocationRef
