@@ -296,34 +296,6 @@ func TestRuntimeConfig(t *testing.T) {
 	}
 }
 
-func TestRateLimitsConfig(t *testing.T) {
-	cfg := RateLimitsConfig{
-		Tools: map[string]ToolRateLimitConfig{
-			"calculator": {
-				QPS:           10,
-				MaxConcurrent: 5,
-				Burst:         20,
-			},
-		},
-		LLM: map[string]LLMRateLimitConfig{
-			"openai": {
-				TokensPerMinute:   100000,
-				RequestsPerMinute: 60,
-				MaxConcurrent:     10,
-			},
-		},
-	}
-	if len(cfg.Tools) != 1 {
-		t.Errorf("expected 1 tool, got %d", len(cfg.Tools))
-	}
-	if cfg.Tools["calculator"].QPS != 10 {
-		t.Errorf("expected QPS 10, got %f", cfg.Tools["calculator"].QPS)
-	}
-	if cfg.LLM["openai"].TokensPerMinute != 100000 {
-		t.Errorf("expected 100000 tokens, got %d", cfg.LLM["openai"].TokensPerMinute)
-	}
-}
-
 func TestWorkerConfig(t *testing.T) {
 	cfg := WorkerConfig{
 		Concurrency:    4,

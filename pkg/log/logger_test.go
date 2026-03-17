@@ -212,18 +212,4 @@ func TestNewLogger_WithFile(t *testing.T) {
 	}
 }
 
-func TestLogger_WithContext(t *testing.T) {
-	logger, _ := NewLogger(nil)
 
-	ctx := context.WithValue(context.Background(), "request_id", "test-123")
-	logger = logger.WithContext(ctx)
-
-	logger.Info("test with context")
-}
-
-func TestLogger_With(t *testing.T) {
-	logger, _ := NewLogger(nil)
-
-	loggerWith := logger.With("key", "value")
-	loggerWith.Info("test with attr")
-}

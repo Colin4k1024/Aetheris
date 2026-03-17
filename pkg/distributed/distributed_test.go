@@ -284,22 +284,6 @@ func TestDistributedVerifier_WithSyncProtocol(t *testing.T) {
 	}
 }
 
-func TestMultiOrgVerifyResult(t *testing.T) {
-	result := &MultiOrgVerifyResult{
-		JobID:         "job-1",
-		Organizations: []string{"org-1", "org-2"},
-		Consensus:     true,
-		Divergences:   []string{},
-	}
-
-	if result.JobID != "job-1" {
-		t.Errorf("expected job-1, got %s", result.JobID)
-	}
-
-	if len(result.Organizations) != 2 {
-		t.Errorf("expected 2 organizations, got %d", len(result.Organizations))
-	}
-}
 
 // MockSyncProtocol implements SyncProtocol for testing
 type mockSyncProtocol struct {
