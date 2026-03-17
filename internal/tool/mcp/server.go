@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sync"
 
+	"rag-platform/internal/tool"
 	"rag-platform/internal/tool/gatekeeper"
 	"rag-platform/internal/tool/registry"
 	"rag-platform/internal/tool/types"
