@@ -286,7 +286,7 @@ func TestDistributedVerifier_WithSyncProtocol(t *testing.T) {
 
 
 func TestProtocolEventSource(t *testing.T) {
-	mockProtocol := &mockSyncProtocol{
+	mockProtocol := \&mockSyncProtocolV2{
 		pullEvents: map[string][]Event{
 			"org-1/job-1": {
 				{ID: "e1", Type: "test", Hash: "hash1"},
