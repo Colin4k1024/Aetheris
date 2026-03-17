@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"sync"
 
-	"rag-platform/internal/tool"
 	"rag-platform/internal/tool/gatekeeper"
+	"rag-platform/internal/tool/registry"
 	"rag-platform/internal/tool/types"
 )
 
@@ -125,14 +125,14 @@ type ContentBlock struct {
 // MCPServer MCP 服务器实现
 type MCPServer struct {
 	mu           sync.RWMutex
-	registry     *tool.Registry
+	registry     *registry.Registry
 	gatekeeper   *gatekeeper.Gatekeeper
 	capabilities ServerCapabilities
 	serverInfo   ServerInfo
 }
 
 // NewMCPServer 创建 MCP 服务器
-func NewMCPServer(reg *tool.Registry, gk *gatekeeper.Gatekeeper) *MCPServer {
+func NewMCPServer(reg *registry.Registry, gk *gatekeeper.Gatekeeper) *MCPServer {
 	return &MCPServer{
 		registry: reg,
 		gatekeeper: gk,
