@@ -87,22 +87,22 @@ func (r *defaultRouter) SelectFallback(ctx context.Context, primary *ModelInfo, 
 
 	// 根据原因确定备用层级
 	tier := primary.Tier
-	
+
 	switch reason {
 	case FallbackReasonRateLimit, FallbackReasonServerError, FallbackReasonTimeout:
-		// 错误情况，尝试低一级模型
-		if tier > TierEconomy {
-			tier = tier - 1
+		// 错误情况，尝试低一级模型（更便宜）
+		if tier < TierEconomy {
+			tier = tier + 1
 		}
 	case FallbackReasonCost:
 		// 成本问题，尝试更便宜的模型
-		if tier > TierEconomy {
-			tier = tier - 1
+		if tier < TierEconomy {
+			tier = tier + 1
 		}
 	case FallbackReasonQuality:
-		// 质量问题，升级到更高级别
-		if tier < TierReasoning {
-			tier = tier + 1
+		// 质量问题，升级到更高级别（更好的模型）
+		if tier > TierReasoning {
+			tier = tier - 1
 		}
 	default:
 		// 默认降级到均衡模型
@@ -413,7 +413,7 @@ func (s *costStrategy) selectByTier(req *RoutingRequest, preferLower bool) (*Mod
 
 	// 返回最便宜的
 	for _, model := range models {
-		if s.meetsRequirements(model, req) {
+		if meetsRequirements(model, req) {
 			return model, nil
 		}
 	}

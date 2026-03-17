@@ -305,15 +305,15 @@ func TestFallback(t *testing.T) {
 		Tier:     TierFlagship,
 	}
 
-	// Test fallback for rate limit
+	// Test fallback for rate limit - should go to cheaper model (higher tier number)
 	fallback, err := router.SelectFallback(context.Background(), primary, FallbackReasonRateLimit)
 	if err != nil {
 		t.Errorf("SelectFallback() error = %v", err)
 	}
 
-	// Should fallback to lower tier
-	if fallback.Tier >= primary.Tier {
-		t.Errorf("Fallback tier %v should be less than primary tier %v", fallback.Tier, primary.Tier)
+	// Should fallback to cheaper model (higher tier number = more expensive = worse)
+	if fallback.Tier <= primary.Tier {
+		t.Errorf("Fallback tier %v should be greater than primary tier %v (cheaper model)", fallback.Tier, primary.Tier)
 	}
 }
 
@@ -340,7 +340,7 @@ func TestFailoverHandler(t *testing.T) {
 		Complexity: ComplexityMedium,
 	}
 
-	result, model, err := handler.ExecuteWithFailover(context.Background(), req, fn)
+	result, _, err := handler.ExecuteWithFailover(context.Background(), req, fn)
 	if err != nil {
 		t.Errorf("ExecuteWithFailover() error = %v", err)
 	}

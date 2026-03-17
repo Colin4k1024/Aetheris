@@ -261,3 +261,54 @@ Built with [eino](https://github.com/cloudwego/eino), [hertz](https://github.com
 **⭐ Star us. Build production agents. Ship with confidence.**
 
 </div>
+
+---
+
+## 📚 Long-tail Keywords & SEO Terms
+
+*This section helps improve searchability for specific use cases and related queries.*
+
+### Core Use Case Keywords
+- durable AI agent execution runtime
+- AI agent crash recovery and checkpoint
+- production AI agent orchestration
+- at-most-once tool execution AI
+- event-sourced AI agent audit trail
+- deterministic AI agent replay
+
+### Technical Keywords
+- Go AI agent framework production
+- LangChainGo production deployment
+- LangGraphGo durability
+- AI agent human-in-the-loop approval
+- AI agent state management
+- AI agent workflow checkpointing
+- AI agent idempotency guarantee
+- AI agent observability and tracing
+
+### Industry Keywords
+- enterprise AI agent compliance
+- AI agent local-first deployment
+- AI agent private cloud
+- AI agent air-gapped environment
+- AI agent regulatory audit
+- AI agent financial services compliance
+- AI agent healthcare data handling
+
+### Feature Keywords
+- AI agent checkpoint resume
+- AI agent decision replay
+- AI agent full stacktrace
+- AI agent failure recovery
+- AI agent retry with fencing
+- AI agent lease management
+- AI agent side effect ledger
+- AI agent effect store
+
+### Integration Keywords
+- Eino framework integration
+- MCP server agent hosting
+- AI agent MCP tool bridge
+- ADK agent hosting runtime
+- AI agent API gateway
+- AI agent webhook integration
