@@ -176,3 +176,72 @@ func TestNewCheckpointSavedEvent(t *testing.T) {
 		t.Errorf("expected snapshot size 1024, got %d", payload.SnapshotSize)
 	}
 }
+
+func TestParseJobWaitingPayload(t *testing.T) {
+	tests := []struct {
+		name      string
+		payload   []byte
+		wantEmpty bool
+	}{
+		{
+			name:      "empty payload",
+			payload:   []byte{},
+			wantEmpty: true,
+		},
+		{
+			name:      "nil payload",
+			payload:   nil,
+			wantEmpty: true,
+		},
+		{
+			name:      "valid payload",
+			payload:   []byte(`{"node_id":"node-1","wait_type":"signal","correlation_key":"key-1","reason":"waiting"}`),
+			wantEmpty: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p, err := ParseJobWaitingPayload(tt.payload)
+			if err != nil {
+				t.Fatalf("ParseJobWaitingPayload failed: %v", err)
+			}
+			if tt.wantEmpty && p.NodeID != "" {
+				t.Errorf("expected empty payload, got %+v", p)
+			}
+			if !tt.wantEmpty && p.NodeID == "" {
+				t.Errorf("expected non-empty payload")
+			}
+		})
+	}
+}
+
+func TestJobEvent_UnmarshalPayload(t *testing.T) {
+	event := &JobEvent{
+		Payload: []byte(`{"key":"value"}`),
+	}
+
+	var result map[string]string
+	err := event.UnmarshalPayload(&result)
+	if err != nil {
+		t.Fatalf("UnmarshalPayload failed: %v", err)
+	}
+	if result["key"] != "value" {
+		t.Errorf("expected value, got %s", result["key"])
+	}
+}
+
+func TestJobEvent_UnmarshalPayload_NilPayload(t *testing.T) {
+	event := &JobEvent{
+		Payload: nil,
+	}
+
+	var result map[string]string
+	err := event.UnmarshalPayload(&result)
+	if err != nil {
+		t.Fatalf("UnmarshalPayload failed: %v", err)
+	}
+	if result != nil {
+		t.Errorf("expected nil result, got %v", result)
+	}
+}

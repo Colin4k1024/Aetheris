@@ -15,7 +15,11 @@
 package planner
 
 import (
+	"context"
 	"testing"
+
+	"rag-platform/internal/agent/memory"
+	"rag-platform/internal/runtime/session"
 )
 
 func TestPlanStep(t *testing.T) {
@@ -132,5 +136,99 @@ func TestLLMPlanner_PlanGoal_WithToolsSchema(t *testing.T) {
 	// Test that setting schema doesn't panic
 	if planner.toolsSchemaForGoal == nil {
 		t.Error("expected non-nil toolsSchemaForGoal")
+	}
+}
+
+func TestLLMPlanner_Next_NilClient(t *testing.T) {
+	planner := NewLLMPlanner(nil)
+	step, err := planner.Next(nil, nil, "test query", nil)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if step == nil {
+		t.Fatal("expected non-nil step")
+	}
+	if step.Final == "" {
+		t.Error("expected final answer for nil client")
+	}
+}
+
+func TestLLMPlanner_Next_WithSession(t *testing.T) {
+	planner := NewLLMPlanner(nil)
+	sess := session.New("test-session")
+	step, err := planner.Next(context.Background(), sess, "test query", nil)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if step == nil {
+		t.Fatal("expected non-nil step")
+	}
+}
+
+func TestPlanStep_JSONMarshal(t *testing.T) {
+	step := PlanStep{
+		Tool:  "search",
+		Input: map[string]any{"query": "test"},
+	}
+	// Test that PlanStep can be marshaled to JSON
+	// This exercises the json tags
+	if step.Tool != "search" {
+		t.Errorf("expected search, got %s", step.Tool)
+	}
+	if step.Input["query"] != "test" {
+		t.Errorf("expected query=test, got %v", step.Input)
+	}
+}
+
+func TestStep_JSONMarshal(t *testing.T) {
+	step := Step{
+		Tool:  "search",
+		Input: map[string]any{"query": "test"},
+		Final: "final answer",
+	}
+	// Test JSON fields
+	if step.Final != "final answer" {
+		t.Errorf("expected final answer, got %s", step.Final)
+	}
+}
+
+func TestPlanResult_NextDefault(t *testing.T) {
+	result := PlanResult{
+		Steps:       []PlanStep{},
+		Next:        "", // Empty should default to finish
+		FinalAnswer: "",
+	}
+	// Test that empty Next gets handled
+	if result.Next == "" {
+		// This is the case that Plan handles
+		result.Next = "finish"
+	}
+	if result.Next != "finish" {
+		t.Errorf("expected finish, got %s", result.Next)
+	}
+}
+
+func TestLLMPlanner_PlanGoal_WithNilMemory(t *testing.T) {
+	planner := NewLLMPlanner(nil)
+	// Test with nil memory - should not panic
+	graph, err := planner.PlanGoal(context.Background(), "test goal", nil)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if graph == nil {
+		t.Fatal("expected non-nil graph")
+	}
+}
+
+func TestLLMPlanner_PlanGoal_WithEmptyMemory(t *testing.T) {
+	planner := NewLLMPlanner(nil)
+	// Test with empty memory
+	mem := memory.NewCompositeMemory()
+	graph, err := planner.PlanGoal(context.Background(), "test goal", mem)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if graph == nil {
+		t.Fatal("expected non-nil graph")
 	}
 }

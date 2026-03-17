@@ -109,3 +109,23 @@ Tool Flow:
 - **Cache:** redis/go-redis/v9
 - **Auth:** hertz-contrib/jwt
 - **Observability:** OpenTelemetry, Prometheus, slog
+
+### Package Structure (internal/)
+
+| Package | Lines | Purpose |
+|---------|-------|---------|
+| **agent/** | 18,716 | Core agent runtime engine |
+| agent/runtime/ | 9,333 | DAG compiler, runner, state management |
+| agent/job/ | 2,222 | Event-sourced job management, scheduling |
+| agent/tools/ | 1,496 | Tool registry, MCP integration |
+| agent/planner/ | 527 | TaskGraph generation from goals |
+| agent/memory/ | 940 | Agent memory (episodic, longterm, short-term) |
+| **api/** | 9,610 | HTTP (Hertz) and gRPC APIs |
+| **runtime/** | 4,778 | Eino integration, job store, sessions |
+| **app/** | 4,336 | Application layer orchestration |
+| **pipeline/** | 3,165 | RAG pipelines (ingest, query) |
+| **model/** | 1,970 | LLM, embedding, vision model clients |
+| **storage/** | 1,532 | Vector, metadata, object, cache storage |
+| **tool/** | 1,045 | Built-in tools (LLM, RAG, HTTP, workflow) |
+
+> **Note:** The `agent/` package is well-organized into focused subpackages. Do not split further unless there's a clear architectural need.

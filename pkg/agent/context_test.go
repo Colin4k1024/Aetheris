@@ -15,6 +15,7 @@
 package agent
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -81,5 +82,84 @@ func TestApplyRunOptions_WithOptions(t *testing.T) {
 	}
 	if o.MaxSteps != 100 {
 		t.Errorf("expected 100, got %d", o.MaxSteps)
+	}
+}
+
+func TestSimpleTool(t *testing.T) {
+	run := func(ctx context.Context, input map[string]any) (string, error) {
+		return "result", nil
+	}
+	tool := &simpleTool{
+		name:        "test_tool",
+		description: "A test tool",
+		run:         run,
+	}
+
+	if tool.Name() != "test_tool" {
+		t.Errorf("expected name test_tool, got %s", tool.Name())
+	}
+	if tool.Description() != "A test tool" {
+		t.Errorf("expected description, got %s", tool.Description())
+	}
+}
+
+func TestSimpleTool_Schema(t *testing.T) {
+	run := func(ctx context.Context, input map[string]any) (string, error) {
+		return "result", nil
+	}
+
+	// Test with nil schema
+	tool := &simpleTool{
+		name:        "test_tool",
+		description: "A test tool",
+		run:         run,
+		schema:      nil,
+	}
+
+	schema := tool.Schema()
+	if schema["type"] != "object" {
+		t.Errorf("expected object type, got %v", schema["type"])
+	}
+
+	// Test with custom schema
+	customSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"query": map[string]any{"type": "string"},
+		},
+	}
+	tool2 := &simpleTool{
+		name:        "test_tool2",
+		description: "A test tool",
+		run:         run,
+		schema:      customSchema,
+	}
+
+	schema2 := tool2.Schema()
+	props := schema2["properties"].(map[string]any)
+	if props["query"] == nil {
+		t.Error("expected query property in schema")
+	}
+}
+
+func TestSimpleTool_Execute(t *testing.T) {
+	run := func(ctx context.Context, input map[string]any) (string, error) {
+		if input["key"] != "value" {
+			return "", nil
+		}
+		return "success", nil
+	}
+	tool := &simpleTool{
+		name:        "test_tool",
+		description: "A test tool",
+		run:         run,
+	}
+
+	result, err := tool.Execute(nil, nil, map[string]any{"key": "value"}, nil)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if result != "success" {
+		t.Errorf("expected success, got %v", result)
 	}
 }

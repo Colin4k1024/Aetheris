@@ -159,3 +159,160 @@ func TestBackfillHashesFile(t *testing.T) {
 		t.Fatalf("second prev_hash = %q, want %q", secondPrev, firstHash)
 	}
 }
+
+func TestParsePositiveInt(t *testing.T) {
+	tests := []struct {
+		input    string
+		wantVal  int
+		wantErr  bool
+	}{
+		{"1", 1, false},
+		{"10", 10, false},
+		{"100", 100, false},
+		{"0", 0, true},
+		{"-1", 0, true},
+		{"abc", 0, true},
+		{"", 0, true},
+	}
+
+	for _, tt := range tests {
+		got, err := parsePositiveInt(tt.input)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("parsePositiveInt(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			continue
+		}
+		if !tt.wantErr && got != tt.wantVal {
+			t.Errorf("parsePositiveInt(%q) = %d, want %d", tt.input, got, tt.wantVal)
+		}
+	}
+}
+
+func TestParseRFC3339(t *testing.T) {
+	tests := []struct {
+		input    string
+		wantOK   bool
+	}{
+		{"2026-01-15T10:00:00Z", true},
+		{"2026-01-15T10:00:00.123Z", true},
+		{"2026-01-15T10:00:00+00:00", true},
+		{"invalid", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		_, err := parseRFC3339(tt.input)
+		if (err == nil) != tt.wantOK {
+			t.Errorf("parseRFC3339(%q) error = %v, wantOK %v", tt.input, err, tt.wantOK)
+		}
+	}
+}
+
+func TestEventMapToProofEvent(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     map[string]interface{}
+		wantJobID string
+		wantErr   bool
+	}{
+		{
+			name: "valid",
+			input: map[string]interface{}{
+				"id":         "e1",
+				"job_id":     "job-1",
+				"type":       "test",
+				"payload":    `{"key":"value"}`,
+				"created_at": "2026-01-15T10:00:00Z",
+			},
+			wantJobID: "job-1",
+			wantErr:   false,
+		},
+		{
+			name: "missing job_id",
+			input: map[string]interface{}{
+				"id":   "e1",
+				"type": "test",
+			},
+			wantJobID: "",
+			wantErr:   true,
+		},
+		{
+			name: "missing type",
+			input: map[string]interface{}{
+				"id":     "e1",
+				"job_id": "job-1",
+			},
+			wantJobID: "",
+			wantErr:   true,
+		},
+		{
+			name: "nil payload",
+			input: map[string]interface{}{
+				"id":     "e1",
+				"job_id": "job-1",
+				"type":   "test",
+				"payload": nil,
+			},
+			wantJobID: "job-1",
+			wantErr:   false,
+		},
+		{
+			name: "object payload",
+			input: map[string]interface{}{
+				"id":     "e1",
+				"job_id": "job-1",
+				"type":   "test",
+				"payload": map[string]interface{}{"key": "value"},
+			},
+			wantJobID: "job-1",
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e, err := eventMapToProofEvent(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("eventMapToProofEvent() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && e.JobID != tt.wantJobID {
+				t.Errorf("JobID = %q, want %q", e.JobID, tt.wantJobID)
+			}
+		})
+	}
+}
+
+func TestBackfillHashesFile_Empty(t *testing.T) {
+	tmpDir := t.TempDir()
+	inputPath := filepath.Join(tmpDir, "empty.ndjson")
+	outputPath := filepath.Join(tmpDir, "empty.out.ndjson")
+
+	// Write empty file
+	if err := os.WriteFile(inputPath, []byte(""), 0644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	n, err := backfillHashesFile(inputPath, outputPath)
+	if err != nil {
+		t.Fatalf("backfill hashes: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("count = %d, want 0", n)
+	}
+}
+
+func TestBackfillHashesFile_InvalidLine(t *testing.T) {
+	tmpDir := t.TempDir()
+	inputPath := filepath.Join(tmpDir, "invalid.ndjson")
+	outputPath := filepath.Join(tmpDir, "invalid.out.ndjson")
+
+	input := `{"id":"1","job_id":"job_1","type":"test","payload":invalid}`
+	if err := os.WriteFile(inputPath, []byte(input), 0644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	_, err := backfillHashesFile(inputPath, outputPath)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+}

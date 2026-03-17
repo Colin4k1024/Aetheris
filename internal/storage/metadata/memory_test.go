@@ -77,6 +77,51 @@ func TestMemoryStore_Update_Delete(t *testing.T) {
 	}
 }
 
+func TestMemoryStore_Count(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemoryStore()
+
+	// Create some documents
+	_ = s.Create(ctx, &Document{ID: "doc1", Type: "pdf"})
+	_ = s.Create(ctx, &Document{ID: "doc2", Type: "pdf"})
+	_ = s.Create(ctx, &Document{ID: "doc3", Type: "txt"})
+
+	// Count all
+	count, err := s.Count(ctx, nil)
+	if err != nil {
+		t.Fatalf("Count: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("expected 3, got %d", count)
+	}
+}
+
+func TestMemoryStore_Count_WithFilter(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemoryStore()
+
+	_ = s.Create(ctx, &Document{ID: "doc1", Type: "pdf"})
+	_ = s.Create(ctx, &Document{ID: "doc2", Type: "pdf"})
+	_ = s.Create(ctx, &Document{ID: "doc3", Type: "txt"})
+
+	// Count with type filter
+	count, err := s.Count(ctx, &Filter{Types: []string{"pdf"}})
+	if err != nil {
+		t.Fatalf("Count: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("expected 2, got %d", count)
+	}
+}
+
+func TestMemoryStore_Close(t *testing.T) {
+	s := NewMemoryStore()
+	err := s.Close()
+	if err != nil {
+		t.Errorf("Close: %v", err)
+	}
+}
+
 func TestMemoryStore_List(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
