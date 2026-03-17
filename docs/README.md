@@ -93,6 +93,17 @@ User guides and tutorials for getting started and daily operations.
 | [guides/capacity-planning.md](guides/capacity-planning.md)                       | Capacity planning guide                                                                      |
 | [guides/runtime-guarantees.md](guides/runtime-guarantees.md)                     | Runtime guarantees and semantics                                                             |
 | [guides/troubleshooting.md](guides/troubleshooting.md)                           | Troubleshooting guide and FAQ                                                                |
+| [guides/quickstart.md](guides/quickstart.md)                                     | 5-minute quickstart tutorial                                                                |
+
+### Tutorial Recipes
+
+Step-by-step tutorial recipes for common use cases.
+
+| Document                                                                      | Description                                           |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| [guides/tutorials/code-review-agent.md](guides/tutorials/code-review-agent.md) | Code Review Agent 教程                               |
+| [guides/tutorials/audit-agent.md](guides/tutorials/audit-agent.md)             | Audit Agent 教程                                     |
+| [guides/tutorials/long-running-tasks.md](guides/tutorials/long-running-tasks.md) | 长程任务教程                                         |
 
 ### Feature Guides
 
@@ -170,6 +181,7 @@ Concept and design discussion documents. Historical documents are archived in [a
 | [concepts/evidence-package.md](concepts/evidence-package.md) | Evidence package documentation                          |
 | [concepts/migration-to-m1.md](concepts/migration-to-m1.md)   | Migration guide to M1                                   |
 | [concepts/next_plan.md](concepts/next_plan.md)               | Next plan discussion                                    |
+| [concepts/event-sourcing.md](concepts/event-sourcing.md)     | 事件溯源概念指南 - 面向 Python 开发者                    |
 
 ## Design Docs
 

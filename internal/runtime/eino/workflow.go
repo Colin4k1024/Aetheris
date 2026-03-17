@@ -17,10 +17,14 @@ package eino
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
 	"github.com/cloudwego/eino/compose"
+	"go.opentelemetry.io/otel/attribute"
+
+	"rag-platform/pkg/tracing"
 )
 
 // WorkflowConfig 工作流配置
@@ -67,16 +71,30 @@ func (w *Workflow) AddNode(name, nodeType string, config *NodeConfig) error {
 	switch nodeType {
 	case "validate":
 		w.graph.AddLambdaNode(name, compose.InvokableLambda(func(ctx context.Context, input *Input) (*Output, error) {
+			// 添加 DAG node tracing
+			nodeSpan, ctx := tracing.StartDAGNodeSpan(ctx, name, nodeType)
+			defer nodeSpan.End(nil)
+			nodeSpan.SetInputSize(len(input.Query))
+
 			if input.Query == "" {
 				return nil, fmt.Errorf("query is required")
 			}
-			return &Output{Result: input.Query}, nil
+			result := input.Query
+			nodeSpan.SetOutputSize(len(result))
+			return &Output{Result: result}, nil
 		}))
 	case "generate":
 		return fmt.Errorf("generate 节点requires chatModel 实例")
 	case "format":
 		w.graph.AddLambdaNode(name, compose.InvokableLambda(func(ctx context.Context, input *Input) (*Output, error) {
-			return &Output{Result: fmt.Sprintf("格式化结果: %s", input.Query)}, nil
+			// 添加 DAG node tracing
+			nodeSpan, ctx := tracing.StartDAGNodeSpan(ctx, name, nodeType)
+			defer nodeSpan.End(nil)
+			nodeSpan.SetInputSize(len(input.Query))
+
+			result := fmt.Sprintf("格式化结果: %s", input.Query)
+			nodeSpan.SetOutputSize(len(result))
+			return &Output{Result: result}, nil
 		}))
 	default:
 		return fmt.Errorf("unsupported input type节点类型: %s", nodeType)
@@ -93,17 +111,47 @@ func (w *Workflow) AddEdge(from, to string) error {
 
 // Compile 编译工作流
 func (w *Workflow) Compile(ctx context.Context) (compose.Runnable[*Input, *Output], error) {
-	return w.graph.Compile(ctx)
+	ctx, compileSpan := tracing.StartCompileSpan(ctx)
+	defer compileSpan.End(nil)
+
+	start := time.Now()
+	runnable, err := w.graph.Compile(ctx)
+	compileDuration := time.Since(start)
+
+	if err != nil {
+		return nil, fmt.Errorf("compile workflow failed: %w", err)
+	}
+
+	// 记录编译耗时
+	_ = compileDuration
+	return runnable, nil
 }
 
 // Execute 执行工作流
 func (w *Workflow) Execute(ctx context.Context, input *Input) (*Output, error) {
+	ctx, invokeSpan := tracing.StartInvokeSpan(ctx)
+	defer invokeSpan.End(nil)
+
+	start := time.Now()
 	runnable, err := w.Compile(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("compile workflow failed: %w", err)
 	}
 
-	return runnable.Invoke(ctx, input)
+	output, err := runnable.Invoke(ctx, input)
+	duration := time.Since(start)
+
+	if err != nil {
+		return nil, fmt.Errorf("invoke workflow failed: %w", err)
+	}
+
+	// 记录输出大小
+	if output != nil {
+		invokeSpan.SetAttributes(attribute.Int("workflow.output_size", len(output.Result)))
+	}
+
+	_ = duration
+	return output, nil
 }
 
 // CreateIngestWorkflow 创建入库工作流

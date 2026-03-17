@@ -14,27 +14,56 @@
 
 package utils
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestCoalesceString(t *testing.T) {
 	tests := []struct {
-		name string
-		in   []string
-		want string
+		name     string
+		args     []string
+		expected string
 	}{
-		{"empty slice", []string{}, ""},
-		{"all empty", []string{"", "", ""}, ""},
-		{"first non-empty", []string{"a", "", "c"}, "a"},
-		{"second non-empty", []string{"", "b", "c"}, "b"},
-		{"single", []string{"x"}, "x"},
+		{
+			name:     "first non-empty string",
+			args:     []string{"hello", "world", "foo"},
+			expected: "hello",
+		},
+		{
+			name:     "second non-empty string",
+			args:     []string{"", "world", "foo"},
+			expected: "world",
+		},
+		{
+			name:     "last non-empty string",
+			args:     []string{"", "", "foo"},
+			expected: "foo",
+		},
+		{
+			name:     "all empty strings",
+			args:     []string{"", "", ""},
+			expected: "",
+		},
+		{
+			name:     "single empty string",
+			args:     []string{""},
+			expected: "",
+		},
+		{
+			name:     "single non-empty string",
+			args:     []string{"single"},
+			expected: "single",
+		},
+		{
+			name:     "no arguments",
+			args:     []string{},
+			expected: "",
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CoalesceString(tt.in...)
-			if got != tt.want {
-				t.Errorf("CoalesceString() = %q, want %q", got, tt.want)
+			result := CoalesceString(tt.args...)
+			if result != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, result)
 			}
 		})
 	}
@@ -42,17 +71,55 @@ func TestCoalesceString(t *testing.T) {
 
 func TestDefaultInt(t *testing.T) {
 	tests := []struct {
-		v, defaultVal, want int
+		name       string
+		v          int
+		defaultVal int
+		expected   int
 	}{
-		{0, 10, 10},
-		{1, 10, 1},
-		{-1, 10, -1},
-		{100, 5, 100},
+		{
+			name:       "zero value returns default",
+			v:          0,
+			defaultVal: 10,
+			expected:   10,
+		},
+		{
+			name:       "non-zero value returns itself",
+			v:          42,
+			defaultVal: 10,
+			expected:   42,
+		},
+		{
+			name:       "negative value returns itself",
+			v:          -5,
+			defaultVal: 10,
+			expected:   -5,
+		},
+		{
+			name:       "default zero with zero value",
+			v:          0,
+			defaultVal: 0,
+			expected:   0,
+		},
+		{
+			name:       "default zero with non-zero value",
+			v:          5,
+			defaultVal: 0,
+			expected:   5,
+		},
+		{
+			name:       "large values",
+			v:          1000000,
+			defaultVal: 1,
+			expected:   1000000,
+		},
 	}
+
 	for _, tt := range tests {
-		got := DefaultInt(tt.v, tt.defaultVal)
-		if got != tt.want {
-			t.Errorf("DefaultInt(%d, %d) = %d, want %d", tt.v, tt.defaultVal, got, tt.want)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			result := DefaultInt(tt.v, tt.defaultVal)
+			if result != tt.expected {
+				t.Errorf("expected %d, got %d", tt.expected, result)
+			}
+		})
 	}
 }

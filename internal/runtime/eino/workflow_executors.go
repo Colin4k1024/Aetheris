@@ -25,6 +25,8 @@ import (
 	"rag-platform/internal/pipeline/ingest"
 	"rag-platform/internal/pipeline/query"
 	"rag-platform/pkg/log"
+	"rag-platform/pkg/metrics"
+	"rag-platform/pkg/tracing"
 )
 
 // ingestWorkflowExecutor 执行 ingest 工作流：loader → parser → splitter → [embedding] → [indexer]
@@ -53,6 +55,15 @@ func NewIngestWorkflowExecutor(loader *ingest.DocumentLoader, parser *ingest.Doc
 // 请求 context 已带 HTTP 层 span，可在此处用 otel trace.SpanFromContext(ctx) 为 loader/parser/splitter/embedding/indexer 创建子 span 以细化链路。
 func (e *ingestWorkflowExecutor) Execute(ctx context.Context, params map[string]interface{}) (interface{}, error) {
 	ingestID := fmt.Sprintf("ingest-%d", time.Now().UnixNano())
+	tenant := "default"
+	if t, ok := params["tenant"].(string); ok {
+		tenant = t
+	}
+
+	// Start main ingest pipeline span
+	span, ctx := tracing.StartIngestStepSpan(ctx, ingestID, "pipeline")
+	defer span.End(nil)
+
 	if e.logger != nil {
 		e.logger.Info("ingest_pipeline 开始", "ingest_id", ingestID)
 	}
@@ -77,12 +88,13 @@ func (e *ingestWorkflowExecutor) Execute(ctx context.Context, params map[string]
 		e.splitter = ingest.NewDocumentSplitter(1000, 100, 1000)
 	}
 
-	// loader
-	if e.logger != nil {
-		e.logger.Info("ingest 阶段开始", "ingest_id", ingestID, "ingest_step", "loader")
-	}
+	// loader with tracing
+	loaderSpan, ctx := tracing.StartIngestStepSpan(ctx, ingestID, "loader")
 	loaderStart := time.Now()
 	out, err := e.loader.Execute(pipeCtx, loaderInput)
+	loaderDuration := time.Since(loaderStart)
+	loaderSpan.End(err)
+	metrics.ObserveIngestStep(tenant, "loader", loaderDuration)
 	if err != nil {
 		if e.logger != nil {
 			e.logger.Error("ingest 阶段failed", "ingest_id", ingestID, "ingest_step", "loader", "error", err)
@@ -94,15 +106,16 @@ func (e *ingestWorkflowExecutor) Execute(ctx context.Context, params map[string]
 		return nil, fmt.Errorf("ingest loader did not return *common.Document")
 	}
 	if e.logger != nil {
-		e.logger.Info("ingest 阶段完成", "ingest_id", ingestID, "ingest_step", "loader", "doc_id", doc.ID, "chunks", len(doc.Chunks), "duration_ms", time.Since(loaderStart).Milliseconds())
+		e.logger.Info("ingest 阶段完成", "ingest_id", ingestID, "ingest_step", "loader", "doc_id", doc.ID, "chunks", len(doc.Chunks), "duration_ms", loaderDuration.Milliseconds())
 	}
 
-	// parser
-	if e.logger != nil {
-		e.logger.Info("ingest 阶段开始", "ingest_id", ingestID, "ingest_step", "parser")
-	}
+	// parser with tracing
+	parserSpan, ctx := tracing.StartIngestStepSpan(ctx, ingestID, "parser")
 	parserStart := time.Now()
 	out, err = e.parser.Execute(pipeCtx, doc)
+	parserDuration := time.Since(parserStart)
+	parserSpan.End(err)
+	metrics.ObserveIngestStep(tenant, "parser", parserDuration)
 	if err != nil {
 		if e.logger != nil {
 			e.logger.Error("ingest 阶段failed", "ingest_id", ingestID, "ingest_step", "parser", "doc_id", doc.ID, "error", err)
@@ -114,15 +127,16 @@ func (e *ingestWorkflowExecutor) Execute(ctx context.Context, params map[string]
 		return nil, fmt.Errorf("ingest parser did not return *common.Document")
 	}
 	if e.logger != nil {
-		e.logger.Info("ingest 阶段完成", "ingest_id", ingestID, "ingest_step", "parser", "doc_id", doc.ID, "chunks", len(doc.Chunks), "duration_ms", time.Since(parserStart).Milliseconds())
+		e.logger.Info("ingest 阶段完成", "ingest_id", ingestID, "ingest_step", "parser", "doc_id", doc.ID, "chunks", len(doc.Chunks), "duration_ms", parserDuration.Milliseconds())
 	}
 
-	// splitter
-	if e.logger != nil {
-		e.logger.Info("ingest 阶段开始", "ingest_id", ingestID, "ingest_step", "splitter")
-	}
+	// splitter with tracing
+	splitterSpan, ctx := tracing.StartIngestStepSpan(ctx, ingestID, "splitter")
 	splitterStart := time.Now()
 	out, err = e.splitter.Execute(pipeCtx, doc)
+	splitterDuration := time.Since(splitterStart)
+	splitterSpan.End(err)
+	metrics.ObserveIngestStep(tenant, "splitter", splitterDuration)
 	if err != nil {
 		if e.logger != nil {
 			e.logger.Error("ingest 阶段failed", "ingest_id", ingestID, "ingest_step", "splitter", "doc_id", doc.ID, "error", err)
@@ -134,16 +148,18 @@ func (e *ingestWorkflowExecutor) Execute(ctx context.Context, params map[string]
 		return nil, fmt.Errorf("ingest splitter did not return *common.Document")
 	}
 	if e.logger != nil {
-		e.logger.Info("ingest 阶段完成", "ingest_id", ingestID, "ingest_step", "splitter", "doc_id", doc.ID, "chunks", len(doc.Chunks), "duration_ms", time.Since(splitterStart).Milliseconds())
+		e.logger.Info("ingest 阶段完成", "ingest_id", ingestID, "ingest_step", "splitter", "doc_id", doc.ID, "chunks", len(doc.Chunks), "duration_ms", splitterDuration.Milliseconds())
 	}
 
-	// embedding（可选）
+	// embedding（可选）with tracing
 	if e.embedding != nil {
-		if e.logger != nil {
-			e.logger.Info("ingest 阶段开始", "ingest_id", ingestID, "ingest_step", "embedding")
-		}
+		var embedSpan *tracing.IngestPipelineSpan
+		embedSpan, ctx = tracing.StartIngestStepSpan(ctx, ingestID, "embedding")
 		embedStart := time.Now()
 		out, err = e.embedding.Execute(pipeCtx, doc)
+		embedDuration := time.Since(embedStart)
+		embedSpan.End(err)
+		metrics.ObserveIngestStep(tenant, "embedding", embedDuration)
 		if err != nil {
 			if e.logger != nil {
 				e.logger.Error("ingest 阶段failed", "ingest_id", ingestID, "ingest_step", "embedding", "doc_id", doc.ID, "error", err)
@@ -155,17 +171,19 @@ func (e *ingestWorkflowExecutor) Execute(ctx context.Context, params map[string]
 			return nil, fmt.Errorf("ingest embedding did not return *common.Document")
 		}
 		if e.logger != nil {
-			e.logger.Info("ingest 阶段完成", "ingest_id", ingestID, "ingest_step", "embedding", "doc_id", doc.ID, "chunks", len(doc.Chunks), "duration_ms", time.Since(embedStart).Milliseconds())
+			e.logger.Info("ingest 阶段完成", "ingest_id", ingestID, "ingest_step", "embedding", "doc_id", doc.ID, "chunks", len(doc.Chunks), "duration_ms", embedDuration.Milliseconds())
 		}
 	}
 
-	// indexer（可选）
+	// indexer（可选）with tracing
 	if e.indexer != nil {
-		if e.logger != nil {
-			e.logger.Info("ingest 阶段开始", "ingest_id", ingestID, "ingest_step", "indexer")
-		}
+		var indexerSpan *tracing.IngestPipelineSpan
+		indexerSpan, ctx = tracing.StartIngestStepSpan(ctx, ingestID, "indexer")
 		indexerStart := time.Now()
 		out, err = e.indexer.Execute(pipeCtx, doc)
+		indexerDuration := time.Since(indexerStart)
+		indexerSpan.End(err)
+		metrics.ObserveIngestStep(tenant, "indexer", indexerDuration)
 		if err != nil {
 			if e.logger != nil {
 				e.logger.Error("ingest 阶段failed", "ingest_id", ingestID, "ingest_step", "indexer", "doc_id", doc.ID, "error", err)
@@ -177,7 +195,7 @@ func (e *ingestWorkflowExecutor) Execute(ctx context.Context, params map[string]
 			return nil, fmt.Errorf("ingest indexer did not return *common.Document")
 		}
 		if e.logger != nil {
-			e.logger.Info("ingest 阶段完成", "ingest_id", ingestID, "ingest_step", "indexer", "doc_id", doc.ID, "chunks", len(doc.Chunks), "duration_ms", time.Since(indexerStart).Milliseconds())
+			e.logger.Info("ingest 阶段完成", "ingest_id", ingestID, "ingest_step", "indexer", "doc_id", doc.ID, "chunks", len(doc.Chunks), "duration_ms", indexerDuration.Milliseconds())
 		}
 	}
 
@@ -219,8 +237,19 @@ func NewQueryWorkflowExecutor(retriever QueryRetrieverForWorkflow, generator *qu
 // Execute 实现 WorkflowExecutor：embed query（若需）→ retriever → generator
 // 请求 context 已带 HTTP 层 span，可在此处为 retrieve/generate 等步骤创建子 span 以细化链路。
 func (e *queryWorkflowExecutor) Execute(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	tenant := "default"
+	if t, ok := params["tenant"].(string); ok {
+		tenant = t
+	}
+
+	queryID := fmt.Sprintf("query-%d", time.Now().UnixNano())
+
+	// Start main query pipeline span
+	span, ctx := tracing.StartQueryStepSpan(ctx, queryID, "pipeline")
+	defer span.End(nil)
+
 	if e.logger != nil {
-		e.logger.Info("执行 query_pipeline")
+		e.logger.Info("执行 query_pipeline", "query_id", queryID)
 	}
 
 	q, _ := params["query"].(*common.Query)
@@ -247,11 +276,16 @@ func (e *queryWorkflowExecutor) Execute(ctx context.Context, params map[string]i
 		return nil, fmt.Errorf("query_pipeline requires params[\"query\"] 为 *common.Query")
 	}
 
-	pipeCtx := common.NewPipelineContext(ctx, fmt.Sprintf("query-%d", time.Now().UnixNano()))
+	pipeCtx := common.NewPipelineContext(ctx, queryID)
 
 	// 若查询无向量则先做 query embedding
 	if len(q.Embedding) == 0 && e.queryEmbedder != nil {
+		embedSpan, ctx := tracing.StartQueryStepSpan(ctx, queryID, "query_embed")
+		embedStart := time.Now()
 		vecs, err := e.queryEmbedder.Embed(ctx, []string{q.Text})
+		embedDuration := time.Since(embedStart)
+		embedSpan.End(err)
+		metrics.ObserveQueryStep(tenant, "query_embed", embedDuration)
 		if err != nil {
 			return nil, fmt.Errorf("query embedding: %w", err)
 		}
@@ -267,8 +301,13 @@ func (e *queryWorkflowExecutor) Execute(ctx context.Context, params map[string]i
 	// 可选：设置 retriever topK
 	e.retriever.SetTopK(topK)
 
-	// Retriever
+	// Retriever with tracing
+	retrieveSpan, ctx := tracing.StartQueryStepSpan(ctx, queryID, "retrieve")
+	retrieveStart := time.Now()
 	out, err := e.retriever.Execute(pipeCtx, q)
+	retrieveDuration := time.Since(retrieveStart)
+	retrieveSpan.End(err)
+	metrics.ObserveQueryStep(tenant, "retrieve", retrieveDuration)
 	if err != nil {
 		return nil, fmt.Errorf("query retriever: %w", err)
 	}
@@ -277,12 +316,17 @@ func (e *queryWorkflowExecutor) Execute(ctx context.Context, params map[string]i
 		return nil, fmt.Errorf("retriever did not return *common.RetrievalResult")
 	}
 
-	// Generator
+	// Generator with tracing
+	genSpan, ctx := tracing.StartQueryStepSpan(ctx, queryID, "generate")
+	genStart := time.Now()
 	genInput := map[string]interface{}{
 		"query":            q,
 		"retrieval_result": retrievalResult,
 	}
 	out, err = e.generator.Execute(pipeCtx, genInput)
+	genDuration := time.Since(genStart)
+	genSpan.End(err)
+	metrics.ObserveQueryStep(tenant, "generate", genDuration)
 	if err != nil {
 		return nil, fmt.Errorf("query generator: %w", err)
 	}

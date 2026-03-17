@@ -16,13 +16,107 @@ package metrics
 
 import (
 	"io"
+	"strconv"
+	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/common/expfmt"
 )
 
+// P99Buckets P99 延迟直方图专用桶
+var P99Buckets = []float64{1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000, 60000}
+
+// LongTaskBuckets 长时间任务专用桶 (1min - 1hour)
+var LongTaskBuckets = []float64{60000, 120000, 300000, 600000, 1800000, 3600000}
+
 // 全局 Registry，供 API/Worker 注册与暴露
 var DefaultRegistry = prometheus.NewRegistry()
+
+// MetricsLabels 标准标签定义
+type MetricsLabels struct {
+	Tenant   string
+	AgentID  string
+	StepType string
+	Tool     string
+	Provider string
+	Status   string
+	Result   string
+	Queue    string
+}
+
+// Observer 用于观测指标的结构
+type Observer struct {
+	mu           sync.RWMutex
+	labelValues  map[string]string
+	counters     map[string]prometheus.Counter
+	gauges       map[string]prometheus.Gauge
+	histograms   map[string]prometheus.Observer
+	countersLock sync.Mutex
+}
+
+// NewObserver 创建新的观测器
+func NewObserver(labels MetricsLabels) *Observer {
+	return &Observer{
+		labelValues: map[string]string{
+			"tenant":   labels.Tenant,
+			"agent_id": labels.AgentID,
+			"step_type": labels.StepType,
+			"tool":     labels.Tool,
+			"provider": labels.Provider,
+			"status":   labels.Status,
+			"result":   labels.Result,
+			"queue":    labels.Queue,
+		},
+		counters:   make(map[string]prometheus.Counter),
+		gauges:     make(map[string]prometheus.Gauge),
+		histograms: make(map[string]prometheus.Observer),
+	}
+}
+
+// labels 根据标签生成 prometheus Labels
+func (o *Observer) labels(baseLabels []string) prometheus.Labels {
+	labels := prometheus.Labels{}
+	for _, k := range baseLabels {
+		if v, ok := o.labelValues[k]; ok {
+			labels[k] = v
+		}
+	}
+	return labels
+}
+
+// IncCounter 增加计数器
+func (o *Observer) IncCounter(name string, baseLabels []string) {
+	o.countersLock.Lock()
+	defer o.countersLock.Unlock()
+
+	if c, ok := o.counters[name]; ok {
+		c.Inc()
+		return
+	}
+	// 创建新的 counter
+	counter := promauto.NewCounter(prometheus.CounterOpts{
+		Name: name,
+		Help: "Auto-created counter",
+	})
+	counter.Inc()
+	o.counters[name] = counter
+}
+
+// ObserveHistogram 观测直方图
+func (o *Observer) ObserveHistogram(name string, value float64, baseLabels []string) {
+	if h, ok := o.histograms[name]; ok {
+		h.Observe(value)
+	}
+}
+
+// SetGauge 设置 gauge
+func (o *Observer) SetGauge(name string, value float64, baseLabels []string) {
+	if g, ok := o.gauges[name]; ok {
+		g.Set(value)
+	}
+}
 
 func init() {
 	DefaultRegistry.MustRegister(
@@ -51,6 +145,371 @@ func init() {
 		SLOSLOStatus, SLAViolationTotal,
 	)
 }
+
+// ===== Runtime Layer Metrics =====
+
+// RuntimeLLMCallDurationSeconds LLM 调用耗时（秒）- Runtime 层
+var RuntimeLLMCallDurationSeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "aetheris_runtime_llm_call_duration_seconds",
+		Help:    "Runtime 层 LLM 调用耗时（秒）",
+		Buckets: P99Buckets,
+	},
+	[]string{"tenant", "model", "status"}, // status: success | error
+)
+
+// RuntimeLLMTokensTotal Runtime 层 LLM token 计数
+var RuntimeLLMTokensTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_runtime_llm_tokens_total",
+		Help: "Runtime 层 LLM token 总数",
+	},
+	[]string{"tenant", "model", "direction"}, // direction: input | output
+)
+
+// RuntimeLLMRetriesTotal LLM 重试次数
+var RuntimeLLMRetriesTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_runtime_llm_retries_total",
+		Help: "LLM 调用重试次数",
+	},
+	[]string{"tenant", "model", "reason"}, // reason: rate_limit | timeout | error
+)
+
+// RuntimeNodeExecutionDurationSeconds DAG 节点执行耗时（秒）
+var RuntimeNodeExecutionDurationSeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "aetheris_runtime_node_execution_duration_seconds",
+		Help:    "DAG 节点执行耗时（秒）",
+		Buckets: P99Buckets,
+	},
+	[]string{"tenant", "node_type", "status"},
+)
+
+// RuntimeNodeRetriesTotal 节点重试次数
+var RuntimeNodeRetriesTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_runtime_node_retries_total",
+		Help: "DAG 节点重试次数",
+	},
+	[]string{"tenant", "node_type", "reason"},
+)
+
+// RuntimeIngestPipelineDurationSeconds Ingest Pipeline 执行耗时
+var RuntimeIngestPipelineDurationSeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "aetheris_runtime_ingest_pipeline_duration_seconds",
+		Help:    "Ingest Pipeline 各阶段执行耗时",
+		Buckets: P99Buckets,
+	},
+	[]string{"tenant", "step"}, // step: loader | parser | splitter | embedding | indexer
+)
+
+// RuntimeQueryPipelineDurationSeconds Query Pipeline 执行耗时
+var RuntimeQueryPipelineDurationSeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "aetheris_runtime_query_pipeline_duration_seconds",
+		Help:    "Query Pipeline 各阶段执行耗时",
+		Buckets: P99Buckets,
+	},
+	[]string{"tenant", "step"}, // step: query_embed | retrieve | generate
+)
+
+// ===== Adapter Layer Metrics =====
+
+// AdapterLLMRequestDurationSeconds Adapter 层 LLM 请求耗时
+var AdapterLLMRequestDurationSeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "aetheris_adapter_llm_request_duration_seconds",
+		Help:    "Adapter 层 LLM 请求耗时（秒）",
+		Buckets: P99Buckets,
+	},
+	[]string{"tenant", "adapter_type", "model", "status"},
+)
+
+// AdapterLLMRequestTotal Adapter 层 LLM 请求总数
+var AdapterLLMRequestTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_adapter_llm_request_total",
+		Help: "Adapter 层 LLM 请求总数",
+	},
+	[]string{"tenant", "adapter_type", "model", "status"},
+)
+
+// AdapterToolInvocationDurationSeconds Adapter 层工具调用耗时
+var AdapterToolInvocationDurationSeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "aetheris_adapter_tool_invocation_duration_seconds",
+		Help:    "Adapter 层工具调用耗时（秒）",
+		Buckets: P99Buckets,
+	},
+	[]string{"tenant", "adapter_type", "tool", "status"},
+)
+
+// AdapterToolInvocationTotal Adapter 层工具调用总数
+var AdapterToolInvocationTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_adapter_tool_invocation_total",
+		Help: "Adapter 层工具调用总数",
+	},
+	[]string{"tenant", "adapter_type", "tool", "status"},
+)
+
+// ===== Storage Layer Metrics =====
+
+// StorageConnectionPoolSize 连接池大小
+var StorageConnectionPoolSize = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "aetheris_storage_connection_pool_size",
+		Help: "存储连接池大小（当前活跃连接数）",
+	},
+	[]string{"tenant", "storage_type", "pool_name"}, // storage_type: redis | postgres | mysql
+)
+
+// StorageConnectionPoolMax 连接池最大容量
+var StorageConnectionPoolMax = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "aetheris_storage_connection_pool_max",
+		Help: "存储连接池最大容量",
+	},
+	[]string{"tenant", "storage_type", "pool_name"},
+)
+
+// StorageConnectionPoolIdle 空闲连接数
+var StorageConnectionPoolIdle = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "aetheris_storage_connection_pool_idle",
+		Help: "存储连接池空闲连接数",
+	},
+	[]string{"tenant", "storage_type", "pool_name"},
+)
+
+// StorageOperationDurationSeconds 存储操作耗时
+var StorageOperationDurationSeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "aetheris_storage_operation_duration_seconds",
+		Help:    "存储操作耗时（秒）",
+		Buckets: P99Buckets,
+	},
+	[]string{"tenant", "storage_type", "operation"}, // operation: get | set | delete | mget | mset
+)
+
+// StorageOperationTotal 存储操作总数
+var StorageOperationTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_storage_operation_total",
+		Help: "存储操作总数",
+	},
+	[]string{"tenant", "storage_type", "operation", "status"},
+)
+
+// StorageOperationErrorsTotal 存储操作错误数
+var StorageOperationErrorsTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_storage_operation_errors_total",
+		Help: "存储操作错误数",
+	},
+	[]string{"tenant", "storage_type", "operation", "error_type"},
+)
+
+// ===== P99 Latency Metrics =====
+
+// P99LLMLatencySeconds P99 LLM 延迟（秒）
+var P99LLMLatencySeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "aetheris_p99_llm_latency_seconds",
+		Help:    "P99 LLM 延迟（秒）",
+		Buckets: P99Buckets,
+	},
+	[]string{"tenant", "model"},
+)
+
+// P99NodeLatencySeconds P99 节点延迟（秒）
+var P99NodeLatencySeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "aetheris_p99_node_latency_seconds",
+		Help:    "P99 节点延迟（秒）",
+		Buckets: P99Buckets,
+	},
+	[]string{"tenant", "node_type"},
+)
+
+// P99StorageLatencySeconds P99 存储延迟（秒）
+var P99StorageLatencySeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "aetheris_p99_storage_latency_seconds",
+		Help:    "P99 存储延迟（秒）",
+		Buckets: P99Buckets,
+	},
+	[]string{"tenant", "storage_type", "operation"},
+)
+
+// ===== Time Window Metrics =====
+
+// TimeWindowJobThroughput 时间窗口内 Job 吞吐量
+var TimeWindowJobThroughput = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_timewindow_job_throughput_total",
+		Help: "时间窗口内 Job 吞吐量",
+	},
+	[]string{"tenant", "window", "status"},
+)
+
+// TimeWindowLLMThroughput 时间窗口内 LLM 调用吞吐量
+var TimeWindowLLMThroughput = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_timewindow_llm_throughput_total",
+		Help: "时间窗口内 LLM 调用吞吐量",
+	},
+	[]string{"tenant", "window", "model"},
+)
+
+// TimeWindowTokenThroughput 时间窗口内 Token 吞吐量
+var TimeWindowTokenThroughput = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_timewindow_token_throughput_total",
+		Help: "时间窗口内 Token 吞吐量",
+	},
+	[]string{"tenant", "window", "direction"},
+)
+
+// ===== Queue Metrics =====
+
+// QueueSize 当前队列大小
+var QueueSize = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "aetheris_queue_size",
+		Help: "当前队列大小",
+	},
+	[]string{"tenant", "queue_name", "priority"},
+)
+
+// QueueAddTotal 加入队列总数
+var QueueAddTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_queue_add_total",
+		Help: "加入队列总数",
+	},
+	[]string{"tenant", "queue_name", "priority"},
+)
+
+// QueueProcessTotal 出队列总数
+var QueueProcessTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_queue_process_total",
+		Help: "出队列总数",
+	},
+	[]string{"tenant", "queue_name", "status"},
+)
+
+// ===== Retry Metrics =====
+
+// RetryTotal 重试总数
+var RetryTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_retry_total",
+		Help: "重试总数",
+	},
+	[]string{"tenant", "component", "reason"}, // component: llm | node | tool | storage
+)
+
+// RetryDelaySeconds 重试延迟（秒）
+var RetryDelaySeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "aetheris_retry_delay_seconds",
+		Help:    "重试延迟（秒）",
+		Buckets: []float64{0.1, 0.5, 1, 2, 5, 10, 30, 60},
+	},
+	[]string{"tenant", "component", "attempt"},
+)
+
+// ===== Cache Metrics =====
+
+// CacheHitTotal 缓存命中总数
+var CacheHitTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_cache_hit_total",
+		Help: "缓存命中总数",
+	},
+	[]string{"tenant", "cache_type"}, // cache_type: redis | memory | embedded
+)
+
+// CacheMissTotal 缓存未命中总数
+var CacheMissTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "aetheris_cache_miss_total",
+		Help: "缓存未命中总数",
+	},
+	[]string{"tenant", "cache_type"},
+)
+
+// CacheHitRate 缓存命中率
+var CacheHitRate = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "aetheris_cache_hit_rate",
+		Help: "缓存命中率",
+	},
+	[]string{"tenant", "cache_type"},
+)
+
+// ===== Observer Helpers =====
+
+// ObserveLLMCall 观测 LLM 调用
+func ObserveLLMCall(tenant, model, status string, duration time.Duration, inputTokens, outputTokens int) {
+	RuntimeLLMCallDurationSeconds.WithLabelValues(tenant, model, status).Observe(duration.Seconds())
+	if inputTokens > 0 {
+		RuntimeLLMTokensTotal.WithLabelValues(tenant, model, "input").Add(float64(inputTokens))
+	}
+	if outputTokens > 0 {
+		RuntimeLLMTokensTotal.WithLabelValues(tenant, model, "output").Add(float64(outputTokens))
+	}
+}
+
+// ObserveNodeExecution 观测节点执行
+func ObserveNodeExecution(tenant, nodeType, status string, duration time.Duration) {
+	RuntimeNodeExecutionDurationSeconds.WithLabelValues(tenant, nodeType, status).Observe(duration.Seconds())
+}
+
+// ObserveStorageOperation 观测存储操作
+func ObserveStorageOperation(tenant, storageType, operation, status string, duration time.Duration) {
+	StorageOperationDurationSeconds.WithLabelValues(tenant, storageType, operation).Observe(duration.Seconds())
+	StorageOperationTotal.WithLabelValues(tenant, storageType, operation, status).Inc()
+}
+
+// ObserveIngestStep 观测 Ingest Pipeline 步骤
+func ObserveIngestStep(tenant, step string, duration time.Duration) {
+	RuntimeIngestPipelineDurationSeconds.WithLabelValues(tenant, step).Observe(duration.Seconds())
+}
+
+// ObserveQueryStep 观测 Query Pipeline 步骤
+func ObserveQueryStep(tenant, step string, duration time.Duration) {
+	RuntimeQueryPipelineDurationSeconds.WithLabelValues(tenant, step).Observe(duration.Seconds())
+}
+
+// SetConnectionPoolMetrics 设置连接池指标
+func SetConnectionPoolMetrics(tenant, storageType, poolName string, size, max, idle int) {
+	StorageConnectionPoolSize.WithLabelValues(tenant, storageType, poolName).Set(float64(size))
+	StorageConnectionPoolMax.WithLabelValues(tenant, storageType, poolName).Set(float64(max))
+	StorageConnectionPoolIdle.WithLabelValues(tenant, storageType, poolName).Set(float64(idle))
+}
+
+// ObserveRetry 观测重试
+func ObserveRetry(tenant, component, reason string, delay time.Duration, attempt int) {
+	RetryTotal.WithLabelValues(tenant, component, reason).Inc()
+	RetryDelaySeconds.WithLabelValues(tenant, component, strconv.Itoa(attempt)).Observe(delay.Seconds())
+}
+
+// ObserveCacheHit 观测缓存命中
+func ObserveCacheHit(tenant, cacheType string) {
+	CacheHitTotal.WithLabelValues(tenant, cacheType).Inc()
+}
+
+// ObserveCacheMiss 观测缓存未命中
+func ObserveCacheMiss(tenant, cacheType string) {
+	CacheMissTotal.WithLabelValues(tenant, cacheType).Inc()
+}
+
+// ===== 原有 Metrics =====
 
 // JobDuration Job 执行耗时（秒）
 var JobDuration = prometheus.NewHistogramVec(
@@ -448,4 +907,9 @@ func WritePrometheus(w io.Writer) error {
 		}
 	}
 	return nil
+}
+
+// MustRegister 注册 metrics（初始化时调用）
+func MustRegister(metrics ...prometheus.Collector) {
+	DefaultRegistry.MustRegister(metrics...)
 }
