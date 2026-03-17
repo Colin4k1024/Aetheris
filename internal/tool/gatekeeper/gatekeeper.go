@@ -543,19 +543,17 @@ func (g *Gatekeeper) isHostAllowed(urlStr string) bool {
 
 // extractHost 从 URL 中提取主机
 func extractHost(urlStr string) string {
-	// 简单的实现，实际应使用 url.Parse
-	parts := strings.Split(strings.TrimPrefix(urlStr, "http://"), "/")
-	if len(parts) > 0 {
+	// 移除协议前缀 - 注意顺序：先处理 https 再处理 http
+	urlStr = strings.TrimPrefix(urlStr, "https://")
+	urlStr = strings.TrimPrefix(urlStr, "http://")
+	urlStr = strings.TrimPrefix(urlStr, "ftp://")
+	
+	// 提取主机部分（到第一个 / 为止）
+	parts := strings.Split(urlStr, "/")
+	if len(parts) > 0 && parts[0] != "" {
 		return parts[0]
 	}
-	parts = strings.Split(strings.TrimPrefix(urlStr, "https://"), "/")
-	if len(parts) > 0 {
-		return parts[0]
-	}
-	parts = strings.Split(strings.TrimPrefix(urlStr, "ftp://"), "/")
-	if len(parts) > 0 {
-		return parts[0]
-	}
+	
 	return ""
 }
 

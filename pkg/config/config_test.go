@@ -296,35 +296,6 @@ func TestRuntimeConfig(t *testing.T) {
 	}
 }
 
-func TestWorkerConfig(t *testing.T) {
-	cfg := WorkerConfig{
-		Concurrency:    4,
-		QueueSize:     100,
-		RetryCount:    3,
-		RetryDelay:    "5s",
-		Timeout:       "60s",
-		PollInterval:  "2s",
-		MaxAttempts:   5,
-		Capabilities:  []string{"llm", "tool"},
-	}
-	if cfg.Concurrency != 4 {
-		t.Errorf("expected 4, got %d", cfg.Concurrency)
-	}
-	if cfg.QueueSize != 100 {
-		t.Errorf("expected 100, got %d", cfg.QueueSize)
-	}
-	if len(cfg.Capabilities) != 2 {
-		t.Errorf("expected 2 capabilities, got %d", len(cfg.Capabilities))
-	}
-}
-
-func TestModelConfig(t *testing.T) {
-	cfg := ModelConfig{
-		LLM: LLMConfig{
-			Providers: map[string]ProviderConfig{
-				"openai": {
-					APIKey:  "sk-test",
-					BaseURL: "https://api.openai.com/v1",
 					Models: map[string]ModelInfo{
 						"gpt-4": {
 							Name:          "gpt-4",

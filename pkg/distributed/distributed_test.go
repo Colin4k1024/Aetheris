@@ -285,38 +285,6 @@ func TestDistributedVerifier_WithSyncProtocol(t *testing.T) {
 }
 
 
-// MockSyncProtocol implements SyncProtocol for testing
-type mockSyncProtocol struct {
-	pushEvents map[string][]Event
-	pullEvents map[string][]Event
-	pushErr    error
-	pullErr    error
-}
-
-func (m *mockSyncProtocol) Push(ctx context.Context, targetOrg string, req LedgerSyncRequest) (*LedgerSyncResponse, error) {
-	if m.pushErr != nil {
-		return nil, m.pushErr
-	}
-	key := targetOrg + "/" + req.JobID
-	m.pushEvents[key] = req.Events
-	return &LedgerSyncResponse{Accepted: true, LocalHash: "new-hash"}, nil
-}
-
-func (m *mockSyncProtocol) Pull(ctx context.Context, sourceOrg string, jobID string) ([]Event, error) {
-	if m.pullErr != nil {
-		return nil, m.pullErr
-	}
-	key := sourceOrg + "/" + jobID
-	if events, ok := m.pullEvents[key]; ok {
-		return events, nil
-	}
-	return []Event{}, nil
-}
-
-func (m *mockSyncProtocol) Resolve(ctx context.Context, conflicts []string) error {
-	return nil
-}
-
 func TestProtocolEventSource(t *testing.T) {
 	mockProtocol := &mockSyncProtocol{
 		pullEvents: map[string][]Event{
