@@ -70,36 +70,36 @@ type Output struct {
 func (w *Workflow) AddNode(name, nodeType string, config *NodeConfig) error {
 	switch nodeType {
 	case "validate":
-			if err := w.graph.AddLambdaNode(name, compose.InvokableLambda(func(ctx context.Context, input *Input) (*Output, error) {
-				// 添加 DAG node tracing
-				nodeSpan, _ := tracing.StartDAGNodeSpan(ctx, name, nodeType)
-				defer nodeSpan.End(nil)
-				nodeSpan.SetInputSize(len(input.Query))
+		if err := w.graph.AddLambdaNode(name, compose.InvokableLambda(func(ctx context.Context, input *Input) (*Output, error) {
+			// 添加 DAG node tracing
+			nodeSpan, _ := tracing.StartDAGNodeSpan(ctx, name, nodeType)
+			defer nodeSpan.End(nil)
+			nodeSpan.SetInputSize(len(input.Query))
 
-				if input.Query == "" {
-					return nil, fmt.Errorf("query is required")
-				}
-				result := input.Query
-				nodeSpan.SetOutputSize(len(result))
-				return &Output{Result: result}, nil
-			})); err != nil {
-				return err
+			if input.Query == "" {
+				return nil, fmt.Errorf("query is required")
 			}
+			result := input.Query
+			nodeSpan.SetOutputSize(len(result))
+			return &Output{Result: result}, nil
+		})); err != nil {
+			return err
+		}
 	case "generate":
 		return fmt.Errorf("generate 节点requires chatModel 实例")
 	case "format":
-			if err := w.graph.AddLambdaNode(name, compose.InvokableLambda(func(ctx context.Context, input *Input) (*Output, error) {
-				// 添加 DAG node tracing
-				nodeSpan, _ := tracing.StartDAGNodeSpan(ctx, name, nodeType)
-				defer nodeSpan.End(nil)
-				nodeSpan.SetInputSize(len(input.Query))
+		if err := w.graph.AddLambdaNode(name, compose.InvokableLambda(func(ctx context.Context, input *Input) (*Output, error) {
+			// 添加 DAG node tracing
+			nodeSpan, _ := tracing.StartDAGNodeSpan(ctx, name, nodeType)
+			defer nodeSpan.End(nil)
+			nodeSpan.SetInputSize(len(input.Query))
 
-				result := fmt.Sprintf("格式化结果: %s", input.Query)
-				nodeSpan.SetOutputSize(len(result))
-				return &Output{Result: result}, nil
-			})); err != nil {
-				return err
-			}
+			result := fmt.Sprintf("格式化结果: %s", input.Query)
+			nodeSpan.SetOutputSize(len(result))
+			return &Output{Result: result}, nil
+		})); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unsupported input type节点类型: %s", nodeType)
 	}

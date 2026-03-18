@@ -114,7 +114,6 @@ func postMessage(agentID, message string) (jobID string, err error) {
 	return out.JobID, nil
 }
 
-
 func tracePageURL(jobID string) string {
 	return apiBaseURL() + "/api/jobs/" + jobID + "/trace/page"
 }

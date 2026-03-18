@@ -183,7 +183,7 @@ func ExportJSON() {
 		Errors:   errors,
 		Warnings: warnings,
 	}, "", "  ")
-		_, _ = os.Stdout.Write(data)
+	_, _ = os.Stdout.Write(data)
 }
 
 func addError(filename string, node ast.Node, typ, msg string) {

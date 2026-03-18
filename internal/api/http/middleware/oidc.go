@@ -22,9 +22,10 @@ import (
 	"strings"
 	"time"
 
+	"rag-platform/pkg/security/sso"
+
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
-	"rag-platform/pkg/security/sso"
 )
 
 // OIDCMiddleware OIDC/SSO 认证中间件
