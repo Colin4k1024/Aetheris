@@ -48,7 +48,6 @@ type MetricsLabels struct {
 
 // Observer 用于观测指标的结构
 type Observer struct {
-	mu           sync.RWMutex
 	labelValues  map[string]string
 	counters     map[string]prometheus.Counter
 	gauges       map[string]prometheus.Gauge

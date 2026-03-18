@@ -851,19 +851,19 @@ func runVerifyEvidenceZip(zipPath string) {
 func verifyEvidenceZip(zipPath string, stdout, stderr io.Writer) int {
 	zipBytes, err := os.ReadFile(zipPath)
 	if err != nil {
-		fmt.Fprintf(stderr, "Error reading file: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "Error reading file: %v\n", err)
 		return 1
 	}
 
 	result := proof.VerifyEvidenceZip(zipBytes)
-	fmt.Fprintf(stdout, "Verifying evidence package: %s\n\n", zipPath)
-	fmt.Fprintln(stdout, "=== Verification Results ===")
+	_, _ = fmt.Fprintf(stdout, "Verifying evidence package: %s\n\n", zipPath)
+	_, _ = fmt.Fprintln(stdout, "=== Verification Results ===")
 
 	if result.OK {
-		fmt.Fprintln(stdout, "✓ Verification PASSED")
-		fmt.Fprintf(stdout, "  - Events: %d valid\n", len(result.Events))
+		_, _ = fmt.Fprintln(stdout, "✓ Verification PASSED")
+		_, _ = fmt.Fprintf(stdout, "  - Events: %d valid\n", len(result.Events))
 		if result.HashChainValid {
-			fmt.Fprintln(stdout, "  - Hash chain: OK")
+			_, _ = fmt.Fprintln(stdout, "  - Hash chain: OK")
 		}
 		if result.LedgerValid {
 			fmt.Fprintln(stdout, "  - Ledger consistency: OK")

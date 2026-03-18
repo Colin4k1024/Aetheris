@@ -295,14 +295,6 @@ func (m *OIDCMiddleware) isExcludedPath(path string) bool {
 	return false
 }
 
-// urlQueryEscape 是 url.QueryEscape 的别名（避免导入冲突）
-func urlQueryEscape(s string) string {
-	return strings.ReplaceAll(
-		strings.ReplaceAll(s, "+", "%2B"),
-		"&", "%26",
-	)
-}
-
 // OIDCConfigFromConfig 从应用配置创建 OIDC 中间件配置
 func OIDCConfigFromConfig(issuerURL, clientID, clientSecret, redirectURL string, allowedDomains []string) OIDCMiddlewareConfig {
 	return OIDCMiddlewareConfig{

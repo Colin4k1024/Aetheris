@@ -149,7 +149,7 @@ func (e *Engine) ensureRunner(agentID string) (*adk.Runner, error) {
 	case "ingest_agent":
 		runner, err = e.createIngestRunner(ctx)
 	default:
-		return nil, fmt.Errorf("Runner %s not found", agentID)
+		return nil, fmt.Errorf("runner %s not found", agentID)
 	}
 	if err != nil {
 		return nil, err
@@ -284,7 +284,7 @@ func (e *Engine) RegisterRunner(name string, runner *adk.Runner) error {
 	defer e.mu.Unlock()
 
 	if _, exists := e.runners[name]; exists {
-		return fmt.Errorf("Runner %s already exists", name)
+		return fmt.Errorf("runner %s already exists", name)
 	}
 
 	e.runners[name] = runner

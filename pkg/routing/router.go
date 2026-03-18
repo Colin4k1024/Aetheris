@@ -135,37 +135,6 @@ func (r *defaultRouter) RecordOutcome(ctx context.Context, outcome *RoutingOutco
 	// Record latency and error metrics here
 }
 
-// getErrorType 提取错误类型
-func getErrorType(err error) string {
-	if err == nil {
-		return "unknown"
-	}
-	errStr := err.Error()
-	switch {
-	case contains(errStr, "rate limit"), contains(errStr, "429"):
-		return "rate_limit"
-	case contains(errStr, "timeout"):
-		return "timeout"
-	case contains(errStr, "500"), contains(errStr, "502"), contains(errStr, "503"):
-		return "server_error"
-	case contains(errStr, "401"), contains(errStr, "403"):
-		return "auth_error"
-	case contains(errStr, "quota"):
-		return "quota_exceeded"
-	default:
-		return "unknown"
-	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) &&
-		(s == substr ||
-			(len(s) > len(substr) &&
-				(s[:len(substr)] == substr ||
-					s[len(s)-len(substr):] == substr ||
-					containsAny(s, substr))))
-}
-
 func containsAny(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {

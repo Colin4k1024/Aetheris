@@ -608,7 +608,7 @@ func (h *Handler) SystemMetrics(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	c.Header("Content-Type", string(expfmt.FmtText))
-	c.Write(buf.Bytes())
+	_, _ = c.Write(buf.Bytes())
 }
 
 // workersLister 可选接口：事件存储为 Postgres 时支持列出活跃 Worker
@@ -729,7 +729,7 @@ func runADK(ctx context.Context, c *app.RequestContext, runner *adk.Runner, sess
 	if stream {
 		c.Header("Content-Type", "text/event-stream")
 		c.SetStatusCode(consts.StatusOK)
-		c.WriteString("data: " + jsonString(map[string]interface{}{"answer": lastContent, "session_id": sess.ID}) + "\n\n")
+		_, _ = c.WriteString("data: " + jsonString(map[string]interface{}{"answer": lastContent, "session_id": sess.ID}) + "\n\n")
 		return
 	}
 	c.JSON(consts.StatusOK, map[string]interface{}{
@@ -2161,7 +2161,7 @@ func (h *Handler) GetTraceOverviewPage(ctx context.Context, c *app.RequestContex
 	b.WriteString("<div id=\"content\"></div>")
 	b.WriteString("<script>(function(){ function esc(s){ return String(s||'').replace(/[&<>\\\"]/g,function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','\\\"':'&quot;'}[c]); }); } function parseIDs(){ var raw = document.getElementById('agent_ids').value || ''; return raw.split(',').map(function(s){ return s.trim(); }).filter(Boolean); } function renderBlock(agentID, jobs){ var html = '<div class=\"agent-block\"><h3>Agent: '+esc(agentID)+'</h3>'; html += '<table><thead><tr><th>Job ID</th><th>Status</th><th>Updated</th><th>Goal</th><th>Trace</th></tr></thead><tbody>'; if(!jobs || jobs.length===0){ html += '<tr><td colspan=\"5\" class=\"muted\">No jobs</td></tr>'; } else { jobs.forEach(function(j){ html += '<tr><td>'+esc(j.id)+'</td><td>'+esc(j.status)+'</td><td>'+esc(j.updated_at)+'</td><td>'+esc(j.goal)+'</td><td><a href=\"/api/jobs/'+encodeURIComponent(j.id)+'/trace/page\" target=\"_blank\">open trace</a></td></tr>'; }); } html += '</tbody></table></div>'; return html; } function load(){ var ids = parseIDs(); var content = document.getElementById('content'); if(ids.length===0){ content.innerHTML = '<p class=\"muted\">Enter at least one agent id.</p>'; return; } content.innerHTML = '<p class=\"muted\">Loading...</p>'; var reqs = ids.map(function(id){ return fetch('/api/agents/'+encodeURIComponent(id)+'/jobs?limit=50').then(function(r){ return r.ok ? r.json() : { jobs: [], _error: 'HTTP '+r.status }; }).then(function(data){ return { id:id, jobs:(data.jobs||[]), error:data._error||'' }; }).catch(function(e){ return { id:id, jobs:[], error:String(e) }; }); }); Promise.all(reqs).then(function(all){ var html=''; all.forEach(function(x){ html += renderBlock(x.id, x.jobs); if(x.error){ html += '<p class=\"muted\">'+esc(x.error)+'</p>'; } }); content.innerHTML = html; }); } document.getElementById('q').addEventListener('submit', function(e){ e.preventDefault(); load(); }); load(); })();</script>")
 	b.WriteString("</body></html>")
-	c.WriteString(b.String())
+	_, _ = c.WriteString(b.String())
 }
 
 // GetJobTracePage 返回简单 Trace 回放页（HTML）
@@ -2181,7 +2181,7 @@ func (h *Handler) GetJobTracePage(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	c.Header("Content-Type", "text/html; charset=utf-8")
-	c.WriteString(buildTraceHTML(jobID, j, events))
+	_, _ = c.WriteString(buildTraceHTML(jobID, j, events))
 }
 
 func buildTraceHTML(jobID string, j *job.Job, events []jobstore.JobEvent) string {

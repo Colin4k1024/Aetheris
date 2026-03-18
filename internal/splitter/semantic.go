@@ -120,7 +120,6 @@ func (s *SemanticSplitter) mergeBySemantics(sentences []string, chunkSize, chunk
 					} else {
 						currentChunk.Reset()
 					}
-					lastSentenceInChunk = ""
 				}
 			}
 		}
@@ -139,7 +138,6 @@ func (s *SemanticSplitter) mergeBySemantics(sentences []string, chunkSize, chunk
 				} else {
 					currentChunk.Reset()
 				}
-				lastSentenceInChunk = ""
 			}
 		}
 

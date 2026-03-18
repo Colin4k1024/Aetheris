@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"rag-platform/internal/tool"
 	"rag-platform/internal/tool/gatekeeper"
@@ -125,7 +124,6 @@ type ContentBlock struct {
 
 // MCPServer MCP 服务器实现
 type MCPServer struct {
-	mu           sync.RWMutex
 	registry     *registry.Registry
 	gatekeeper   *gatekeeper.Gatekeeper
 	capabilities ServerCapabilities

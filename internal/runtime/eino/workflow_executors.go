@@ -178,7 +178,7 @@ func (e *ingestWorkflowExecutor) Execute(ctx context.Context, params map[string]
 	// indexer（可选）with tracing
 	if e.indexer != nil {
 		var indexerSpan *tracing.IngestPipelineSpan
-		indexerSpan, ctx = tracing.StartIngestStepSpan(ctx, ingestID, "indexer")
+		indexerSpan, _ = tracing.StartIngestStepSpan(ctx, ingestID, "indexer")
 		indexerStart := time.Now()
 		out, err = e.indexer.Execute(pipeCtx, doc)
 		indexerDuration := time.Since(indexerStart)
@@ -317,7 +317,7 @@ func (e *queryWorkflowExecutor) Execute(ctx context.Context, params map[string]i
 	}
 
 	// Generator with tracing
-	genSpan, ctx := tracing.StartQueryStepSpan(ctx, queryID, "generate")
+	genSpan, _ := tracing.StartQueryStepSpan(ctx, queryID, "generate")
 	genStart := time.Now()
 	genInput := map[string]interface{}{
 		"query":            q,

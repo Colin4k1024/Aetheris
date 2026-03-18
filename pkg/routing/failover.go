@@ -46,7 +46,6 @@ type FailoverHandler struct {
 	config   *FailoverConfig
 	router   Router
 	registry *ModelRegistry
-	mu       sync.RWMutex
 }
 
 // NewFailoverHandler 创建容灾处理器

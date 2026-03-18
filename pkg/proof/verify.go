@@ -48,7 +48,7 @@ func VerifyEvidenceZip(zipBytes []byte) VerifyResult {
 			continue
 		}
 		data, err := io.ReadAll(rc)
-		rc.Close()
+		_ = rc.Close()
 		if err != nil {
 			result.OK = false
 			result.Errors = append(result.Errors, fmt.Sprintf("failed to read %s: %v", f.Name, err))

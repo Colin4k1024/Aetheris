@@ -115,7 +115,7 @@ type filesystemSkillBackend struct {
 // NewSkillBackendFromFilesystem creates a new skill backend from filesystem
 func NewSkillBackendFromFilesystem(ctx context.Context, backend FileSystemBackend, baseDir string) (SkillBackend, error) {
 	if backend == nil {
-		return nil, fmt.Errorf("Backend is required")
+		return nil, fmt.Errorf("backend is required")
 	}
 	if baseDir == "" {
 		return nil, fmt.Errorf("BaseDir is required")

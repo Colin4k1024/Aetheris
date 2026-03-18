@@ -59,11 +59,11 @@ func NewQueryEmbedderFromConfig(cfg *config.Config) (*embedding.Embedder, error)
 	}
 	pc, ok := cfg.Model.Embedding.Providers[provider]
 	if !ok {
-		return nil, fmt.Errorf("Embedding provider %q not configured", provider)
+		return nil, fmt.Errorf("embedding provider %q not configured", provider)
 	}
 	mi, ok := pc.Models[modelKey]
 	if !ok {
-		return nil, fmt.Errorf("Embedding model %q not configured in provider %q", modelKey, provider)
+		return nil, fmt.Errorf("embedding model %q not configured in provider %q", modelKey, provider)
 	}
 	dimension := mi.Dimension
 	if dimension <= 0 {
