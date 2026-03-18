@@ -85,7 +85,7 @@ func TestDistributedVerifier_New(t *testing.T) {
 
 func TestDistributedVerifier_VerifyAcrossOrgs_EmptyJobID(t *testing.T) {
 	verifier := NewDistributedVerifier()
-	
+
 	result, err := verifier.VerifyAcrossOrgs(context.Background(), "", []string{"org-1"})
 	if err == nil {
 		t.Error("expected error for empty job ID")
@@ -98,7 +98,7 @@ func TestDistributedVerifier_VerifyAcrossOrgs_EmptyJobID(t *testing.T) {
 
 func TestDistributedVerifier_VerifyAcrossOrgs_EmptyOrgs(t *testing.T) {
 	verifier := NewDistributedVerifier()
-	
+
 	result, err := verifier.VerifyAcrossOrgs(context.Background(), "job-1", []string{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -115,7 +115,7 @@ func TestDistributedVerifier_VerifyAcrossOrgs_EmptyOrgs(t *testing.T) {
 
 func TestDistributedVerifier_VerifyAcrossOrgs_NoSource(t *testing.T) {
 	verifier := NewDistributedVerifier()
-	
+
 	result, err := verifier.VerifyAcrossOrgs(context.Background(), "job-1", []string{"org-1", "org-2"})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -149,7 +149,7 @@ func (m *mockOrgEventSource) PullOrgEvents(ctx context.Context, orgID string, jo
 
 func TestDistributedVerifier_VerifyAcrossOrgs_WithMockSource(t *testing.T) {
 	verifier := NewDistributedVerifier()
-	
+
 	mockSource := &mockOrgEventSource{
 		events: map[string][]Event{
 			"org-1/job-1": {
@@ -162,9 +162,9 @@ func TestDistributedVerifier_VerifyAcrossOrgs_WithMockSource(t *testing.T) {
 			},
 		},
 	}
-	
+
 	verifier.WithEventSource(mockSource)
-	
+
 	result, err := verifier.VerifyAcrossOrgs(context.Background(), "job-1", []string{"org-1", "org-2"})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -177,7 +177,7 @@ func TestDistributedVerifier_VerifyAcrossOrgs_WithMockSource(t *testing.T) {
 
 func TestDistributedVerifier_VerifyAcrossOrgs_HashMismatch(t *testing.T) {
 	verifier := NewDistributedVerifier()
-	
+
 	mockSource := &mockOrgEventSource{
 		events: map[string][]Event{
 			"org-1/job-1": {
@@ -190,9 +190,9 @@ func TestDistributedVerifier_VerifyAcrossOrgs_HashMismatch(t *testing.T) {
 			},
 		},
 	}
-	
+
 	verifier.WithEventSource(mockSource)
-	
+
 	result, err := verifier.VerifyAcrossOrgs(context.Background(), "job-1", []string{"org-1", "org-2"})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -209,13 +209,13 @@ func TestDistributedVerifier_VerifyAcrossOrgs_HashMismatch(t *testing.T) {
 
 func TestDistributedVerifier_VerifyAcrossOrgs_PullError(t *testing.T) {
 	verifier := NewDistributedVerifier()
-	
+
 	mockSource := &mockOrgEventSource{
 		err: errors.New("pull failed"),
 	}
-	
+
 	verifier.WithEventSource(mockSource)
-	
+
 	result, err := verifier.VerifyAcrossOrgs(context.Background(), "job-1", []string{"org-1"})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -232,15 +232,15 @@ func TestDistributedVerifier_VerifyAcrossOrgs_PullError(t *testing.T) {
 
 func TestDistributedVerifier_VerifyAcrossOrgs_EmptyEvents(t *testing.T) {
 	verifier := NewDistributedVerifier()
-	
+
 	mockSource := &mockOrgEventSource{
 		events: map[string][]Event{
 			"org-1/job-1": {},
 		},
 	}
-	
+
 	verifier.WithEventSource(mockSource)
-	
+
 	result, err := verifier.VerifyAcrossOrgs(context.Background(), "job-1", []string{"org-1"})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -253,7 +253,7 @@ func TestDistributedVerifier_VerifyAcrossOrgs_EmptyEvents(t *testing.T) {
 
 func TestDistributedVerifier_VerifyAcrossOrgs_MissingHash(t *testing.T) {
 	verifier := NewDistributedVerifier()
-	
+
 	mockSource := &mockOrgEventSource{
 		events: map[string][]Event{
 			"org-1/job-1": {
@@ -261,9 +261,9 @@ func TestDistributedVerifier_VerifyAcrossOrgs_MissingHash(t *testing.T) {
 			},
 		},
 	}
-	
+
 	verifier.WithEventSource(mockSource)
-	
+
 	result, err := verifier.VerifyAcrossOrgs(context.Background(), "job-1", []string{"org-1"})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -276,7 +276,7 @@ func TestDistributedVerifier_VerifyAcrossOrgs_MissingHash(t *testing.T) {
 
 func TestDistributedVerifier_WithSyncProtocol(t *testing.T) {
 	verifier := NewDistributedVerifier()
-	
+
 	// Test with nil protocol
 	result := verifier.WithSyncProtocol(nil)
 	if result.source != nil {
@@ -284,6 +284,26 @@ func TestDistributedVerifier_WithSyncProtocol(t *testing.T) {
 	}
 }
 
+type mockSyncProtocolV2 struct {
+	pullEvents map[string][]Event
+	err        error
+}
+
+func (m *mockSyncProtocolV2) Push(ctx context.Context, targetOrg string, req LedgerSyncRequest) (*LedgerSyncResponse, error) {
+	return nil, nil
+}
+
+func (m *mockSyncProtocolV2) Pull(ctx context.Context, sourceOrg string, jobID string) ([]Event, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	key := sourceOrg + "/" + jobID
+	return m.pullEvents[key], nil
+}
+
+func (m *mockSyncProtocolV2) Resolve(ctx context.Context, conflicts []string) error {
+	return nil
+}
 
 func TestProtocolEventSource(t *testing.T) {
 	mockProtocol := &mockSyncProtocolV2{

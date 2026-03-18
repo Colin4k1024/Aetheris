@@ -232,14 +232,14 @@ func TestRateLimitsConfig(t *testing.T) {
 func TestWorkerConfig(t *testing.T) {
 	cfg := &Config{
 		Worker: WorkerConfig{
-			Concurrency:   4,
-			QueueSize:     100,
-			RetryCount:    3,
-			RetryDelay:    "5s",
-			Timeout:       "30s",
-			PollInterval:  "2s",
-			MaxAttempts:   5,
-			Capabilities:  []string{"llm", "tool", "rag"},
+			Concurrency:  4,
+			QueueSize:    100,
+			RetryCount:   3,
+			RetryDelay:   "5s",
+			Timeout:      "30s",
+			PollInterval: "2s",
+			MaxAttempts:  5,
+			Capabilities: []string{"llm", "tool", "rag"},
 		},
 	}
 
@@ -296,6 +296,13 @@ func TestRuntimeConfig(t *testing.T) {
 	}
 }
 
+func TestModelConfig(t *testing.T) {
+	cfg := ModelConfig{
+		LLM: LLMConfig{
+			Providers: map[string]ProviderConfig{
+				"openai": {
+					APIKey:  "test-key",
+					BaseURL: "https://api.openai.com/v1",
 					Models: map[string]ModelInfo{
 						"gpt-4": {
 							Name:          "gpt-4",
@@ -310,10 +317,10 @@ func TestRuntimeConfig(t *testing.T) {
 		Embedding: EmbeddingConfig{
 			Providers: map[string]ProviderConfig{
 				"cohere": {
-					APIKey:  "test-key",
+					APIKey: "test-key",
 					Models: map[string]ModelInfo{
 						"embed-english-v3.0": {
-							Name:     "embed-english-v3.0",
+							Name:      "embed-english-v3.0",
 							Dimension: 1024,
 						},
 					},
@@ -511,9 +518,9 @@ func TestAgentsConfig(t *testing.T) {
 			APIKey:   "sk-test",
 		},
 		Tools: ToolsConfig{
-			Enabled:     []string{"web_search", "calculator"},
-			WebSearch:   WebSearchToolConfig{APIKey: "key", Engine: "google"},
-			Calculator:  CalculatorToolConfig{Precision: 2},
+			Enabled:    []string{"web_search", "calculator"},
+			WebSearch:  WebSearchToolConfig{APIKey: "key", Engine: "google"},
+			Calculator: CalculatorToolConfig{Precision: 2},
 		},
 	}
 	if len(cfg.Agents) != 1 {
