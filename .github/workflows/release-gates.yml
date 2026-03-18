@@ -33,6 +33,7 @@ jobs:
       RUN_TENANT_REGRESSION: "1"
       PERF_SAMPLES: "6"
       PERF_POLL_MAX: "90"
+      PERF_AGENT_ID: "conversation"
       DRILL_POLL_MAX: "90"
       DRILL_POLL_INTERVAL: "2"
     steps:
