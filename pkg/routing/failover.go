@@ -23,11 +23,11 @@ import (
 
 // FailoverConfig 容灾配置
 type FailoverConfig struct {
-	MaxRetries       int           // 最大重试次数
-	RetryDelayMs     int           // 重试延迟 (ms)
-	EnableHotSwitch  bool          // 启用热切换
-	BackoffMultiplier float64      // 退避倍数
-	MaxRetryDelayMs  int           // 最大重试延迟
+	MaxRetries        int     // 最大重试次数
+	RetryDelayMs      int     // 重试延迟 (ms)
+	EnableHotSwitch   bool    // 启用热切换
+	BackoffMultiplier float64 // 退避倍数
+	MaxRetryDelayMs   int     // 最大重试延迟
 }
 
 // DefaultFailoverConfig 返回默认容灾配置
@@ -46,7 +46,6 @@ type FailoverHandler struct {
 	config   *FailoverConfig
 	router   Router
 	registry *ModelRegistry
-	mu       sync.RWMutex
 }
 
 // NewFailoverHandler 创建容灾处理器
@@ -57,7 +56,7 @@ func NewFailoverHandler(router Router, registry *ModelRegistry, config *Failover
 	if registry == nil {
 		registry = DefaultModelRegistry()
 	}
-	
+
 	return &FailoverHandler{
 		config:   config,
 		router:   router,
@@ -92,10 +91,10 @@ func (h *FailoverHandler) ExecuteWithFailover(
 
 		// 记录结果
 		outcome := &RoutingOutcome{
-			Model:      model,
-			Success:    err == nil,
-			Error:      err,
-			LatencyMs:  latencyMs,
+			Model:     model,
+			Success:   err == nil,
+			Error:     err,
+			LatencyMs: latencyMs,
 		}
 		h.router.RecordOutcome(ctx, outcome)
 
@@ -156,7 +155,7 @@ func (h *FailoverHandler) ExecuteWithFailover(
 	}
 
 	// 所有重试都失败
-	return nil, model, fmt.Errorf("max retries exceeded (%d), last error: %w, fallback reason: %s", 
+	return nil, model, fmt.Errorf("max retries exceeded (%d), last error: %w, fallback reason: %s",
 		attempts, lastErr, lastFallbackReason)
 }
 
@@ -174,8 +173,8 @@ func (h *FailoverHandler) determineFallbackReason(err error) FallbackReason {
 	}
 
 	// 检查服务端错误
-	if containsAny(errStr, "500") || containsAny(errStr, "502") || 
-	   containsAny(errStr, "503") || containsAny(errStr, "server error") {
+	if containsAny(errStr, "500") || containsAny(errStr, "502") ||
+		containsAny(errStr, "503") || containsAny(errStr, "server error") {
 		return FallbackReasonServerError
 	}
 
@@ -214,8 +213,8 @@ func pow(base, exp float64) float64 {
 // RateLimitChecker 限流检查器
 type RateLimitChecker struct {
 	mu           sync.RWMutex
-	providerLast map[string]time.Time      // provider -> last request time
-	providerRate map[string]time.Duration  // provider -> min interval
+	providerLast map[string]time.Time     // provider -> last request time
+	providerRate map[string]time.Duration // provider -> min interval
 }
 
 // NewRateLimitChecker 创建限流检查器
@@ -273,13 +272,13 @@ func (c *RateLimitChecker) Reset(provider string) {
 // EventSourcedContext 事件溯源上下文
 // 确保模型切换时保留完整上下文
 type EventSourcedContext struct {
-	mu                sync.RWMutex
-	RequestID         string
-	Messages          []MessageSnapshot
-	TokensUsed        int
-	SwitchHistory     []SwitchEvent
-	LastModel         string
-	LastError         error
+	mu            sync.RWMutex
+	RequestID     string
+	Messages      []MessageSnapshot
+	TokensUsed    int
+	SwitchHistory []SwitchEvent
+	LastModel     string
+	LastError     error
 }
 
 type MessageSnapshot struct {
@@ -289,11 +288,11 @@ type MessageSnapshot struct {
 }
 
 type SwitchEvent struct {
-	Timestamp   time.Time
-	FromModel   string
-	ToModel     string
-	Reason      FallbackReason
-	TokensUsed  int
+	Timestamp  time.Time
+	FromModel  string
+	ToModel    string
+	Reason     FallbackReason
+	TokensUsed int
 }
 
 // NewEventSourcedContext 创建事件溯源上下文

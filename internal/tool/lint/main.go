@@ -25,7 +25,6 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"regexp"
 	"strings"
 )
 
@@ -175,35 +174,6 @@ func lintSchemaFunc(filename string, fn *ast.FuncDecl) {
 	}
 }
 
-// 检查工具名称格式
-func validateToolName(name string) error {
-	matched := regexp.MustCompile(`^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$`).MatchString
-	if !matched(name) {
-		return fmt.Errorf("tool name should match pattern 'category.action', got %s", name)
-	}
-	return nil
-}
-
-// 检查描述不为空
-func validateDescription(desc string) error {
-	if len(desc) < 10 {
-		return fmt.Errorf("description too short (minimum 10 characters)")
-	}
-	if len(desc) > 200 {
-		return fmt.Errorf("description too long (maximum 200 characters)")
-	}
-	return nil
-}
-
-// 检查参数名格式
-func validateParamName(name string) error {
-	matched := regexp.MustCompile(`^[a-z][a-z0-9_]*$`).MatchString
-	if !matched(name) {
-		return fmt.Errorf("parameter name should match pattern '^[a-z][a-z0-9_]*$', got %s", name)
-	}
-	return nil
-}
-
 // 导出 JSON 格式的 lint 结果
 func ExportJSON() {
 	data, _ := json.MarshalIndent(struct {
@@ -213,7 +183,7 @@ func ExportJSON() {
 		Errors:   errors,
 		Warnings: warnings,
 	}, "", "  ")
-	os.Stdout.Write(data)
+	_, _ = os.Stdout.Write(data)
 }
 
 func addError(filename string, node ast.Node, typ, msg string) {

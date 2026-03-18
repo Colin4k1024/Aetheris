@@ -17,8 +17,10 @@ package eino_examples
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/cloudwego/eino/schema"
 
@@ -54,6 +56,12 @@ func NewOllamaChatModelFromEnv() (*OllamaChatModel, error) {
 	baseURL := os.Getenv("OLLAMA_BASE_URL")
 	if baseURL == "" {
 		baseURL = "http://localhost:11434"
+	}
+
+	// 探测 Ollama 服务是否可用，不可用时快速返回 error 以便测试 Skip
+	probe := &http.Client{Timeout: 2 * time.Second}
+	if _, err := probe.Get(baseURL + "/api/tags"); err != nil {
+		return nil, fmt.Errorf("ollama not available at %s: %w", baseURL, err)
 	}
 
 	client, err := llm.NewOllamaClient(modelName, baseURL)

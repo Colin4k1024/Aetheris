@@ -71,7 +71,7 @@ type toolExecAdapter struct {
 
 func (a *toolExecAdapter) Execute(ctx context.Context, toolName string, input map[string]any, state interface{}) (agentexec.ToolResult, error) {
 	if a.reg == nil {
-		return agentexec.ToolResult{}, fmt.Errorf("Tools not configured")
+		return agentexec.ToolResult{}, fmt.Errorf("tools not configured")
 	}
 	agent := agentexec.AgentFromContext(ctx)
 	var sess *runtimesession.Session
@@ -115,7 +115,7 @@ type workflowExecAdapter struct {
 
 func (a *workflowExecAdapter) ExecuteWorkflow(ctx context.Context, name string, params map[string]any) (interface{}, error) {
 	if a.engine == nil {
-		return nil, fmt.Errorf("Workflow engine not configured")
+		return nil, fmt.Errorf("workflow engine not configured")
 	}
 	pm := make(map[string]interface{}, len(params))
 	for k, v := range params {

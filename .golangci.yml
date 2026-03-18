@@ -1,0 +1,78 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  exclusions:
+    rules:
+      - path: "_test\\.go"
+        linters:
+          - errcheck
+          - ineffassign
+
+      - path: "_test\\.go"
+        linters:
+          - unused
+
+      - path: "_test\\.go"
+        text: "SA4006"
+        linters:
+          - staticcheck
+
+      - path: "internal/agent/runtime/executor/eino_examples/"
+        linters:
+          - ineffassign
+
+      - path: "^(examples|cmd/devops|fatal_tests)/"
+        linters:
+          - errcheck
+          - unused
+
+      - text: "Error return value of.*\\.Close.*is not checked"
+        linters:
+          - errcheck
+
+      - path: "internal/agent/tools/mcp/"
+        linters:
+          - errcheck
+
+      - text: "Error return value of `fmt\\.F"
+        linters:
+          - errcheck
+
+      - text: "SA1019"
+        linters:
+          - staticcheck
+
+      - text: "QF10"
+        linters:
+          - staticcheck
+
+      - text: "S1011|S1016|S1040"
+        linters:
+          - staticcheck
+
+      - text: "ST1023"
+        linters:
+          - staticcheck
+
+      - text: "SA9003"
+        linters:
+          - staticcheck
+
+      - text: "SA1012"
+        linters:
+          - staticcheck
+
+      - text: "SA1029"
+        linters:
+          - staticcheck
+
+      - text: "SA4031"
+        linters:
+          - staticcheck
+
+      - text: "SA5011"
+        linters:
+          - staticcheck

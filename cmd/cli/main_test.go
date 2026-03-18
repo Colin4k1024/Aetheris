@@ -162,9 +162,9 @@ func TestBackfillHashesFile(t *testing.T) {
 
 func TestParsePositiveInt(t *testing.T) {
 	tests := []struct {
-		input    string
-		wantVal  int
-		wantErr  bool
+		input   string
+		wantVal int
+		wantErr bool
 	}{
 		{"1", 1, false},
 		{"10", 10, false},
@@ -189,8 +189,8 @@ func TestParsePositiveInt(t *testing.T) {
 
 func TestParseRFC3339(t *testing.T) {
 	tests := []struct {
-		input    string
-		wantOK   bool
+		input  string
+		wantOK bool
 	}{
 		{"2026-01-15T10:00:00Z", true},
 		{"2026-01-15T10:00:00.123Z", true},
@@ -247,9 +247,9 @@ func TestEventMapToProofEvent(t *testing.T) {
 		{
 			name: "nil payload",
 			input: map[string]interface{}{
-				"id":     "e1",
-				"job_id": "job-1",
-				"type":   "test",
+				"id":      "e1",
+				"job_id":  "job-1",
+				"type":    "test",
 				"payload": nil,
 			},
 			wantJobID: "job-1",
@@ -258,9 +258,9 @@ func TestEventMapToProofEvent(t *testing.T) {
 		{
 			name: "object payload",
 			input: map[string]interface{}{
-				"id":     "e1",
-				"job_id": "job-1",
-				"type":   "test",
+				"id":      "e1",
+				"job_id":  "job-1",
+				"type":    "test",
 				"payload": map[string]interface{}{"key": "value"},
 			},
 			wantJobID: "job-1",

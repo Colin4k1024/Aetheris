@@ -48,28 +48,28 @@ func TestWorkflowExecutionIntegration_MultipleEdges(t *testing.T) {
 	wf := CreateWorkflow("multi-edge", "Multiple edges workflow")
 
 	// 创建三个节点
-	wf.AddNode("start", "validate", &NodeConfig{Name: "start"})
+	wf.AddNode("entry", "validate", &NodeConfig{Name: "entry"})
 	wf.AddNode("branch-a", "format", &NodeConfig{Name: "branch-a"})
 	wf.AddNode("branch-b", "format", &NodeConfig{Name: "branch-b"})
-	wf.AddNode("end", "format", &NodeConfig{Name: "end"})
+	wf.AddNode("merge", "format", &NodeConfig{Name: "merge"})
 
-	// start -> branch-a, start -> branch-b
-	if err := wf.AddEdge("start", "branch-a"); err != nil {
-		t.Fatalf("AddEdge start->branch-a: %v", err)
+	// entry -> branch-a, entry -> branch-b
+	if err := wf.AddEdge("entry", "branch-a"); err != nil {
+		t.Fatalf("AddEdge entry->branch-a: %v", err)
 	}
-	if err := wf.AddEdge("start", "branch-b"); err != nil {
-		t.Fatalf("AddEdge start->branch-b: %v", err)
-	}
-
-	// branch-a -> end, branch-b -> end
-	if err := wf.AddEdge("branch-a", "end"); err != nil {
-		t.Fatalf("AddEdge branch-a->end: %v", err)
-	}
-	if err := wf.AddEdge("branch-b", "end"); err != nil {
-		t.Fatalf("AddEdge branch-b->end: %v", err)
+	if err := wf.AddEdge("entry", "branch-b"); err != nil {
+		t.Fatalf("AddEdge entry->branch-b: %v", err)
 	}
 
-	t.Log("Multi-edge workflow created: start -> {branch-a, branch-b} -> end")
+	// branch-a -> merge, branch-b -> merge
+	if err := wf.AddEdge("branch-a", "merge"); err != nil {
+		t.Fatalf("AddEdge branch-a->merge: %v", err)
+	}
+	if err := wf.AddEdge("branch-b", "merge"); err != nil {
+		t.Fatalf("AddEdge branch-b->merge: %v", err)
+	}
+
+	t.Log("Multi-edge workflow created: entry -> {branch-a, branch-b} -> merge")
 }
 
 // TestWorkflowExecutionIntegration_LinearChain 测试线性链式工作流

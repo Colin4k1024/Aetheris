@@ -63,10 +63,6 @@ func NewScheduler(store JobStore, runJob RunJobFunc, config SchedulerConfig) *Sc
 	if max <= 0 {
 		max = 1
 	}
-	timeout := config.WakeupQueueTimeout
-	if timeout <= 0 {
-		timeout = time.Second
-	}
 	return &Scheduler{
 		store:   store,
 		runJob:  runJob,

@@ -63,9 +63,9 @@ func TestValidateTypes(t *testing.T) {
 	// 正常类型
 	err := g.Validate("test", map[string]any{
 		"method":  "GET",
-		"status":   true,
-		"count":    float64(42),
-		"headers":  map[string]any{},
+		"status":  true,
+		"count":   float64(42),
+		"headers": map[string]any{},
 	}, schema)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)

@@ -48,20 +48,20 @@ type VectorMemoryItem struct {
 // MemoryPipelineConfig configuration for memory pipeline
 type MemoryPipelineConfig struct {
 	// Decay config
-	DecayFactor    float64       // weight decay per decay interval (default 0.95)
-	DecayInterval  time.Duration // how often to apply decay (default 1 hour)
-	MinWeight      float64       // minimum weight threshold for removal (default 0.1)
-	
+	DecayFactor   float64       // weight decay per decay interval (default 0.95)
+	DecayInterval time.Duration // how often to apply decay (default 1 hour)
+	MinWeight     float64       // minimum weight threshold for removal (default 0.1)
+
 	// Compression config
 	SimilarityThreshold float64 // threshold for merging similar memories (default 0.85)
 	MaxGroupSize        int     // max items to merge in one group (default 5)
-	
+
 	// Embedding config
 	BatchSize int // batch size for bulk embedding (default 32)
-	
+
 	// Vector store config
 	VectorIndexName string // name of vector index (default "memory")
-	
+
 	// Maintenance config
 	MaintenanceInterval time.Duration // how often to run maintenance (default 1 hour)
 }
@@ -69,24 +69,24 @@ type MemoryPipelineConfig struct {
 // DefaultMemoryPipelineConfig returns default configuration
 func DefaultMemoryPipelineConfig() MemoryPipelineConfig {
 	return MemoryPipelineConfig{
-		DecayFactor:          0.95,
-		DecayInterval:        time.Hour,
-		MinWeight:            0.1,
-		SimilarityThreshold:  0.85,
-		MaxGroupSize:         5,
-		BatchSize:            32,
-		VectorIndexName:      "memory",
-		MaintenanceInterval:  time.Hour,
+		DecayFactor:         0.95,
+		DecayInterval:       time.Hour,
+		MinWeight:           0.1,
+		SimilarityThreshold: 0.85,
+		MaxGroupSize:        5,
+		BatchSize:           32,
+		VectorIndexName:     "memory",
+		MaintenanceInterval: time.Hour,
 	}
 }
 
 // MemoryPipeline memory pipeline with decay, compression, vectorization, and recall
 type MemoryPipeline struct {
-	config   MemoryPipelineConfig
+	config    MemoryPipelineConfig
 	embedder  Embedder
-	store    vector.Store
-	mu       sync.RWMutex
-	items    map[string]*VectorMemoryItem // in-memory index for metadata
+	store     vector.Store
+	mu        sync.RWMutex
+	items     map[string]*VectorMemoryItem // in-memory index for metadata
 	lastDecay time.Time
 }
 
@@ -98,7 +98,7 @@ func NewMemoryPipeline(config MemoryPipelineConfig, embedder Embedder, store vec
 	if store == nil {
 		return nil, fmt.Errorf("vector store is required")
 	}
-	
+
 	// Set defaults
 	if config.DecayFactor <= 0 || config.DecayFactor > 1.0 {
 		config.DecayFactor = 0.95
@@ -124,15 +124,15 @@ func NewMemoryPipeline(config MemoryPipelineConfig, embedder Embedder, store vec
 	if config.MaintenanceInterval <= 0 {
 		config.MaintenanceInterval = time.Hour
 	}
-	
+
 	p := &MemoryPipeline{
-		config:   config,
-		embedder: embedder,
-		store:    store,
-		items:    make(map[string]*VectorMemoryItem),
+		config:    config,
+		embedder:  embedder,
+		store:     store,
+		items:     make(map[string]*VectorMemoryItem),
 		lastDecay: time.Now(),
 	}
-	
+
 	// Create vector index
 	ctx := context.Background()
 	index := &vector.Index{
@@ -145,7 +145,7 @@ func NewMemoryPipeline(config MemoryPipelineConfig, embedder Embedder, store vec
 		// Log but don't fail
 		_ = err
 	}
-	
+
 	return p, nil
 }
 
@@ -164,7 +164,7 @@ func (p *MemoryPipeline) Store(ctx context.Context, item VectorMemoryItem) error
 		item.CreatedAt = time.Now()
 	}
 	item.UpdatedAt = time.Now()
-	
+
 	// Generate embedding
 	embeddings, err := p.embedder.Embed(ctx, []string{item.Content})
 	if err != nil {
@@ -173,27 +173,27 @@ func (p *MemoryPipeline) Store(ctx context.Context, item VectorMemoryItem) error
 	if len(embeddings) == 0 {
 		return fmt.Errorf("no embedding generated")
 	}
-	
+
 	item.Vector = embeddings[0]
 	item.VectorID = fmt.Sprintf("vec_%s", item.ID)
-	
+
 	// Store vector in vector store
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	vec := &vector.Vector{
 		ID:       item.VectorID,
 		Values:   item.Vector,
 		Metadata: p.itemToMetadata(item),
 	}
-	
+
 	if err := p.store.Add(ctx, p.config.VectorIndexName, []*vector.Vector{vec}); err != nil {
 		return fmt.Errorf("failed to store vector: %w", err)
 	}
-	
+
 	// Store in memory index
 	p.items[item.ID] = &item
-	
+
 	return nil
 }
 
@@ -202,7 +202,7 @@ func (p *MemoryPipeline) Recall(ctx context.Context, query string, topK int) ([]
 	if topK <= 0 {
 		topK = 10
 	}
-	
+
 	// Generate query embedding
 	embeddings, err := p.embedder.Embed(ctx, []string{query})
 	if err != nil {
@@ -211,23 +211,23 @@ func (p *MemoryPipeline) Recall(ctx context.Context, query string, topK int) ([]
 	if len(embeddings) == 0 {
 		return nil, fmt.Errorf("no query embedding generated")
 	}
-	
+
 	queryVec := embeddings[0]
-	
+
 	// Search vector store
 	results, err := p.store.Search(ctx, p.config.VectorIndexName, queryVec, &vector.SearchOptions{
-		TopK:            topK,
-		Threshold:       p.config.MinWeight,
-		IncludeVectors:  false,
+		TopK:           topK,
+		Threshold:      p.config.MinWeight,
+		IncludeVectors: false,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to search vectors: %w", err)
 	}
-	
+
 	// Convert results to memory items
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	
+
 	var items []VectorMemoryItem
 	for _, result := range results {
 		// Find the memory item by metadata
@@ -240,7 +240,7 @@ func (p *MemoryPipeline) Recall(ctx context.Context, query string, topK int) ([]
 			}
 		}
 	}
-	
+
 	return items, nil
 }
 
@@ -248,23 +248,23 @@ func (p *MemoryPipeline) Recall(ctx context.Context, query string, topK int) ([]
 func (p *MemoryPipeline) Decay(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	now := time.Now()
 	if now.Sub(p.lastDecay) < p.config.DecayInterval {
 		return nil // Too soon to decay
 	}
-	
+
 	p.lastDecay = now
-	
+
 	var toDelete []string
 	var toUpdate []*VectorMemoryItem
-	
+
 	for id, item := range p.items {
 		// Apply decay
 		newWeight := item.Weight * p.config.DecayFactor
 		item.Weight = newWeight
 		item.UpdatedAt = now
-		
+
 		// Check if below threshold
 		if newWeight < p.config.MinWeight {
 			toDelete = append(toDelete, id)
@@ -272,7 +272,7 @@ func (p *MemoryPipeline) Decay(ctx context.Context) error {
 			toUpdate = append(toUpdate, item)
 		}
 	}
-	
+
 	// Delete items below threshold
 	for _, id := range toDelete {
 		if err := p.store.Delete(ctx, p.config.VectorIndexName, p.items[id].VectorID); err != nil {
@@ -281,7 +281,7 @@ func (p *MemoryPipeline) Decay(ctx context.Context) error {
 		}
 		delete(p.items, id)
 	}
-	
+
 	// Update metadata for remaining items
 	// Note: In production, we'd batch this
 	for _, item := range toUpdate {
@@ -294,7 +294,7 @@ func (p *MemoryPipeline) Decay(ctx context.Context) error {
 		_ = p.store.Delete(ctx, p.config.VectorIndexName, item.VectorID)
 		_ = p.store.Add(ctx, p.config.VectorIndexName, []*vector.Vector{vec})
 	}
-	
+
 	return nil
 }
 
@@ -302,35 +302,35 @@ func (p *MemoryPipeline) Decay(ctx context.Context) error {
 func (p *MemoryPipeline) Compress(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	if len(p.items) < 2 {
 		return nil
 	}
-	
+
 	// Get all items as slice
 	var items []*VectorMemoryItem
 	for _, item := range p.items {
 		items = append(items, item)
 	}
-	
+
 	// Group similar items
 	var merged []string
 	used := make(map[string]bool)
-	
+
 	for i, item := range items {
 		if used[item.ID] {
 			continue
 		}
-		
+
 		// Find similar items
 		var group []*VectorMemoryItem
 		group = append(group, item)
-		
+
 		for j := i + 1; j < len(items); j++ {
 			if used[items[j].ID] {
 				continue
 			}
-			
+
 			sim := cosineSimilarity(item.Vector, items[j].Vector)
 			if sim >= p.config.SimilarityThreshold {
 				group = append(group, items[j])
@@ -339,12 +339,12 @@ func (p *MemoryPipeline) Compress(ctx context.Context) error {
 				}
 			}
 		}
-		
+
 		// Merge group if more than 1 item
 		if len(group) > 1 {
 			mergedItem := p.mergeGroup(group)
 			p.items[mergedItem.ID] = mergedItem
-			
+
 			// Mark items as used
 			for _, g := range group {
 				used[g.ID] = true
@@ -352,7 +352,7 @@ func (p *MemoryPipeline) Compress(ctx context.Context) error {
 			}
 		}
 	}
-	
+
 	// Delete merged items from vector store
 	for _, id := range merged {
 		if item, exists := p.items[id]; exists {
@@ -360,7 +360,7 @@ func (p *MemoryPipeline) Compress(ctx context.Context) error {
 		}
 		delete(p.items, id)
 	}
-	
+
 	return nil
 }
 
@@ -379,17 +379,17 @@ func (p *MemoryPipeline) Maintenance(ctx context.Context) error {
 func (p *MemoryPipeline) GetStats() (totalItems int, avgWeight float64) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	
+
 	totalItems = len(p.items)
 	if totalItems == 0 {
 		return 0, 0
 	}
-	
+
 	var totalWeight float64
 	for _, item := range p.items {
 		totalWeight += item.Weight
 	}
-	
+
 	return totalItems, totalWeight / float64(totalItems)
 }
 
@@ -428,7 +428,7 @@ func (p *MemoryPipeline) mergeGroup(group []*VectorMemoryItem) *VectorMemoryItem
 		}
 		return ids
 	}()
-	
+
 	// Average the vectors
 	if len(group) > 1 {
 		merged.Vector = make([]float64, len(merged.Vector))
@@ -441,14 +441,14 @@ func (p *MemoryPipeline) mergeGroup(group []*VectorMemoryItem) *VectorMemoryItem
 			merged.Vector[i] /= float64(len(group))
 		}
 	}
-	
+
 	// Weight is average
 	var totalWeight float64
 	for _, item := range group {
 		totalWeight += item.Weight
 	}
 	merged.Weight = totalWeight / float64(len(group))
-	
+
 	return &merged
 }
 
@@ -472,20 +472,20 @@ func cosineSimilarity(a, b []float64) float64 {
 	if len(a) != len(b) || len(a) == 0 {
 		return 0
 	}
-	
+
 	dotProduct := 0.0
 	normA := 0.0
 	normB := 0.0
-	
+
 	for i := range a {
 		dotProduct += a[i] * b[i]
 		normA += a[i] * a[i]
 		normB += b[i] * b[i]
 	}
-	
+
 	if normA == 0 || normB == 0 {
 		return 0
 	}
-	
+
 	return dotProduct / (math.Sqrt(normA) * math.Sqrt(normB))
 }

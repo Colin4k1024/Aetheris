@@ -162,61 +162,61 @@ func TestNewJWTAuth_EmptyKey(t *testing.T) {
 func TestParseIPList(t *testing.T) {
 	tests := []struct {
 		name      string
-		ips      []string
+		ips       []string
 		wantCount int
 		wantErr   bool
 	}{
 		{
 			name:      "empty list",
-			ips:      []string{},
+			ips:       []string{},
 			wantCount: 0,
 			wantErr:   false,
 		},
 		{
 			name:      "single IPv4",
-			ips:      []string{"192.168.1.1"},
+			ips:       []string{"192.168.1.1"},
 			wantCount: 1,
 			wantErr:   false,
 		},
 		{
 			name:      "single IPv6",
-			ips:      []string{"::1"},
+			ips:       []string{"::1"},
 			wantCount: 1,
 			wantErr:   false,
 		},
 		{
 			name:      "IPv4 CIDR",
-			ips:      []string{"10.0.0.0/8"},
+			ips:       []string{"10.0.0.0/8"},
 			wantCount: 1,
 			wantErr:   false,
 		},
 		{
 			name:      "IPv6 CIDR",
-			ips:      []string{"2001:db8::/32"},
+			ips:       []string{"2001:db8::/32"},
 			wantCount: 1,
 			wantErr:   false,
 		},
 		{
 			name:      "invalid IP",
-			ips:      []string{"invalid"},
+			ips:       []string{"invalid"},
 			wantCount: 0,
 			wantErr:   true,
 		},
 		{
 			name:      "mixed valid",
-			ips:      []string{"192.168.1.1", "10.0.0.0/8"},
+			ips:       []string{"192.168.1.1", "10.0.0.0/8"},
 			wantCount: 2,
 			wantErr:   false,
 		},
 		{
 			name:      "empty string",
-			ips:      []string{""},
+			ips:       []string{""},
 			wantCount: 0,
 			wantErr:   false,
 		},
 		{
 			name:      "spaces trimmed",
-			ips:      []string{"  192.168.1.1  "},
+			ips:       []string{"  192.168.1.1  "},
 			wantCount: 1,
 			wantErr:   false,
 		},
@@ -238,53 +238,53 @@ func TestParseIPList(t *testing.T) {
 
 func TestNewIPAllowList(t *testing.T) {
 	tests := []struct {
-		name          string
-		allowIPs     []string
-		blockIPs     []string
+		name           string
+		allowIPs       []string
+		blockIPs       []string
 		trustedProxies []string
-		wantErr      bool
+		wantErr        bool
 	}{
 		{
-			name:          "valid empty",
-			allowIPs:     nil,
-			blockIPs:     nil,
+			name:           "valid empty",
+			allowIPs:       nil,
+			blockIPs:       nil,
 			trustedProxies: nil,
-			wantErr:      false,
+			wantErr:        false,
 		},
 		{
-			name:          "valid with allow list",
-			allowIPs:     []string{"192.168.1.0/24"},
-			blockIPs:     nil,
+			name:           "valid with allow list",
+			allowIPs:       []string{"192.168.1.0/24"},
+			blockIPs:       nil,
 			trustedProxies: nil,
-			wantErr:      false,
+			wantErr:        false,
 		},
 		{
-			name:          "valid with block list",
-			allowIPs:     nil,
-			blockIPs:     []string{"10.0.0.1"},
+			name:           "valid with block list",
+			allowIPs:       nil,
+			blockIPs:       []string{"10.0.0.1"},
 			trustedProxies: nil,
-			wantErr:      false,
+			wantErr:        false,
 		},
 		{
-			name:          "invalid IP in allow",
-			allowIPs:     []string{"invalid"},
-			blockIPs:     nil,
+			name:           "invalid IP in allow",
+			allowIPs:       []string{"invalid"},
+			blockIPs:       nil,
 			trustedProxies: nil,
-			wantErr:      true,
+			wantErr:        true,
 		},
 		{
-			name:          "invalid IP in block",
-			allowIPs:     nil,
-			blockIPs:     []string{"invalid"},
+			name:           "invalid IP in block",
+			allowIPs:       nil,
+			blockIPs:       []string{"invalid"},
 			trustedProxies: nil,
-			wantErr:      true,
+			wantErr:        true,
 		},
 		{
-			name:          "all lists",
-			allowIPs:     []string{"192.168.1.0/24"},
-			blockIPs:     []string{"192.168.1.100"},
+			name:           "all lists",
+			allowIPs:       []string{"192.168.1.0/24"},
+			blockIPs:       []string{"192.168.1.100"},
 			trustedProxies: []string{"10.0.0.1"},
-			wantErr:      false,
+			wantErr:        false,
 		},
 	}
 
@@ -373,37 +373,37 @@ func TestIPAllowList_getClientIP(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
+		name          string
 		xForwardedFor string
 		wantIP        string
 	}{
 		{
-			name:           "no forwarded header",
+			name:          "no forwarded header",
 			xForwardedFor: "",
 			wantIP:        "",
 		},
 		{
-			name:           "client behind trusted proxy",
+			name:          "client behind trusted proxy",
 			xForwardedFor: "192.168.1.1, 10.0.0.1",
 			wantIP:        "192.168.1.1",
 		},
 		{
-			name:           "only trusted proxy",
+			name:          "only trusted proxy",
 			xForwardedFor: "10.0.0.1",
 			wantIP:        "",
 		},
 		{
-			name:           "multiple trusted proxies",
+			name:          "multiple trusted proxies",
 			xForwardedFor: "192.168.1.1, 10.0.0.1, 10.0.0.2",
 			wantIP:        "192.168.1.1",
 		},
 		{
-			name:           "invalid IP in header",
+			name:          "invalid IP in header",
 			xForwardedFor: "invalid, 10.0.0.1",
 			wantIP:        "",
 		},
 		{
-			name:           "empty entries",
+			name:          "empty entries",
 			xForwardedFor: ", 192.168.1.1, , 10.0.0.1",
 			wantIP:        "192.168.1.1",
 		},
@@ -531,40 +531,40 @@ func TestDetermineAction(t *testing.T) {
 
 func TestExtractResource(t *testing.T) {
 	tests := []struct {
-		name         string
-		path         string
-		wantType     string
-		wantID       string
+		name     string
+		path     string
+		wantType string
+		wantID   string
 	}{
 		{
-			name:         "jobs path",
-			path:         "/api/jobs/123",
-			wantType:     "job",
-			wantID:       "123",
+			name:     "jobs path",
+			path:     "/api/jobs/123",
+			wantType: "job",
+			wantID:   "123",
 		},
 		{
-			name:         "agents path",
-			path:         "/api/agents/abc",
-			wantType:     "agent",
-			wantID:       "abc",
+			name:     "agents path",
+			path:     "/api/agents/abc",
+			wantType: "agent",
+			wantID:   "abc",
 		},
 		{
-			name:         "short path",
-			path:         "/api/jobs",
-			wantType:     "unknown",
-			wantID:       "",
+			name:     "short path",
+			path:     "/api/jobs",
+			wantType: "unknown",
+			wantID:   "",
 		},
 		{
-			name:         "root path",
-			path:         "/",
-			wantType:     "unknown",
-			wantID:       "",
+			name:     "root path",
+			path:     "/",
+			wantType: "unknown",
+			wantID:   "",
 		},
 		{
-			name:         "empty path",
-			path:         "",
-			wantType:     "unknown",
-			wantID:       "",
+			name:     "empty path",
+			path:     "",
+			wantType: "unknown",
+			wantID:   "",
 		},
 	}
 

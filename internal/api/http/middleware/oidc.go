@@ -22,9 +22,10 @@ import (
 	"strings"
 	"time"
 
+	"rag-platform/pkg/security/sso"
+
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
-	"rag-platform/pkg/security/sso"
 )
 
 // OIDCMiddleware OIDC/SSO 认证中间件
@@ -293,14 +294,6 @@ func (m *OIDCMiddleware) isExcludedPath(path string) bool {
 	}
 
 	return false
-}
-
-// urlQueryEscape 是 url.QueryEscape 的别名（避免导入冲突）
-func urlQueryEscape(s string) string {
-	return strings.ReplaceAll(
-		strings.ReplaceAll(s, "+", "%2B"),
-		"&", "%26",
-	)
 }
 
 // OIDCConfigFromConfig 从应用配置创建 OIDC 中间件配置

@@ -136,7 +136,7 @@ func TestLoadPolicyFromConfig_MultipleEvents(t *testing.T) {
 
 func TestRedactionModeConstants(t *testing.T) {
 	tests := []struct {
-		mode    RedactionMode
+		mode     RedactionMode
 		expected string
 	}{
 		{RedactionModeRedact, "redact"},

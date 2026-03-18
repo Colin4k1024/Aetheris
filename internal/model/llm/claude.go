@@ -86,12 +86,12 @@ func (c *ClaudeClient) GenerateWithContext(ctx context.Context, prompt string, o
 		Post(c.baseURL + "/messages")
 
 	if err != nil {
-		return "", fmt.Errorf("Claude API call failed: %w", err)
+		return "", fmt.Errorf("claude API call failed: %w", err)
 	}
 
 	// 检查响应状态
 	if response.StatusCode() != http.StatusOK {
-		return "", fmt.Errorf("Claude API 返回错误: %s", response.String())
+		return "", fmt.Errorf("claude API 返回错误: %s", response.String())
 	}
 
 	// 解析响应
@@ -106,7 +106,7 @@ func (c *ClaudeClient) GenerateWithContext(ctx context.Context, prompt string, o
 	}
 
 	if len(result.Content) == 0 {
-		return "", fmt.Errorf("Claude API did not return结果")
+		return "", fmt.Errorf("claude API did not return结果")
 	}
 
 	return result.Content[0].Text, nil
@@ -147,12 +147,12 @@ func (c *ClaudeClient) ChatWithContext(ctx context.Context, messages []Message, 
 		Post(c.baseURL + "/messages")
 
 	if err != nil {
-		return "", fmt.Errorf("Claude API call failed: %w", err)
+		return "", fmt.Errorf("claude API call failed: %w", err)
 	}
 
 	// 检查响应状态
 	if response.StatusCode() != http.StatusOK {
-		return "", fmt.Errorf("Claude API 返回错误: %s", response.String())
+		return "", fmt.Errorf("claude API 返回错误: %s", response.String())
 	}
 
 	// 解析响应
@@ -167,7 +167,7 @@ func (c *ClaudeClient) ChatWithContext(ctx context.Context, messages []Message, 
 	}
 
 	if len(result.Content) == 0 {
-		return "", fmt.Errorf("Claude API did not return结果")
+		return "", fmt.Errorf("claude API did not return结果")
 	}
 
 	return result.Content[0].Text, nil

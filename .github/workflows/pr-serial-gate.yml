@@ -1,0 +1,77 @@
+name: PR Serial Gate
+
+on:
+  pull_request:
+    branches: [main, master]
+    types: [opened, reopened, synchronize, labeled, unlabeled, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  serial-gate:
+    name: Serial Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce serial merge gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            if (!pr) {
+              core.setFailed('No pull request context found.');
+              return;
+            }
+
+            const base = pr.base.ref;
+            if (!['main', 'master'].includes(base)) {
+              core.info(`Skip serial gate for base branch: ${base}`);
+              return;
+            }
+
+            if (pr.draft) {
+              core.setFailed('Draft PR cannot enter serial gate. Mark as ready for review first.');
+              return;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const gateLabel = 'ready-to-merge';
+
+            const hasGateLabel = (pr.labels || []).some((l) => l.name === gateLabel);
+            if (!hasGateLabel) {
+              core.setFailed(
+                `Missing label: ${gateLabel}. Add this label when PR is ready to request merge slot.`
+              );
+              return;
+            }
+
+            const all = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: 'open',
+              base,
+              per_page: 100,
+            });
+
+            const queue = all
+              .filter((item) => !item.draft)
+              .filter((item) => (item.labels || []).some((l) => l.name === gateLabel))
+              .sort((a, b) => a.number - b.number);
+
+            if (queue.length === 0) {
+              core.setFailed('No ready-to-merge PR found.');
+              return;
+            }
+
+            const head = queue[0];
+            if (head.number !== pr.number) {
+              core.setFailed(
+                `Serial gate blocked. Current PR #${pr.number} is behind #${head.number}. Keep waiting or remove ready-to-merge label until your turn.`
+              );
+              return;
+            }
+
+            core.info(`Serial gate passed. PR #${pr.number} is at queue head.`);

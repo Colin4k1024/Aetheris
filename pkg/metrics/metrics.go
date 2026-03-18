@@ -48,7 +48,6 @@ type MetricsLabels struct {
 
 // Observer 用于观测指标的结构
 type Observer struct {
-	mu           sync.RWMutex
 	labelValues  map[string]string
 	counters     map[string]prometheus.Counter
 	gauges       map[string]prometheus.Gauge
@@ -60,14 +59,14 @@ type Observer struct {
 func NewObserver(labels MetricsLabels) *Observer {
 	return &Observer{
 		labelValues: map[string]string{
-			"tenant":   labels.Tenant,
-			"agent_id": labels.AgentID,
+			"tenant":    labels.Tenant,
+			"agent_id":  labels.AgentID,
 			"step_type": labels.StepType,
-			"tool":     labels.Tool,
-			"provider": labels.Provider,
-			"status":   labels.Status,
-			"result":   labels.Result,
-			"queue":    labels.Queue,
+			"tool":      labels.Tool,
+			"provider":  labels.Provider,
+			"status":    labels.Status,
+			"result":    labels.Result,
+			"queue":     labels.Queue,
 		},
 		counters:   make(map[string]prometheus.Counter),
 		gauges:     make(map[string]prometheus.Gauge),

@@ -19,8 +19,9 @@ import (
 	"math"
 	"strings"
 
-	"github.com/google/uuid"
 	"rag-platform/internal/pipeline/common"
+
+	"github.com/google/uuid"
 )
 
 // TextEmbedder 用于切片的文本向量化接口，与 internal/model/embedding.Embedder 同签名
@@ -120,7 +121,6 @@ func (s *SemanticSplitter) mergeBySemantics(sentences []string, chunkSize, chunk
 					} else {
 						currentChunk.Reset()
 					}
-					lastSentenceInChunk = ""
 				}
 			}
 		}
@@ -139,7 +139,6 @@ func (s *SemanticSplitter) mergeBySemantics(sentences []string, chunkSize, chunk
 				} else {
 					currentChunk.Reset()
 				}
-				lastSentenceInChunk = ""
 			}
 		}
 

@@ -70,9 +70,9 @@ type Output struct {
 func (w *Workflow) AddNode(name, nodeType string, config *NodeConfig) error {
 	switch nodeType {
 	case "validate":
-		w.graph.AddLambdaNode(name, compose.InvokableLambda(func(ctx context.Context, input *Input) (*Output, error) {
+		if err := w.graph.AddLambdaNode(name, compose.InvokableLambda(func(ctx context.Context, input *Input) (*Output, error) {
 			// 添加 DAG node tracing
-			nodeSpan, ctx := tracing.StartDAGNodeSpan(ctx, name, nodeType)
+			nodeSpan, _ := tracing.StartDAGNodeSpan(ctx, name, nodeType)
 			defer nodeSpan.End(nil)
 			nodeSpan.SetInputSize(len(input.Query))
 
@@ -82,20 +82,24 @@ func (w *Workflow) AddNode(name, nodeType string, config *NodeConfig) error {
 			result := input.Query
 			nodeSpan.SetOutputSize(len(result))
 			return &Output{Result: result}, nil
-		}))
+		})); err != nil {
+			return err
+		}
 	case "generate":
 		return fmt.Errorf("generate 节点requires chatModel 实例")
 	case "format":
-		w.graph.AddLambdaNode(name, compose.InvokableLambda(func(ctx context.Context, input *Input) (*Output, error) {
+		if err := w.graph.AddLambdaNode(name, compose.InvokableLambda(func(ctx context.Context, input *Output) (*Output, error) {
 			// 添加 DAG node tracing
-			nodeSpan, ctx := tracing.StartDAGNodeSpan(ctx, name, nodeType)
+			nodeSpan, _ := tracing.StartDAGNodeSpan(ctx, name, nodeType)
 			defer nodeSpan.End(nil)
-			nodeSpan.SetInputSize(len(input.Query))
+			nodeSpan.SetInputSize(len(input.Result))
 
-			result := fmt.Sprintf("格式化结果: %s", input.Query)
+			result := fmt.Sprintf("格式化结果: %s", input.Result)
 			nodeSpan.SetOutputSize(len(result))
 			return &Output{Result: result}, nil
-		}))
+		})); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unsupported input type节点类型: %s", nodeType)
 	}
@@ -105,8 +109,7 @@ func (w *Workflow) AddNode(name, nodeType string, config *NodeConfig) error {
 
 // AddEdge 添加边
 func (w *Workflow) AddEdge(from, to string) error {
-	w.graph.AddEdge(from, to)
-	return nil
+	return w.graph.AddEdge(from, to)
 }
 
 // Compile 编译工作流

@@ -163,25 +163,6 @@ func (e *DocumentEmbedding) embedChunks(doc *common.Document) error {
 	return nil
 }
 
-// embedDocument 向量化整个文档（可选）
-func (e *DocumentEmbedding) embedDocument(doc *common.Document) error {
-	if doc.Content == "" {
-		return nil
-	}
-
-	// 向量化文档内容
-	vecs, err := e.embedder.Embed(context.Background(), []string{doc.Content})
-	if err != nil {
-		return fmt.Errorf("vectorize document failed: %w", err)
-	}
-	if len(vecs) > 0 {
-		doc.Embedding = vecs[0]
-	}
-	doc.Metadata["document_embedded"] = true
-
-	return nil
-}
-
 // SetEmbedder 设置嵌入器
 func (e *DocumentEmbedding) SetEmbedder(embedder *embedding.Embedder) {
 	e.embedder = embedder

@@ -25,7 +25,7 @@ func TestComputeHTTPIdempotencyKey(t *testing.T) {
 	tests := []struct {
 		name     string
 		req      HTTPRequest
-		wantLen  int // minimum expected length
+		wantLen  int  // minimum expected length
 		wantSame bool // same inputs should produce same keys
 	}{
 		{

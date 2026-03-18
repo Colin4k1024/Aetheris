@@ -20,9 +20,9 @@ import (
 
 	"rag-platform/internal/agent/memory"
 	"rag-platform/internal/agent/planner"
+	"rag-platform/internal/agent/runtime"
 	"rag-platform/internal/agent/tools"
 	"rag-platform/internal/runtime/session"
-	"rag-platform/internal/agent/runtime"
 )
 
 // mockPlanGoalProvider implements planGoalProvider for testing
@@ -169,8 +169,8 @@ type testTool struct {
 	description string
 }
 
-func (t *testTool) Name() string        { return t.name }
-func (t *testTool) Description() string { return t.description }
+func (t *testTool) Name() string           { return t.name }
+func (t *testTool) Description() string    { return t.description }
 func (t *testTool) Schema() map[string]any { return nil }
 func (t *testTool) Execute(ctx context.Context, sess *session.Session, input map[string]any, state interface{}) (any, error) {
 	return nil, nil

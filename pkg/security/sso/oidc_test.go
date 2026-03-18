@@ -64,8 +64,8 @@ func TestHashState_DifferentInputs(t *testing.T) {
 func TestOIDCConfig(t *testing.T) {
 	config := OIDCConfig{
 		IssuerURL:      "https://example.com",
-		ClientID:        "client-id",
-		ClientSecret:    "client-secret",
+		ClientID:       "client-id",
+		ClientSecret:   "client-secret",
 		RedirectURL:    "https://app.com/callback",
 		Scopes:         []string{"openid", "profile", "email"},
 		AllowedDomains: []string{"example.com"},
@@ -117,12 +117,12 @@ func TestUserInfo(t *testing.T) {
 
 func TestSAMLConfig(t *testing.T) {
 	config := SAMLConfig{
-		SSOURL:    "https://idp.example.com/sso",
-		Issuer:    "https://sp.example.com",
+		SSOURL:      "https://idp.example.com/sso",
+		Issuer:      "https://sp.example.com",
 		Certificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-		SPEntityID: "https://sp.example.com/entity",
-		ACSURL:    "https://sp.example.com/acs",
-		SLOURL:    "https://idp.example.com/slo",
+		SPEntityID:  "https://sp.example.com/entity",
+		ACSURL:      "https://sp.example.com/acs",
+		SLOURL:      "https://idp.example.com/slo",
 		AttributeMapping: map[string]string{
 			"email": "mail",
 			"name":  "cn",
@@ -253,10 +253,10 @@ func TestNewProvider_SAMLConfigError(t *testing.T) {
 
 func TestOIDCDiscovery(t *testing.T) {
 	discovery := OIDCDiscovery{
-		Issuer:                 "https://example.com",
+		Issuer:                "https://example.com",
 		AuthorizationEndpoint: "https://example.com/auth",
-		TokenEndpoint:          "https://example.com/token",
-		UserInfoEndpoint:       "https://example.com/userinfo",
+		TokenEndpoint:         "https://example.com/token",
+		UserInfoEndpoint:      "https://example.com/userinfo",
 		EndSessionEndpoint:    "https://example.com/logout",
 		JWKSURI:               "https://example.com/jwks",
 	}

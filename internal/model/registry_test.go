@@ -40,11 +40,11 @@ func TestGetLLM_ErrorMessage(t *testing.T) {
 func TestGetEmbedding_ErrorMessage(t *testing.T) {
 	_, err := GetEmbedding("unknown")
 	require.Error(t, err)
-	assert.Equal(t, "Embedding not registered: unknown", err.Error())
+	assert.Equal(t, "embedding not registered: unknown", err.Error())
 }
 
 func TestGetVision_ErrorMessage(t *testing.T) {
 	_, err := GetVision("unknown")
 	require.Error(t, err)
-	assert.Equal(t, "Vision not registered: unknown", err.Error())
+	assert.Equal(t, "vision not registered: unknown", err.Error())
 }

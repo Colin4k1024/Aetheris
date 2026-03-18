@@ -96,27 +96,6 @@ func listAgentJobs(agentID string) ([]map[string]interface{}, error) {
 	return out.Jobs, nil
 }
 
-func createAgent(name string) (string, error) {
-	body := map[string]string{"name": name}
-	if name == "" {
-		body["name"] = "default"
-	}
-	var out struct {
-		ID string `json:"id"`
-	}
-	resp, err := newClient().R().
-		SetBody(body).
-		SetResult(&out).
-		Post("/api/agents/")
-	if err != nil {
-		return "", err
-	}
-	if resp.StatusCode() != http.StatusOK && resp.StatusCode() != http.StatusCreated {
-		return "", fmt.Errorf("POST /api/agents: %s", resp.String())
-	}
-	return out.ID, nil
-}
-
 func postMessage(agentID, message string) (jobID string, err error) {
 	body := map[string]string{"message": message}
 	var out struct {
@@ -133,22 +112,6 @@ func postMessage(agentID, message string) (jobID string, err error) {
 		return "", fmt.Errorf("POST message: %s", resp.String())
 	}
 	return out.JobID, nil
-}
-
-func listTools() ([]map[string]interface{}, error) {
-	var out struct {
-		Tools []map[string]interface{} `json:"tools"`
-	}
-	resp, err := newClient().R().
-		SetResult(&out).
-		Get("/api/tools/")
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("GET /api/tools: %s", resp.String())
-	}
-	return out.Tools, nil
 }
 
 func tracePageURL(jobID string) string {

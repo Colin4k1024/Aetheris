@@ -261,10 +261,10 @@ func StartLLMSpan(ctx context.Context, model string) (context.Context, trace.Spa
 
 // IngestPipelineSpan 用于 ingest 工作流的细粒度 span
 type IngestPipelineSpan struct {
-	ctx    context.Context
-	span   trace.Span
-	start  time.Time
-	step   string
+	ctx   context.Context
+	span  trace.Span
+	start time.Time
+	step  string
 }
 
 // StartIngestStepSpan 开始 ingest 步骤 span (loader/parser/splitter/embedding/indexer)
@@ -296,10 +296,10 @@ func (s *IngestPipelineSpan) End(err error) {
 
 // QueryPipelineSpan 用于 query 工作流的细粒度 span
 type QueryPipelineSpan struct {
-	ctx    context.Context
-	span   trace.Span
-	start  time.Time
-	step   string
+	ctx   context.Context
+	span  trace.Span
+	start time.Time
+	step  string
 }
 
 // StartQueryStepSpan 开始 query 步骤 span (query_embed/retrieve/generate)
@@ -333,10 +333,10 @@ func (s *QueryPipelineSpan) End(err error) {
 
 // LLMSpan LLM 调用的细粒度 span
 type LLMSpan struct {
-	ctx    context.Context
-	span   trace.Span
-	start  time.Time
-	model  string
+	ctx   context.Context
+	span  trace.Span
+	start time.Time
+	model string
 }
 
 // StartLLMCallSpan 开始 LLM 调用 span（带 tokens 跟踪）

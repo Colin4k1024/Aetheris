@@ -117,7 +117,7 @@ func (a *Agent) runInternal(ctx context.Context, sessionID string, userQuery str
 	for totalSteps < a.maxSteps {
 		step, err := a.planner.Next(ctx, sess, userQuery, schemas)
 		if err != nil {
-			return nil, fmt.Errorf("Planner Next failed: %w", err)
+			return nil, fmt.Errorf("planner Next failed: %w", err)
 		}
 		if step.Final != "" {
 			return &RunResult{Answer: step.Final, Steps: totalSteps, Duration: time.Since(start)}, nil

@@ -171,7 +171,7 @@ func (s *pgStore) Claim(ctx context.Context, workerID string) (string, int, stri
 	if err != nil {
 		return "", 0, "", err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	var claimedID string
 	var claimedVersion int

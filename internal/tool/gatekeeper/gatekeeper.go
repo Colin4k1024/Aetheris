@@ -101,10 +101,10 @@ func WithMaxRequestSize(size int64) Option {
 
 // RateLimiter 简单的速率限制器
 type RateLimiter struct {
-	mu           sync.Mutex
-	requests     []time.Time
-	maxRequests  int
-	windowSize   time.Duration
+	mu          sync.Mutex
+	requests    []time.Time
+	maxRequests int
+	windowSize  time.Duration
 }
 
 // NewRateLimiter 创建速率限制器
@@ -150,7 +150,7 @@ func (rl *RateLimiter) Reset() {
 // New 创建 Gatekeeper
 func New(opts ...Option) *Gatekeeper {
 	g := &Gatekeeper{
-		enableNetworkValidation:  true,
+		enableNetworkValidation: true,
 		enableTypeValidation:    true,
 		enableCommandValidation: true,
 		enableRateLimiting:      false,
@@ -335,9 +335,9 @@ func (g *Gatekeeper) validateSSRF(urlStr string) error {
 
 	// 检查云元数据端点
 	metadataEndpoints := []string{
-		"169.254.169.254",  // AWS, GCP, Azure
+		"169.254.169.254",          // AWS, GCP, Azure
 		"metadata.google.internal", // GCP
-		"metadata.google",  // GCP
+		"metadata.google",          // GCP
 	}
 
 	for _, endpoint := range metadataEndpoints {
@@ -547,13 +547,13 @@ func extractHost(urlStr string) string {
 	urlStr = strings.TrimPrefix(urlStr, "https://")
 	urlStr = strings.TrimPrefix(urlStr, "http://")
 	urlStr = strings.TrimPrefix(urlStr, "ftp://")
-	
+
 	// 提取主机部分（到第一个 / 为止）
 	parts := strings.Split(urlStr, "/")
 	if len(parts) > 0 && parts[0] != "" {
 		return parts[0]
 	}
-	
+
 	return ""
 }
 
