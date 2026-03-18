@@ -88,13 +88,13 @@ func (w *Workflow) AddNode(name, nodeType string, config *NodeConfig) error {
 	case "generate":
 		return fmt.Errorf("generate 节点requires chatModel 实例")
 	case "format":
-		if err := w.graph.AddLambdaNode(name, compose.InvokableLambda(func(ctx context.Context, input *Input) (*Output, error) {
+		if err := w.graph.AddLambdaNode(name, compose.InvokableLambda(func(ctx context.Context, input *Output) (*Output, error) {
 			// 添加 DAG node tracing
 			nodeSpan, _ := tracing.StartDAGNodeSpan(ctx, name, nodeType)
 			defer nodeSpan.End(nil)
-			nodeSpan.SetInputSize(len(input.Query))
+			nodeSpan.SetInputSize(len(input.Result))
 
-			result := fmt.Sprintf("格式化结果: %s", input.Query)
+			result := fmt.Sprintf("格式化结果: %s", input.Result)
 			nodeSpan.SetOutputSize(len(result))
 			return &Output{Result: result}, nil
 		})); err != nil {
