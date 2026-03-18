@@ -4,8 +4,15 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+STRICT_P0_MODE="${RELEASE_STRICT_P0:-false}"
+
 # In CI/release pipelines, run P0 gates by default unless explicitly disabled.
-if [[ "${CI:-}" == "true" ]]; then
+if [[ "$STRICT_P0_MODE" == "true" ]]; then
+  RUN_P0_PERF="1"
+  RUN_P0_DRILLS="1"
+  RUN_DB_DRILL="1"
+  RUN_TENANT_REGRESSION="1"
+elif [[ "${CI:-}" == "true" ]]; then
   RUN_P0_PERF="${RUN_P0_PERF:-1}"
   RUN_P0_DRILLS="${RUN_P0_DRILLS:-1}"
   RUN_DB_DRILL="${RUN_DB_DRILL:-1}"
@@ -18,6 +25,8 @@ else
 fi
 
 echo "[release-2.0] starting release checks..."
+echo "[release-2.0] strict P0 mode: $STRICT_P0_MODE"
+echo "[release-2.0] gate flags: RUN_P0_PERF=$RUN_P0_PERF RUN_P0_DRILLS=$RUN_P0_DRILLS RUN_DB_DRILL=$RUN_DB_DRILL RUN_TENANT_REGRESSION=$RUN_TENANT_REGRESSION"
 
 echo "[release-2.0] gofmt check"
 if [ -n "$(gofmt -l .)" ]; then
