@@ -44,7 +44,7 @@ func NewRouter(registry *ModelRegistry, strategy RoutingStrategy, config *Config
 	if config == nil {
 		config = DefaultConfig()
 	}
-	
+
 	return &defaultRouter{
 		registry: registry,
 		strategy: strategy,
@@ -158,12 +158,12 @@ func getErrorType(err error) string {
 }
 
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && 
-		   (s == substr || 
-		    (len(s) > len(substr) && 
-		     (s[:len(substr)] == substr || 
-		      s[len(s)-len(substr):] == substr || 
-		      containsAny(s, substr))))
+	return len(s) >= len(substr) &&
+		(s == substr ||
+			(len(s) > len(substr) &&
+				(s[:len(substr)] == substr ||
+					s[len(s)-len(substr):] == substr ||
+					containsAny(s, substr))))
 }
 
 func containsAny(s, substr string) bool {
@@ -179,23 +179,23 @@ func containsAny(s, substr string) bool {
 type RoutingStrategy interface {
 	// Name 返回策略名称
 	Name() string
-	
+
 	// Select 选择模型
 	Select(ctx context.Context, req *RoutingRequest) (*ModelInfo, error)
 }
 
 // Config 路由器配置
 type Config struct {
-	EnableHotSwitch     bool          // 启用热切换
-	MaxRetries         int           // 最大重试次数
-	RetryDelayMs       int           // 重试延迟
-	DefaultStrategy    string        // 默认策略
+	EnableHotSwitch bool   // 启用热切换
+	MaxRetries      int    // 最大重试次数
+	RetryDelayMs    int    // 重试延迟
+	DefaultStrategy string // 默认策略
 }
 
 // DefaultConfig 返回默认配置
 func DefaultConfig() *Config {
 	return &Config{
-		EnableHotSwitch:  true,
+		EnableHotSwitch: true,
 		MaxRetries:      2,
 		RetryDelayMs:    1000,
 		DefaultStrategy: "balanced",

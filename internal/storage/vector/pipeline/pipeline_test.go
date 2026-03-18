@@ -54,16 +54,16 @@ func TestNewMemoryPipeline(t *testing.T) {
 	config := DefaultMemoryPipelineConfig()
 	embedder := &mockEmbedder{dimension: 1536, model: "test"}
 	store := vector.NewMemoryStore()
-	
+
 	pipeline, err := NewMemoryPipeline(config, embedder, store)
 	if err != nil {
 		t.Fatalf("NewMemoryPipeline failed: %v", err)
 	}
-	
+
 	if pipeline == nil {
 		t.Fatal("pipeline is nil")
 	}
-	
+
 	// Check initial stats
 	total, avgWeight := pipeline.GetStats()
 	if total != 0 {
@@ -79,37 +79,37 @@ func TestMemoryPipeline_StoreAndRecall(t *testing.T) {
 	config := DefaultMemoryPipelineConfig()
 	embedder := &mockEmbedder{dimension: 2, model: "test"}
 	store := vector.NewMemoryStore()
-	
+
 	pipeline, err := NewMemoryPipeline(config, embedder, store)
 	if err != nil {
 		t.Fatalf("NewMemoryPipeline failed: %v", err)
 	}
-	
+
 	// Store some memories
 	memories := []VectorMemoryItem{
 		{ID: "mem1", Content: "User prefers dark mode", Weight: 1.0},
 		{ID: "mem2", Content: "User likes Python programming", Weight: 0.9},
 		{ID: "mem3", Content: "User works on AI projects", Weight: 0.8},
 	}
-	
+
 	for _, mem := range memories {
 		if err := pipeline.Store(ctx, mem); err != nil {
 			t.Fatalf("Store failed for %s: %v", mem.ID, err)
 		}
 	}
-	
+
 	// Check stats
 	total, _ := pipeline.GetStats()
 	if total != 3 {
 		t.Errorf("expected 3 items, got %d", total)
 	}
-	
+
 	// Recall similar memories
 	results, err := pipeline.Recall(ctx, "programming language preferences", 2)
 	if err != nil {
 		t.Fatalf("Recall failed: %v", err)
 	}
-	
+
 	if len(results) == 0 {
 		t.Error("expected some recall results")
 	}
@@ -120,15 +120,15 @@ func TestMemoryPipeline_Decay(t *testing.T) {
 	config := DefaultMemoryPipelineConfig()
 	config.DecayInterval = time.Millisecond // Force decay on every call
 	config.MinWeight = 0.5
-	
+
 	embedder := &mockEmbedder{dimension: 2, model: "test"}
 	store := vector.NewMemoryStore()
-	
+
 	pipeline, err := NewMemoryPipeline(config, embedder, store)
 	if err != nil {
 		t.Fatalf("NewMemoryPipeline failed: %v", err)
 	}
-	
+
 	// Store a memory with initial weight
 	mem := VectorMemoryItem{
 		ID:      "mem1",
@@ -138,13 +138,13 @@ func TestMemoryPipeline_Decay(t *testing.T) {
 	if err := pipeline.Store(ctx, mem); err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
-	
+
 	// Wait a bit and decay
 	time.Sleep(10 * time.Millisecond)
 	if err := pipeline.Decay(ctx); err != nil {
 		t.Fatalf("Decay failed: %v", err)
 	}
-	
+
 	// Check that weight decreased
 	total, _ := pipeline.GetStats()
 	if total != 1 {
@@ -156,15 +156,15 @@ func TestMemoryPipeline_Compress(t *testing.T) {
 	ctx := context.Background()
 	config := DefaultMemoryPipelineConfig()
 	config.SimilarityThreshold = 0.9 // High threshold to force grouping
-	
+
 	embedder := &mockEmbedder{dimension: 2, model: "test"}
 	store := vector.NewMemoryStore()
-	
+
 	pipeline, err := NewMemoryPipeline(config, embedder, store)
 	if err != nil {
 		t.Fatalf("NewMemoryPipeline failed: %v", err)
 	}
-	
+
 	// Store similar memories
 	mem1 := VectorMemoryItem{
 		ID:      "mem1",
@@ -176,19 +176,19 @@ func TestMemoryPipeline_Compress(t *testing.T) {
 		Content: "Machine learning is great",
 		Weight:  0.9,
 	}
-	
+
 	if err := pipeline.Store(ctx, mem1); err != nil {
 		t.Fatalf("Store mem1 failed: %v", err)
 	}
 	if err := pipeline.Store(ctx, mem2); err != nil {
 		t.Fatalf("Store mem2 failed: %v", err)
 	}
-	
+
 	// Run compression
 	if err := pipeline.Compress(ctx); err != nil {
 		t.Fatalf("Compress failed: %v", err)
 	}
-	
+
 	// Check stats - should have fewer items after compression
 	total, _ := pipeline.GetStats()
 	if total >= 2 {
@@ -201,15 +201,15 @@ func TestMemoryPipeline_Maintenance(t *testing.T) {
 	config := DefaultMemoryPipelineConfig()
 	config.DecayInterval = time.Millisecond
 	config.MaintenanceInterval = time.Millisecond
-	
+
 	embedder := &mockEmbedder{dimension: 2, model: "test"}
 	store := vector.NewMemoryStore()
-	
+
 	pipeline, err := NewMemoryPipeline(config, embedder, store)
 	if err != nil {
 		t.Fatalf("NewMemoryPipeline failed: %v", err)
 	}
-	
+
 	// Store some memories
 	mem := VectorMemoryItem{
 		ID:      "mem1",
@@ -219,13 +219,13 @@ func TestMemoryPipeline_Maintenance(t *testing.T) {
 	if err := pipeline.Store(ctx, mem); err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
-	
+
 	// Run maintenance
 	time.Sleep(10 * time.Millisecond)
 	if err := pipeline.Maintenance(ctx); err != nil {
 		t.Fatalf("Maintenance failed: %v", err)
 	}
-	
+
 	// Pipeline should still be functional
 	total, _ := pipeline.GetStats()
 	if total < 0 {
@@ -237,12 +237,12 @@ func TestMemoryPipeline_Close(t *testing.T) {
 	config := DefaultMemoryPipelineConfig()
 	embedder := &mockEmbedder{dimension: 2, model: "test"}
 	store := vector.NewMemoryStore()
-	
+
 	pipeline, err := NewMemoryPipeline(config, embedder, store)
 	if err != nil {
 		t.Fatalf("NewMemoryPipeline failed: %v", err)
 	}
-	
+
 	if err := pipeline.Close(); err != nil {
 		t.Fatalf("Close failed: %v", err)
 	}
@@ -280,7 +280,7 @@ func TestCosineSimilarity(t *testing.T) {
 			expected: 0.9938837346736189,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := cosineSimilarity(tt.a, tt.b)
@@ -297,12 +297,12 @@ func TestMemoryPipeline_StoreEmptyContent(t *testing.T) {
 	config := DefaultMemoryPipelineConfig()
 	embedder := &mockEmbedder{dimension: 2, model: "test"}
 	store := vector.NewMemoryStore()
-	
+
 	pipeline, err := NewMemoryPipeline(config, embedder, store)
 	if err != nil {
 		t.Fatalf("NewMemoryPipeline failed: %v", err)
 	}
-	
+
 	// Try to store empty content
 	mem := VectorMemoryItem{
 		ID:      "mem1",
@@ -320,18 +320,18 @@ func TestMemoryPipeline_RecallEmptyQuery(t *testing.T) {
 	config := DefaultMemoryPipelineConfig()
 	embedder := &mockEmbedder{dimension: 2, model: "test"}
 	store := vector.NewMemoryStore()
-	
+
 	pipeline, err := NewMemoryPipeline(config, embedder, store)
 	if err != nil {
 		t.Fatalf("NewMemoryPipeline failed: %v", err)
 	}
-	
+
 	// Recall with empty query should still work (returns all items up to topK)
 	results, err := pipeline.Recall(ctx, "", 10)
 	if err != nil {
 		t.Fatalf("Recall failed: %v", err)
 	}
-	
+
 	// Empty query with no stored items should return empty
 	if len(results) != 0 {
 		t.Errorf("expected 0 results for empty query with no items, got %d", len(results))

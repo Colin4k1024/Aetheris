@@ -34,21 +34,21 @@ const JSONRPCVersion = "2.0"
 
 // Method types for MCP protocol
 const (
-	MethodInitialize       = "initialize"
-	MethodToolsList        = "tools/list"
-	MethodToolsCall        = "tools/call"
-	MethodResourcesList    = "resources/list"
-	MethodResourcesRead    = "resources/read"
+	MethodInitialize         = "initialize"
+	MethodToolsList          = "tools/list"
+	MethodToolsCall          = "tools/call"
+	MethodResourcesList      = "resources/list"
+	MethodResourcesRead      = "resources/read"
 	MethodResourcesSubscribe = "resources/subscribe"
-	MethodPromptsList      = "prompts/list"
-	MethodPromptsGet       = "prompts/get"
+	MethodPromptsList        = "prompts/list"
+	MethodPromptsGet         = "prompts/get"
 )
 
 // ServerCapabilities MCP 服务器能力
 type ServerCapabilities struct {
-	Tools    *ToolsCapability    `json:"tools,omitempty"`
+	Tools     *ToolsCapability     `json:"tools,omitempty"`
 	Resources *ResourcesCapability `json:"resources,omitempty"`
-	Prompts  *PromptsCapability   `json:"prompts,omitempty"`
+	Prompts   *PromptsCapability   `json:"prompts,omitempty"`
 }
 
 // ToolsCapability 工具能力
@@ -70,8 +70,8 @@ type PromptsCapability struct {
 // InitializeResult 初始化结果
 type InitializeResult struct {
 	ProtocolVersion string             `json:"protocolVersion"`
-	Capabilities   ServerCapabilities `json:"capabilities"`
-	ServerInfo     ServerInfo         `json:"serverInfo"`
+	Capabilities    ServerCapabilities `json:"capabilities"`
+	ServerInfo      ServerInfo         `json:"serverInfo"`
 }
 
 // ServerInfo 服务器信息
@@ -87,25 +87,25 @@ type ToolListResult struct {
 
 // ToolDefinition MCP 工具定义（转换为我们的工具系统）
 type ToolDefinition struct {
-	Name        string      `json:"name"`
-	Description string      `json:"description"`
-	InputSchema JSONSchema  `json:"inputSchema"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	InputSchema JSONSchema `json:"inputSchema"`
 }
 
 // JSONSchema MCP JSON Schema
 type JSONSchema struct {
-	Type        string               `json:"type"`
-	Properties  map[string]Property  `json:"properties,omitempty"`
-	Required    []string             `json:"required,omitempty"`
-	Description string               `json:"description,omitempty"`
+	Type        string              `json:"type"`
+	Properties  map[string]Property `json:"properties,omitempty"`
+	Required    []string            `json:"required,omitempty"`
+	Description string              `json:"description,omitempty"`
 }
 
 // Property 属性定义
 type Property struct {
-	Type        string      `json:"type"`
-	Description string      `json:"description,omitempty"`
-	Enum        []any       `json:"enum,omitempty"`
-	Items       *JSONSchema `json:"items,omitempty"`
+	Type        string              `json:"type"`
+	Description string              `json:"description,omitempty"`
+	Enum        []any               `json:"enum,omitempty"`
+	Items       *JSONSchema         `json:"items,omitempty"`
 	Properties  map[string]Property `json:"properties,omitempty"`
 }
 
@@ -135,12 +135,12 @@ type MCPServer struct {
 // NewMCPServer 创建 MCP 服务器
 func NewMCPServer(reg *registry.Registry, gk *gatekeeper.Gatekeeper) *MCPServer {
 	return &MCPServer{
-		registry: reg,
+		registry:   reg,
 		gatekeeper: gk,
 		capabilities: ServerCapabilities{
-			Tools: &ToolsCapability{ListChanged: true},
+			Tools:     &ToolsCapability{ListChanged: true},
 			Resources: &ResourcesCapability{List: true, Subscribe: true},
-			Prompts: &PromptsCapability{List: true},
+			Prompts:   &PromptsCapability{List: true},
 		},
 		serverInfo: ServerInfo{
 			Name:    "CoRag MCP Server",
@@ -154,9 +154,9 @@ func (s *MCPServer) Initialize(ctx context.Context, params json.RawMessage) (int
 	var initParams struct {
 		ProtocolVersion string `json:"protocolVersion"`
 		Capabilities    struct {
-			Tools    bool `json:"tools"`
+			Tools     bool `json:"tools"`
 			Resources bool `json:"resources"`
-			Prompts  bool `json:"prompts"`
+			Prompts   bool `json:"prompts"`
 		} `json:"capabilities"`
 	}
 
@@ -195,7 +195,7 @@ func (s *MCPServer) CallTool(ctx context.Context, name string, arguments map[str
 	if !ok {
 		return ToolCallResult{
 			Content: []ContentBlock{{Type: "text", Text: fmt.Sprintf("tool not found: %s", name)}},
-			IsError:  true,
+			IsError: true,
 		}, nil
 	}
 
@@ -205,7 +205,7 @@ func (s *MCPServer) CallTool(ctx context.Context, name string, arguments map[str
 		if err := s.gatekeeper.Validate(name, arguments, schema); err != nil {
 			return ToolCallResult{
 				Content: []ContentBlock{{Type: "text", Text: fmt.Sprintf("validation error: %s", err.Error())}},
-				IsError:  true,
+				IsError: true,
 			}, nil
 		}
 	}
@@ -215,7 +215,7 @@ func (s *MCPServer) CallTool(ctx context.Context, name string, arguments map[str
 	if err != nil {
 		return ToolCallResult{
 			Content: []ContentBlock{{Type: "text", Text: fmt.Sprintf("execution error: %s", err.Error())}},
-			IsError:  true,
+			IsError: true,
 		}, nil
 	}
 
@@ -223,13 +223,13 @@ func (s *MCPServer) CallTool(ctx context.Context, name string, arguments map[str
 	if result.Err != "" {
 		return ToolCallResult{
 			Content: []ContentBlock{{Type: "text", Text: result.Err}},
-			IsError:  true,
+			IsError: true,
 		}, nil
 	}
 
 	return ToolCallResult{
 		Content: []ContentBlock{{Type: "text", Text: result.Content}},
-		IsError:  false,
+		IsError: false,
 	}, nil
 }
 

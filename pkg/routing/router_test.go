@@ -106,14 +106,14 @@ func TestModelRegistry(t *testing.T) {
 
 	// Register models
 	registry.RegisterModel(&ModelInfo{
-		Name:    "gpt-4o",
+		Name:     "gpt-4o",
 		Provider: "openai",
-		Tier:    TierFlagship,
+		Tier:     TierFlagship,
 	})
 	registry.RegisterModel(&ModelInfo{
-		Name:    "claude-3.5-sonnet",
+		Name:     "claude-3.5-sonnet",
 		Provider: "anthropic",
-		Tier:    TierBalanced,
+		Tier:     TierBalanced,
 	})
 
 	// Test GetModel
@@ -223,7 +223,7 @@ func TestBalancedStrategy(t *testing.T) {
 		name       string
 		complexity NodeComplexity
 		priority   RoutingPriority
-		wantTier  ModelTier
+		wantTier   ModelTier
 	}{
 		{
 			name:       "simple with cost priority",

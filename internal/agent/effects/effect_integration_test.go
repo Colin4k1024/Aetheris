@@ -32,7 +32,7 @@ func TestJobStoreEffectLogIntegration_FullLifecycle(t *testing.T) {
 
 	// 1. Append LLM Response Effect
 	llmPayload, _ := json.Marshal(map[string]interface{}{
-		"model": "gpt-4",
+		"model":   "gpt-4",
 		"content": "Hello world",
 	})
 	err := effectLog.AppendEffect(ctx, jobID, EffectKindLLMResponseRecorded, llmPayload)
@@ -42,7 +42,7 @@ func TestJobStoreEffectLogIntegration_FullLifecycle(t *testing.T) {
 
 	// 2. Append Tool Result Effect
 	toolPayload, _ := json.Marshal(map[string]interface{}{
-		"tool": "search",
+		"tool":   "search",
 		"result": "found 10 results",
 	})
 	err = effectLog.AppendEffect(ctx, jobID, EffectKindToolResultRecorded, toolPayload)
@@ -53,7 +53,7 @@ func TestJobStoreEffectLogIntegration_FullLifecycle(t *testing.T) {
 	// 3. Append External Call Effect
 	extPayload, _ := json.Marshal(map[string]interface{}{
 		"endpoint": "/api/data",
-		"status": 200,
+		"status":   200,
 	})
 	err = effectLog.AppendEffect(ctx, jobID, EffectKindExternalCallRecorded, extPayload)
 	if err != nil {

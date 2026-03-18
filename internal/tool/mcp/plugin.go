@@ -25,11 +25,11 @@ import (
 
 // PluginManifest 插件清单
 type PluginManifest struct {
-	Name        string   `json:"name" yaml:"name"`
-	Version     string   `json:"version" yaml:"version"`
-	Description string   `json:"description" yaml:"description"`
-	Author      string   `json:"author" yaml:"author"`
-	Tools       []string `json:"tools" yaml:"tools"`
+	Name         string   `json:"name" yaml:"name"`
+	Version      string   `json:"version" yaml:"version"`
+	Description  string   `json:"description" yaml:"description"`
+	Author       string   `json:"author" yaml:"author"`
+	Tools        []string `json:"tools" yaml:"tools"`
 	Dependencies []string `json:"dependencies,omitempty" yaml:"dependencies,omitempty"`
 }
 

@@ -149,7 +149,7 @@ func TestOTelConfig(t *testing.T) {
 	cfg := OTelConfig{
 		ServiceName:    "test-service",
 		ExportEndpoint: "localhost:4318",
-		Insecure:      true,
+		Insecure:       true,
 	}
 
 	if cfg.ServiceName != "test-service" {

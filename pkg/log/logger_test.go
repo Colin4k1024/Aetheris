@@ -38,9 +38,9 @@ func TestNewLogger_Default(t *testing.T) {
 
 func TestNewLogger_WithLevel(t *testing.T) {
 	tests := []struct {
-		name           string
-		level          string
-		expectedLevel  slog.Level
+		name          string
+		level         string
+		expectedLevel slog.Level
 	}{
 		{"debug", "debug", slog.LevelDebug},
 		{"info", "info", slog.LevelInfo},
@@ -211,5 +211,3 @@ func TestNewLogger_WithFile(t *testing.T) {
 		t.Error("expected log file to have content")
 	}
 }
-
-

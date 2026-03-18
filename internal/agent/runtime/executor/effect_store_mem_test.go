@@ -32,9 +32,9 @@ func TestEffectStoreMem_PutAndGetByIdempotencyKey(t *testing.T) {
 		JobID:          "job-1",
 		CommandID:      "cmd-1",
 		IdempotencyKey: "idem-1",
-		Kind:            EffectKindTool,
-		Input:           []byte(`{"query": "test"}`),
-		Output:          []byte(`{"result": "test result"}`),
+		Kind:           EffectKindTool,
+		Input:          []byte(`{"query": "test"}`),
+		Output:         []byte(`{"result": "test result"}`),
 		CreatedAt:      time.Now(),
 	}
 	err := store.PutEffect(ctx, effect)

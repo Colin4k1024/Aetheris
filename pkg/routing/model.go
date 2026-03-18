@@ -115,12 +115,12 @@ func (p RoutingPriority) String() string {
 type FallbackReason int
 
 const (
-	FallbackReasonNone FallbackReason = iota
-	FallbackReasonRateLimit     // 限流 (429)
-	FallbackReasonServerError   // 服务端错误 (5xx)
-	FallbackReasonTimeout       // 超时
-	FallbackReasonQuality        // 质量不满足
-	FallbackReasonCost           // 成本超限
+	FallbackReasonNone        FallbackReason = iota
+	FallbackReasonRateLimit                  // 限流 (429)
+	FallbackReasonServerError                // 服务端错误 (5xx)
+	FallbackReasonTimeout                    // 超时
+	FallbackReasonQuality                    // 质量不满足
+	FallbackReasonCost                       // 成本超限
 )
 
 // String 返回降级原因字符串
@@ -145,15 +145,15 @@ func (r FallbackReason) String() string {
 
 // ModelInfo 模型信息
 type ModelInfo struct {
-	Name             string
-	Provider         string
-	Tier             ModelTier
-	ContextLimit     int           // tokens
-	CostPer1KInput   float64        // USD
-	CostPer1KOutput  float64        // USD
-	AvgLatencyMs     int            // 平均延迟
-	Capabilities     []string       // 能力标签
-	MaxRetries       int            // 最大重试次数
+	Name            string
+	Provider        string
+	Tier            ModelTier
+	ContextLimit    int      // tokens
+	CostPer1KInput  float64  // USD
+	CostPer1KOutput float64  // USD
+	AvgLatencyMs    int      // 平均延迟
+	Capabilities    []string // 能力标签
+	MaxRetries      int      // 最大重试次数
 }
 
 // GetEstimatedCost 估算单次请求成本 (假设 1K input, 500 output)
@@ -174,12 +174,12 @@ func (m *ModelInfo) HasCapability(cap string) bool {
 // RoutingRequest 路由请求
 type RoutingRequest struct {
 	Complexity     NodeComplexity
-	MaxCost        float64          // 最大成本 ($)
-	MaxLatencyMs   int              // 最大延迟 (ms)
-	RequiredCaps   []string         // 必需能力
-	PreferProvider string           // 首选提供商
-	Priority       RoutingPriority  // 优先级
-	RequestID      string           // 请求ID (用于追踪)
+	MaxCost        float64         // 最大成本 ($)
+	MaxLatencyMs   int             // 最大延迟 (ms)
+	RequiredCaps   []string        // 必需能力
+	PreferProvider string          // 首选提供商
+	Priority       RoutingPriority // 优先级
+	RequestID      string          // 请求ID (用于追踪)
 }
 
 // RoutingOutcome 路由结果
@@ -195,17 +195,17 @@ type RoutingOutcome struct {
 
 // ModelRegistry 模型注册表
 type ModelRegistry struct {
-	mu       sync.RWMutex
-	models   map[string]*ModelInfo // model name -> ModelInfo
-	byTier   map[ModelTier][]*ModelInfo
+	mu         sync.RWMutex
+	models     map[string]*ModelInfo // model name -> ModelInfo
+	byTier     map[ModelTier][]*ModelInfo
 	byProvider map[string][]*ModelInfo
 }
 
 // NewModelRegistry 创建模型注册表
 func NewModelRegistry() *ModelRegistry {
 	return &ModelRegistry{
-		models: make(map[string]*ModelInfo),
-		byTier: make(map[ModelTier][]*ModelInfo),
+		models:     make(map[string]*ModelInfo),
+		byTier:     make(map[ModelTier][]*ModelInfo),
 		byProvider: make(map[string][]*ModelInfo),
 	}
 }
@@ -214,7 +214,7 @@ func NewModelRegistry() *ModelRegistry {
 func (r *ModelRegistry) RegisterModel(model *ModelInfo) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	r.models[model.Name] = model
 	r.byTier[model.Tier] = append(r.byTier[model.Tier], model)
 	r.byProvider[model.Provider] = append(r.byProvider[model.Provider], model)
@@ -224,7 +224,7 @@ func (r *ModelRegistry) RegisterModel(model *ModelInfo) {
 func (r *ModelRegistry) GetModel(name string) (*ModelInfo, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	model, ok := r.models[name]
 	if !ok {
 		return nil, fmt.Errorf("model not found: %s", name)
@@ -236,7 +236,7 @@ func (r *ModelRegistry) GetModel(name string) (*ModelInfo, error) {
 func (r *ModelRegistry) GetModelsByTier(tier ModelTier) []*ModelInfo {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	models := make([]*ModelInfo, len(r.byTier[tier]))
 	copy(models, r.byTier[tier])
 	return models
@@ -246,7 +246,7 @@ func (r *ModelRegistry) GetModelsByTier(tier ModelTier) []*ModelInfo {
 func (r *ModelRegistry) GetAllModels() []*ModelRegistryIterator {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	result := make([]*ModelRegistryIterator, 0, len(r.models))
 	for _, model := range r.models {
 		result = append(result, &ModelRegistryIterator{model: model})
@@ -267,7 +267,7 @@ func (i *ModelRegistryIterator) Model() *ModelInfo {
 // DefaultModelRegistry 返回默认模型注册表（预置常用模型）
 func DefaultModelRegistry() *ModelRegistry {
 	registry := NewModelRegistry()
-	
+
 	// T1: 推理模型
 	registry.RegisterModel(&ModelInfo{
 		Name:            "o1",
@@ -291,7 +291,7 @@ func DefaultModelRegistry() *ModelRegistry {
 		Capabilities:    []string{"reasoning", "code", "reasoning_native"},
 		MaxRetries:      2,
 	})
-	
+
 	// T2: 旗舰模型
 	registry.RegisterModel(&ModelInfo{
 		Name:            "gpt-4o",
@@ -326,7 +326,7 @@ func DefaultModelRegistry() *ModelRegistry {
 		Capabilities:    []string{"vision", "long_context"},
 		MaxRetries:      3,
 	})
-	
+
 	// T3: 均衡模型
 	registry.RegisterModel(&ModelInfo{
 		Name:            "gpt-4o-mini",
@@ -361,7 +361,7 @@ func DefaultModelRegistry() *ModelRegistry {
 		Capabilities:    []string{"vision", "long_context"},
 		MaxRetries:      3,
 	})
-	
+
 	// T4: 经济模型
 	registry.RegisterModel(&ModelInfo{
 		Name:            "qwen-turbo",
@@ -396,24 +396,24 @@ func DefaultModelRegistry() *ModelRegistry {
 		Capabilities:    []string{"vision"},
 		MaxRetries:      3,
 	})
-	
+
 	return registry
 }
 
 // RouterAuditLog 路由审计日志
 type RouterAuditLog struct {
-	Timestamp        time.Time
-	RequestID        string
-	Strategy         string
-	SelectedTier     string
-	SelectedModel    string
-	Complexity       NodeComplexity
-	MaxCost          float64
-	MaxLatencyMs     int
-	FallbackFrom     string
-	FallbackTo       string
-	FallbackReason   string
-	TokensUsed       int
-	LatencyMs        int
-	Error            string
+	Timestamp      time.Time
+	RequestID      string
+	Strategy       string
+	SelectedTier   string
+	SelectedModel  string
+	Complexity     NodeComplexity
+	MaxCost        float64
+	MaxLatencyMs   int
+	FallbackFrom   string
+	FallbackTo     string
+	FallbackReason string
+	TokensUsed     int
+	LatencyMs      int
+	Error          string
 }

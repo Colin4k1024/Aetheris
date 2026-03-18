@@ -26,24 +26,24 @@ import (
 
 // MilvusConfig Milvus connection configuration
 type MilvusConfig struct {
-	Addr         string        // Milvus server address (e.g., "localhost:19530")
-	Database     string        // Database name (default: "default")
-	Username     string        // Username for auth
-	Password     string        // Password for auth
-	Timeout      time.Duration // Connection timeout
-	IndexType    string        // Index type (e.g., "IVF_FLAT", "HNSW")
-	MetricType   string        // Metric type (e.g., "COSINE", "L2")
-	Dimension    int           // Vector dimension
+	Addr       string        // Milvus server address (e.g., "localhost:19530")
+	Database   string        // Database name (default: "default")
+	Username   string        // Username for auth
+	Password   string        // Password for auth
+	Timeout    time.Duration // Connection timeout
+	IndexType  string        // Index type (e.g., "IVF_FLAT", "HNSW")
+	MetricType string        // Metric type (e.g., "COSINE", "L2")
+	Dimension  int           // Vector dimension
 }
 
 // PineconeConfig Pinecone connection configuration
 type PineconeConfig struct {
-	APIKey     string        // Pinecone API key
-	Environment string       // Pinecone environment (e.g., "us-east-1-aws")
-	IndexName  string        // Index name
-	Dimension  int           // Vector dimension
-	MetricType string        // Metric type (e.g., "cosine", "euclidean")
-	Timeout    time.Duration // Request timeout
+	APIKey      string        // Pinecone API key
+	Environment string        // Pinecone environment (e.g., "us-east-1-aws")
+	IndexName   string        // Index name
+	Dimension   int           // Vector dimension
+	MetricType  string        // Metric type (e.g., "cosine", "euclidean")
+	Timeout     time.Duration // Request timeout
 }
 
 // MilvusAdapter Milvus vector store adapter
@@ -75,7 +75,7 @@ func NewMilvusAdapter(config MilvusConfig) (*MilvusAdapter, error) {
 	if config.MetricType == "" {
 		config.MetricType = "COSINE"
 	}
-	
+
 	return &MilvusAdapter{
 		config: config,
 	}, nil
@@ -86,7 +86,7 @@ func NewMilvusAdapter(config MilvusConfig) (*MilvusAdapter, error) {
 func (m *MilvusAdapter) Create(ctx context.Context, index *vector.Index) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// TODO: Implement actual Milvus create collection
 	// Example:
 	// err := m.client.CreateCollection(ctx, &milvus.CreateCollectionRequest{
@@ -96,14 +96,14 @@ func (m *MilvusAdapter) Create(ctx context.Context, index *vector.Index) error {
 	// if err != nil {
 	//     return fmt.Errorf("failed to create collection: %w", err)
 	// }
-	
+
 	// Create index
 	// err = m.client.CreateIndex(ctx, &milvus.CreateIndexRequest{
 	//     CollectionName: index.Name,
 	//     IndexType:      m.config.IndexType,
 	//     MetricType:     m.config.MetricType,
 	// })
-	
+
 	return fmt.Errorf("MilvusAdapter.Create: not implemented - requires milvus-go-client dependency")
 }
 
@@ -112,7 +112,7 @@ func (m *MilvusAdapter) Create(ctx context.Context, index *vector.Index) error {
 func (m *MilvusAdapter) Add(ctx context.Context, indexName string, vectors []*vector.Vector) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// TODO: Implement actual Milvus insert
 	// Example:
 	// data := make([]*schema.FieldData, len(vectors))
@@ -128,7 +128,7 @@ func (m *MilvusAdapter) Add(ctx context.Context, indexName string, vectors []*ve
 	//     CollectionName: indexName,
 	//     Fields:         data,
 	// })
-	
+
 	return fmt.Errorf("MilvusAdapter.Add: not implemented - requires milvus-go-client dependency")
 }
 
@@ -137,7 +137,7 @@ func (m *MilvusAdapter) Add(ctx context.Context, indexName string, vectors []*ve
 func (m *MilvusAdapter) Search(ctx context.Context, indexName string, query []float64, options *vector.SearchOptions) ([]*vector.SearchResult, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	// TODO: Implement actual Milvus search
 	// Example:
 	// req := &milvus.SearchRequest{
@@ -151,7 +151,7 @@ func (m *MilvusAdapter) Search(ctx context.Context, indexName string, query []fl
 	//     TopK: int64(options.TopK),
 	// }
 	// results, err := m.client.Search(ctx, req)
-	
+
 	return nil, fmt.Errorf("MilvusAdapter.Search: not implemented - requires milvus-go-client dependency")
 }
 
@@ -160,7 +160,7 @@ func (m *MilvusAdapter) Search(ctx context.Context, indexName string, query []fl
 func (m *MilvusAdapter) Get(ctx context.Context, indexName string, id string) (*vector.Vector, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	// TODO: Implement actual Milvus get by ID
 	return nil, fmt.Errorf("MilvusAdapter.Get: not implemented - requires milvus-go-client dependency")
 }
@@ -170,7 +170,7 @@ func (m *MilvusAdapter) Get(ctx context.Context, indexName string, id string) (*
 func (m *MilvusAdapter) Delete(ctx context.Context, indexName string, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// TODO: Implement actual Milvus delete
 	return fmt.Errorf("MilvusAdapter.Delete: not implemented - requires milvus-go-client dependency")
 }
@@ -180,7 +180,7 @@ func (m *MilvusAdapter) Delete(ctx context.Context, indexName string, id string)
 func (m *MilvusAdapter) DeleteIndex(ctx context.Context, indexName string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// TODO: Implement actual Milvus drop collection
 	return fmt.Errorf("MilvusAdapter.DeleteIndex: not implemented - requires milvus-go-client dependency")
 }
@@ -190,7 +190,7 @@ func (m *MilvusAdapter) DeleteIndex(ctx context.Context, indexName string) error
 func (m *MilvusAdapter) ListIndexes(ctx context.Context) ([]string, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	// TODO: Implement actual Milvus list collections
 	return nil, fmt.Errorf("MilvusAdapter.ListIndexes: not implemented - requires milvus-go-client dependency")
 }
@@ -199,7 +199,7 @@ func (m *MilvusAdapter) ListIndexes(ctx context.Context) ([]string, error) {
 func (m *MilvusAdapter) Close() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// TODO: Close Milvus connection
 	return nil
 }
@@ -240,7 +240,7 @@ func NewPineconeAdapter(config PineconeConfig) (*PineconeAdapter, error) {
 	if config.Timeout <= 0 {
 		config.Timeout = 30 * time.Second
 	}
-	
+
 	return &PineconeAdapter{
 		config: config,
 	}, nil
@@ -251,7 +251,7 @@ func NewPineconeAdapter(config PineconeConfig) (*PineconeAdapter, error) {
 func (p *PineconeAdapter) Create(ctx context.Context, index *vector.Index) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	// TODO: Implement actual Pinecone create index
 	// Note: Pinecone indexes are typically created via API/console
 	// This would verify the index exists and has correct dimension
@@ -263,7 +263,7 @@ func (p *PineconeAdapter) Create(ctx context.Context, index *vector.Index) error
 func (p *PineconeAdapter) Add(ctx context.Context, indexName string, vectors []*vector.Vector) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	// TODO: Implement actual Pinecone upsert
 	// Example:
 	// records := make([]*pinecone.VectorRecord, len(vectors))
@@ -275,7 +275,7 @@ func (p *PineconeAdapter) Add(ctx context.Context, indexName string, vectors []*
 	//     }
 	// }
 	// _, err := p.client.Index(p.config.IndexName).Upsert(ctx, records)
-	
+
 	return fmt.Errorf("PineconeAdapter.Add: not implemented - requires pinecone-client dependency")
 }
 
@@ -284,7 +284,7 @@ func (p *PineconeAdapter) Add(ctx context.Context, indexName string, vectors []*
 func (p *PineconeAdapter) Search(ctx context.Context, indexName string, query []float64, options *vector.SearchOptions) ([]*vector.SearchResult, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	
+
 	// TODO: Implement actual Pinecone query
 	// Example:
 	// queryReq := &pinecone.QueryRequest{
@@ -295,7 +295,7 @@ func (p *PineconeAdapter) Search(ctx context.Context, indexName string, query []
 	//     IncludeMetadata: true,
 	// }
 	// results, err := p.client.Index(p.config.IndexName).Query(ctx, queryReq)
-	
+
 	return nil, fmt.Errorf("PineconeAdapter.Search: not implemented - requires pinecone-client dependency")
 }
 
@@ -304,7 +304,7 @@ func (p *PineconeAdapter) Search(ctx context.Context, indexName string, query []
 func (p *PineconeAdapter) Get(ctx context.Context, indexName string, id string) (*vector.Vector, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	
+
 	// TODO: Implement actual Pinecone fetch by ID
 	return nil, fmt.Errorf("PineconeAdapter.Get: not implemented - requires pinecone-client dependency")
 }
@@ -314,7 +314,7 @@ func (p *PineconeAdapter) Get(ctx context.Context, indexName string, id string) 
 func (p *PineconeAdapter) Delete(ctx context.Context, indexName string, id string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	// TODO: Implement actual Pinecone delete
 	return fmt.Errorf("PineconeAdapter.Delete: not implemented - requires pinecone-client dependency")
 }
@@ -324,7 +324,7 @@ func (p *PineconeAdapter) Delete(ctx context.Context, indexName string, id strin
 func (p *PineconeAdapter) DeleteIndex(ctx context.Context, indexName string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	// TODO: Implement if Pinecone API supports index deletion
 	return fmt.Errorf("PineconeAdapter.DeleteIndex: not implemented - indexes should be managed externally")
 }
@@ -334,7 +334,7 @@ func (p *PineconeAdapter) DeleteIndex(ctx context.Context, indexName string) err
 func (p *PineconeAdapter) ListIndexes(ctx context.Context) ([]string, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	
+
 	// TODO: Implement actual Pinecone list indexes
 	return nil, fmt.Errorf("PineconeAdapter.ListIndexes: not implemented - requires pinecone-client dependency")
 }
@@ -343,7 +343,7 @@ func (p *PineconeAdapter) ListIndexes(ctx context.Context) ([]string, error) {
 func (p *PineconeAdapter) Close() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	// TODO: Close Pinecone connection if needed
 	return nil
 }

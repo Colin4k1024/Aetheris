@@ -45,12 +45,12 @@ func TestJobSnapshot(t *testing.T) {
 
 func TestSnapshotPayload(t *testing.T) {
 	payload := SnapshotPayload{
-		TaskGraphState:           json.RawMessage(`{"nodes":[]}`),
-		CursorNode:               "node-1",
-		CompletedNodeIDs:         []string{"n1", "n2"},
-		CompletedCommandIDs:      []string{"c1"},
-		PendingToolInvocations:   []string{"t1"},
-		Phase:                    2,
+		TaskGraphState:         json.RawMessage(`{"nodes":[]}`),
+		CursorNode:             "node-1",
+		CompletedNodeIDs:       []string{"n1", "n2"},
+		CompletedCommandIDs:    []string{"c1"},
+		PendingToolInvocations: []string{"t1"},
+		Phase:                  2,
 	}
 
 	if payload.CursorNode != "node-1" {
@@ -66,8 +66,8 @@ func TestSnapshotPayload(t *testing.T) {
 
 func TestSnapshotPayload_JSONMarshal(t *testing.T) {
 	payload := SnapshotPayload{
-		TaskGraphState:  json.RawMessage(`{"nodes":[]}`),
-		CursorNode:      "node-1",
+		TaskGraphState:   json.RawMessage(`{"nodes":[]}`),
+		CursorNode:       "node-1",
 		CompletedNodeIDs: []string{"n1"},
 	}
 
@@ -88,10 +88,10 @@ func TestSnapshotPayload_JSONMarshal(t *testing.T) {
 
 func TestCompactionConfig(t *testing.T) {
 	config := CompactionConfig{
-		EnableAutoCompaction:  true,
-		EventCountThreshold:   500,
-		TimeIntervalHours:     12,
-		KeepSnapshotCount:     5,
+		EnableAutoCompaction: true,
+		EventCountThreshold:  500,
+		TimeIntervalHours:    12,
+		KeepSnapshotCount:    5,
 	}
 
 	if !config.EnableAutoCompaction {
