@@ -6,6 +6,9 @@ AUTH_HEADER="${CORAG_AUTH_HEADER:-}"
 AUTO_LOGIN="${CORAG_AUTO_LOGIN:-1}"
 LOGIN_USERNAME="${CORAG_LOGIN_USERNAME:-admin}"
 LOGIN_PASSWORD="${CORAG_LOGIN_PASSWORD:-admin}"
+# Agent ID to use for perf tests. Agents are now pre-configured in configs/agents.yaml;
+# dynamic creation via POST /api/agents is no longer supported.
+PERF_AGENT_ID="${PERF_AGENT_ID:-conversation}"
 PERF_SAMPLES="${PERF_SAMPLES:-20}"
 PERF_POLL_MAX="${PERF_POLL_MAX:-90}"
 PERF_POLL_INTERVAL="${PERF_POLL_INTERVAL:-2}"
@@ -160,22 +163,8 @@ main() {
     exit 1
   fi
 
-  local agent_name="perf-agent-$ts"
-  echo "[perf] creating agent: $agent_name"
-  http_request POST "$API_URL/api/agents" "{\"name\":\"$agent_name\"}"
-  if [[ "$RESPONSE_CODE" != "200" ]]; then
-    echo "[perf] create agent failed: HTTP $RESPONSE_CODE" >&2
-    echo "$RESPONSE_BODY" >&2
-    exit 1
-  fi
-
-  local agent_id
-  agent_id="$(json_get "id" "$RESPONSE_BODY")"
-  if [[ -z "$agent_id" ]]; then
-    echo "[perf] create agent failed: missing id" >&2
-    echo "$RESPONSE_BODY" >&2
-    exit 1
-  fi
+  echo "[perf] using pre-configured agent: $PERF_AGENT_ID"
+  local agent_id="$PERF_AGENT_ID"
 
   local started_at
   started_at="$(date +%s)"
