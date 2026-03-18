@@ -50,6 +50,7 @@ Focus reviews on these invariants first:
 Prioritize comments when PRs change runtime, scheduler, storage, checkpoint, replay, effect, or recovery logic without adequate tests.
 
 Encourage tests for:
+
 - crash recovery
 - duplicate delivery / duplicate execution prevention
 - replay determinism
@@ -68,6 +69,7 @@ Encourage tests for:
 ## Key directories
 
 Focus extra attention on changes in these directories:
+
 - `internal/agent/runtime/` - Core execution engine
 - `internal/agent/runtime/job/` - Event-sourced job management
 - `internal/agent/runtime/runner/` - Step-level execution with checkpointing
