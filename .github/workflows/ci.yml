@@ -71,13 +71,13 @@ jobs:
           echo "=== Core Module Coverage ==="
           go tool cover -func=coverage.out | grep -E "(internal/runtime|internal/agent|internal/pipeline)" | head -20
           
-          # Overall threshold: 30%
-          if ! awk -v c="$COVERAGE" 'BEGIN { exit !(c >= 30.0) }'; then
-            echo "ERROR: Overall code coverage is below 30%"
+          # Overall threshold: 50% (raised from 30%)
+          if ! awk -v c="$COVERAGE" 'BEGIN { exit !(c >= 50.0) }'; then
+            echo "ERROR: Overall code coverage is below 50%"
             exit 1
           fi
           echo ""
-          echo "✓ Coverage check passed (>= 30%)"
+          echo "✓ Coverage check passed (>= 50%)"
 
       - name: Upload coverage to Codecov
         if: ${{ env.CODECOV_TOKEN != '' }}
