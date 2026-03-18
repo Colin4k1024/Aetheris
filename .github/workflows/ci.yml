@@ -78,11 +78,17 @@ jobs:
           echo "✓ Coverage check passed (>= 30%)"
 
       - name: Upload coverage to Codecov
+        if: ${{ secrets.CODECOV_TOKEN != '' }}
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage.out
           flags: unittests
           fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Skip Codecov upload (no token)
+        if: ${{ secrets.CODECOV_TOKEN == '' }}
+        run: echo "Skipping Codecov upload because CODECOV_TOKEN is not configured"
 
   lint:
     name: Lint
