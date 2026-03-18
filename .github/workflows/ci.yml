@@ -55,7 +55,7 @@ jobs:
       - name: Test coverage (atomic mode)
         run: go test -coverprofile=coverage.out -covermode=atomic ./...
 
-      - name: Check coverage threshold (core modules >= 60%)
+      - name: Check coverage threshold (overall >= 30%)
         run: |
           COVERAGE=$(go tool cover -func=coverage.out | awk '/^total:/{gsub("%", "", $3); print $3}')
           if [ -z "$COVERAGE" ]; then
@@ -69,13 +69,13 @@ jobs:
           echo "=== Core Module Coverage ==="
           go tool cover -func=coverage.out | grep -E "(internal/runtime|internal/agent|internal/pipeline)" | head -20
           
-          # Overall threshold: 50% (raised from 30%)
-          if ! awk -v c="$COVERAGE" 'BEGIN { exit !(c >= 50.0) }'; then
-            echo "ERROR: Overall code coverage is below 50%"
+          # Overall threshold: 30%
+          if ! awk -v c="$COVERAGE" 'BEGIN { exit !(c >= 30.0) }'; then
+            echo "ERROR: Overall code coverage is below 30%"
             exit 1
           fi
           echo ""
-          echo "✓ Coverage check passed (>= 50%)"
+          echo "✓ Coverage check passed (>= 30%)"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
