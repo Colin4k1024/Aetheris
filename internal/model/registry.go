@@ -62,7 +62,7 @@ func GetEmbedding(name string) (*embedding.Embedder, error) {
 	defer registryMu.RUnlock()
 	e, ok := embeddingRegistry[name]
 	if !ok {
-		return nil, fmt.Errorf("embedding not registered: %s", name)
+		return nil, fmt.Errorf("Embedding not registered: %s", name)
 	}
 	return e, nil
 }
@@ -80,7 +80,7 @@ func GetVision(name string) (vision.Client, error) {
 	defer registryMu.RUnlock()
 	c, ok := visionRegistry[name]
 	if !ok {
-		return nil, fmt.Errorf("vision not registered: %s", name)
+		return nil, fmt.Errorf("Vision not registered: %s", name)
 	}
 	return c, nil
 }
