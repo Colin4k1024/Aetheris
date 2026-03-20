@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -100,6 +101,19 @@ func waitDefaultsForNodeType(nodeType string) (waitKind string, reason string) {
 		return planner.WaitKindCondition, "wait_condition"
 	default:
 		return "signal", ""
+	}
+}
+
+func normalizeExpiryAction(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "expired":
+		return "expired"
+	case "reject", "rejected":
+		return "rejected"
+	case "cancel", "cancelled":
+		return "cancelled"
+	default:
+		return ""
 	}
 }
 
@@ -449,7 +463,10 @@ func (r *Runner) runParallelLevel(
 			metrics.StepRetriesTotal.WithLabelValues(tenant, nodeType, reason).Inc()
 		}
 		if r.nodeEventSink != nil {
-			_ = r.nodeEventSink.AppendNodeFinished(ctx, j.ID, step.NodeID, []byte("{}"), 0, string(resultType), 1, resultType, reason, effectiveStepID, "")
+			if err := r.appendNodeCompletion(ctx, j.ID, step.NodeID, []byte("{}"), 0, string(resultType), 1, resultType, reason, effectiveStepID, effectiveStepID); err != nil {
+				_ = r.jobStore.UpdateStatus(ctx, j.ID, 3)
+				return err
+			}
 		}
 		_ = r.jobStore.UpdateStatus(ctx, j.ID, 3)
 		return fmt.Errorf("executor: 节点 %s parallel execution failed: %w", step.NodeID, firstErr)
@@ -492,8 +509,10 @@ func (r *Runner) runParallelLevel(
 				rt = StepResultSideEffectCommitted
 			}
 			if r.nodeEventSink != nil {
-				_ = r.nodeEventSink.AppendNodeFinished(ctx, j.ID, step.NodeID, payloadResultsMerged, 0, "ok", 1, rt, "", effectiveStepID, "")
-				_ = r.nodeEventSink.AppendStepCommitted(ctx, j.ID, step.NodeID, effectiveStepID, effectiveStepID, "")
+				if err := r.appendNodeCompletion(ctx, j.ID, step.NodeID, payloadResultsMerged, 0, "ok", 1, rt, "", effectiveStepID, effectiveStepID); err != nil {
+					_ = r.jobStore.UpdateStatus(ctx, j.ID, 3)
+					return err
+				}
 			}
 			if completedSet != nil {
 				completedSet[effectiveStepID] = struct{}{}
@@ -508,16 +527,10 @@ func (r *Runner) runParallelLevel(
 	}
 	lastIdx := results[len(results)-1].idx
 	lastNodeID := steps[lastIdx].NodeID
-	cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, j.ID, lastNodeID, graphBytes, payloadResults, nil)
-	cpID, saveErr := r.checkpointStore.Save(ctx, cp)
-	if saveErr != nil {
+	if err := r.saveCheckpointAndCursor(ctx, agent, sessionID, j.ID, lastNodeID, graphBytes, payloadResults); err != nil {
 		_ = r.jobStore.UpdateStatus(ctx, j.ID, 3)
-		return fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
+		return err
 	}
-	if agent.Session != nil {
-		agent.Session.SetLastCheckpoint(cpID)
-	}
-	_ = r.jobStore.UpdateCursor(ctx, j.ID, cpID)
 	return nil
 }
 
@@ -683,19 +696,15 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 					if step.NodeType == "tool" {
 						rt = StepResultSideEffectCommitted
 					}
-					_ = r.nodeEventSink.AppendNodeFinished(ctx, jobID, step.NodeID, payloadResults, 0, "", 0, rt, "", effectiveStepID, "")
-					_ = r.nodeEventSink.AppendStepCommitted(ctx, jobID, step.NodeID, effectiveStepID, commandID, "")
+					if err := r.appendNodeCompletion(ctx, jobID, step.NodeID, payloadResults, 0, "", 0, rt, "", effectiveStepID, commandID); err != nil {
+						_ = r.jobStore.UpdateStatus(ctx, jobID, statusFailed)
+						return false, err
+					}
 				}
-				cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, jobID, step.NodeID, graphBytes, payloadResults, nil)
-				cpID, saveErr := r.checkpointStore.Save(ctx, cp)
-				if saveErr != nil {
+				if err := r.saveCheckpointAndCursor(ctx, agent, sessionID, jobID, step.NodeID, graphBytes, payloadResults); err != nil {
 					_ = r.jobStore.UpdateStatus(ctx, jobID, statusFailed)
-					return false, fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
+					return false, err
 				}
-				if agent.Session != nil {
-					agent.Session.SetLastCheckpoint(cpID)
-				}
-				_ = r.jobStore.UpdateCursor(ctx, jobID, cpID)
 				return false, nil
 			}
 			if !decision.Inject && (decision.Kind == replaysandbox.SideEffect || decision.Kind == replaysandbox.External) {
@@ -723,19 +732,15 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 					if step.NodeType == "tool" {
 						rt = StepResultSideEffectCommitted
 					}
-					_ = r.nodeEventSink.AppendNodeFinished(ctx, jobID, step.NodeID, payloadResults, 0, "", 0, rt, "", effectiveStepID, "")
-					_ = r.nodeEventSink.AppendStepCommitted(ctx, jobID, step.NodeID, effectiveStepID, commandID, "")
+					if err := r.appendNodeCompletion(ctx, jobID, step.NodeID, payloadResults, 0, "", 0, rt, "", effectiveStepID, commandID); err != nil {
+						_ = r.jobStore.UpdateStatus(ctx, jobID, statusFailed)
+						return false, err
+					}
 				}
-				cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, jobID, step.NodeID, graphBytes, payloadResults, nil)
-				cpID, saveErr := r.checkpointStore.Save(ctx, cp)
-				if saveErr != nil {
+				if err := r.saveCheckpointAndCursor(ctx, agent, sessionID, jobID, step.NodeID, graphBytes, payloadResults); err != nil {
 					_ = r.jobStore.UpdateStatus(ctx, jobID, statusFailed)
-					return false, fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
+					return false, err
 				}
-				if agent.Session != nil {
-					agent.Session.SetLastCheckpoint(cpID)
-				}
-				_ = r.jobStore.UpdateCursor(ctx, jobID, cpID)
 				return false, nil
 			}
 		}
@@ -871,8 +876,10 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 		if resultType != StepResultSuccess && resultType != StepResultPure && resultType != StepResultSideEffectCommitted && resultType != StepResultCompensated {
 			stateStr = string(resultType)
 		}
-		_ = r.nodeEventSink.AppendNodeFinished(ctx, jobID, step.NodeID, payloadResults, durationMs, stateStr, 1, resultType, reason, effectiveStepID, "")
-		_ = r.nodeEventSink.AppendStepCommitted(ctx, jobID, step.NodeID, effectiveStepID, effectiveStepID, "")
+		if err := r.appendNodeCompletion(ctx, jobID, step.NodeID, payloadResults, durationMs, stateStr, 1, resultType, reason, effectiveStepID, effectiveStepID); err != nil {
+			_ = r.jobStore.UpdateStatus(ctx, jobID, statusFailed)
+			return false, err
+		}
 	}
 	if isStepFailure(resultType) {
 		if resultType == StepResultCompensatableFailure && r.compensationRegistry != nil {
@@ -889,18 +896,15 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 	}
 	if r.nodeEventSink != nil {
 		opts := &StateCheckpointOpts{ChangedKeys: ChangedKeysFromState(stateBefore, payloadResults)}
-		_ = r.nodeEventSink.AppendStateCheckpointed(ctx, jobID, step.NodeID, stateBefore, payloadResults, opts)
+		if err := r.appendStateCheckpoint(ctx, jobID, step.NodeID, stateBefore, payloadResults, opts); err != nil {
+			_ = r.jobStore.UpdateStatus(ctx, jobID, statusFailed)
+			return false, err
+		}
 	}
-	cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, jobID, step.NodeID, graphBytes, payloadResults, nil)
-	cpID, saveErr := r.checkpointStore.Save(ctx, cp)
-	if saveErr != nil {
+	if err := r.saveCheckpointAndCursor(ctx, agent, sessionID, jobID, step.NodeID, graphBytes, payloadResults); err != nil {
 		_ = r.jobStore.UpdateStatus(ctx, jobID, statusFailed)
-		return false, fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
+		return false, err
 	}
-	if agent.Session != nil {
-		agent.Session.SetLastCheckpoint(cpID)
-	}
-	_ = r.jobStore.UpdateCursor(ctx, jobID, cpID)
 	return false, nil
 }
 
@@ -913,6 +917,41 @@ func hasReplayProgress(rctx *replay.ReplayContext) bool {
 		len(rctx.CompletedToolInvocations) > 0 ||
 		len(rctx.PendingToolInvocations) > 0 ||
 		len(rctx.CommandResults) > 0
+}
+
+func (r *Runner) appendNodeCompletion(ctx context.Context, jobID, nodeID string, payloadResults []byte, durationMs int64, state string, attempt int, resultType StepResultType, reason string, stepID string, commandID string) error {
+	if r.nodeEventSink == nil {
+		return nil
+	}
+	if err := r.nodeEventSink.AppendNodeFinished(ctx, jobID, nodeID, payloadResults, durationMs, state, attempt, resultType, reason, stepID, ""); err != nil {
+		return err
+	}
+	if err := r.nodeEventSink.AppendStepCommitted(ctx, jobID, nodeID, stepID, commandID, ""); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *Runner) appendStateCheckpoint(ctx context.Context, jobID, nodeID string, stateBefore, payloadResults []byte, opts *StateCheckpointOpts) error {
+	if r.nodeEventSink == nil {
+		return nil
+	}
+	return r.nodeEventSink.AppendStateCheckpointed(ctx, jobID, nodeID, stateBefore, payloadResults, opts)
+}
+
+func (r *Runner) saveCheckpointAndCursor(ctx context.Context, agent *runtime.Agent, sessionID, jobID, cursorNode string, graphBytes, payloadResults []byte) error {
+	cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, jobID, cursorNode, graphBytes, payloadResults, nil)
+	cpID, err := r.checkpointStore.Save(ctx, cp)
+	if err != nil {
+		return fmt.Errorf("executor: save checkpoint failed: %w", err)
+	}
+	if agent.Session != nil {
+		agent.Session.SetLastCheckpoint(cpID)
+	}
+	if err := r.jobStore.UpdateCursor(ctx, jobID, cpID); err != nil {
+		return fmt.Errorf("executor: update cursor failed: %w", err)
+	}
+	return nil
 }
 
 // RunForJob 按 Job 执行：有 CheckpointStore/JobStore 时走 Steppable 逐节点执行并落盘 checkpoint、恢复时从 Job.Cursor 继续；否则退化为 Run(ctx, agent, goal)
@@ -996,6 +1035,9 @@ func (r *Runner) RunForJob(ctx context.Context, agent *runtime.Agent, j *JobForR
 				StateChangesByStep:       make(map[string][]replay.StateChangeRecord),
 				Phase:                    replay.PhaseExecuting,
 			}
+			if rc.PendingWait != nil {
+				return ErrJobWaiting
+			}
 			state := replay.NewExecutionState(rc)
 			for {
 				done, advErr := r.Advance(ctx, j.ID, state, agent, j)
@@ -1025,6 +1067,9 @@ func (r *Runner) RunForJob(ctx context.Context, agent *runtime.Agent, j *JobForR
 						if json.Unmarshal(rctx.WorkingMemorySnapshot, &as) == nil {
 							runtime.ApplyAgentState(agent.Session, &as)
 						}
+					}
+					if rctx.PendingWait != nil {
+						return ErrJobWaiting
 					}
 					// 仅当事件流已有执行进度（command/node/tool）时才进入 Replay 驱动循环；
 					// 仅有 plan_generated 时应走 fresh execution，允许首次真实执行副作用节点（如 LLM）。
@@ -1142,22 +1187,18 @@ runLoop:
 								rt = StepResultSideEffectCommitted
 							}
 							if r.nodeEventSink != nil {
-								_ = r.nodeEventSink.AppendNodeFinished(ctx, j.ID, step.NodeID, payloadResults, 0, "", 0, rt, "", effectiveStepID, "")
-								_ = r.nodeEventSink.AppendStepCommitted(ctx, j.ID, step.NodeID, effectiveStepID, commandID, "")
+								if err := r.appendNodeCompletion(ctx, j.ID, step.NodeID, payloadResults, 0, "", 0, rt, "", effectiveStepID, commandID); err != nil {
+									_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
+									return err
+								}
 							}
 							completedSet[effectiveStepID] = struct{}{}
 						}
 					}
-					cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, j.ID, step.NodeID, graphBytes, payloadResults, nil)
-					cpID, saveErr := r.checkpointStore.Save(ctx, cp)
-					if saveErr != nil {
+					if err := r.saveCheckpointAndCursor(ctx, agent, sessionID, j.ID, step.NodeID, graphBytes, payloadResults); err != nil {
 						_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
-						return fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
+						return err
 					}
-					if agent.Session != nil {
-						agent.Session.SetLastCheckpoint(cpID)
-					}
-					_ = r.jobStore.UpdateCursor(ctx, j.ID, cpID)
 					continue
 				}
 				if !decision.Inject && (decision.Kind == replaysandbox.SideEffect || decision.Kind == replaysandbox.External) {
@@ -1187,22 +1228,18 @@ runLoop:
 								rt = StepResultSideEffectCommitted
 							}
 							if r.nodeEventSink != nil {
-								_ = r.nodeEventSink.AppendNodeFinished(ctx, j.ID, step.NodeID, payloadResults, 0, "", 0, rt, "", effectiveStepID, "")
-								_ = r.nodeEventSink.AppendStepCommitted(ctx, j.ID, step.NodeID, effectiveStepID, commandID, "")
+								if err := r.appendNodeCompletion(ctx, j.ID, step.NodeID, payloadResults, 0, "", 0, rt, "", effectiveStepID, commandID); err != nil {
+									_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
+									return err
+								}
 							}
 							completedSet[effectiveStepID] = struct{}{}
 						}
 					}
-					cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, j.ID, step.NodeID, graphBytes, payloadResults, nil)
-					cpID, saveErr := r.checkpointStore.Save(ctx, cp)
-					if saveErr != nil {
+					if err := r.saveCheckpointAndCursor(ctx, agent, sessionID, j.ID, step.NodeID, graphBytes, payloadResults); err != nil {
 						_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
-						return fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
+						return err
 					}
-					if agent.Session != nil {
-						agent.Session.SetLastCheckpoint(cpID)
-					}
-					_ = r.jobStore.UpdateCursor(ctx, j.ID, cpID)
 					if completedSet != nil {
 						completedSet[effectiveStepID] = struct{}{}
 					}
@@ -1228,6 +1265,7 @@ runLoop:
 		// Wait 节点：不执行，写 job_waiting 并置为 Waiting，由 API signal 后重新入队继续（design/job-state-machine.md）
 		if isWaitLikeNodeType(step.NodeType) {
 			waitKind, reason, waitChannel := "", "", ""
+			expiryAction := ""
 			var expiresAt time.Time
 			for _, n := range taskGraph.Nodes {
 				if n.ID == step.NodeID && n.Config != nil {
@@ -1244,6 +1282,9 @@ runLoop:
 						if t, err := time.Parse(time.RFC3339, e); err == nil {
 							expiresAt = t
 						}
+					}
+					if a, ok := n.Config["expiry_action"].(string); ok {
+						expiryAction = normalizeExpiryAction(a)
 					}
 					break
 				}
@@ -1290,6 +1331,9 @@ runLoop:
 							"snapshot_at":    time.Now().Format(time.RFC3339),
 						}
 					}
+				}
+				if expiryAction != "" && expiryAction != "expired" {
+					resumptionCtx["expiry_action"] = expiryAction
 				}
 				resumptionBytes, err := marshalJSONForRunner(resumptionCtx, "runloop_wait_resumption")
 				if err != nil {
@@ -1434,8 +1478,10 @@ runLoop:
 			if resultType != StepResultSuccess && resultType != StepResultPure && resultType != StepResultSideEffectCommitted && resultType != StepResultCompensated {
 				stateStr = string(resultType)
 			}
-			_ = r.nodeEventSink.AppendNodeFinished(ctx, j.ID, step.NodeID, payloadResults, durationMs, stateStr, 1, resultType, reason, effectiveStepID, "")
-			_ = r.nodeEventSink.AppendStepCommitted(ctx, j.ID, step.NodeID, effectiveStepID, effectiveStepID, "")
+			if err := r.appendNodeCompletion(ctx, j.ID, step.NodeID, payloadResults, durationMs, stateStr, 1, resultType, reason, effectiveStepID, effectiveStepID); err != nil {
+				_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
+				return err
+			}
 		}
 		// Record node execution metrics
 		status := "success"
@@ -1458,7 +1504,10 @@ runLoop:
 		}
 		if r.nodeEventSink != nil {
 			opts := &StateCheckpointOpts{ChangedKeys: ChangedKeysFromState(stateBefore, payloadResults)}
-			_ = r.nodeEventSink.AppendStateCheckpointed(ctx, j.ID, step.NodeID, stateBefore, payloadResults, opts)
+			if err := r.appendStateCheckpoint(ctx, j.ID, step.NodeID, stateBefore, payloadResults, opts); err != nil {
+				_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
+				return err
+			}
 			// 推理快照：供因果调试（该步的决策上下文）
 			snapshot := map[string]interface{}{
 				"node_id":     step.NodeID,
@@ -1503,16 +1552,10 @@ runLoop:
 				_ = r.nodeEventSink.AppendReasoningSnapshot(ctx, j.ID, snapshotBytes)
 			}
 		}
-		cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, j.ID, step.NodeID, graphBytes, payloadResults, nil)
-		cpID, saveErr := r.checkpointStore.Save(ctx, cp)
-		if saveErr != nil {
+		if err := r.saveCheckpointAndCursor(ctx, agent, sessionID, j.ID, step.NodeID, graphBytes, payloadResults); err != nil {
 			_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
-			return fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
+			return err
 		}
-		if agent.Session != nil {
-			agent.Session.SetLastCheckpoint(cpID)
-		}
-		_ = r.jobStore.UpdateCursor(ctx, j.ID, cpID)
 		if completedSet == nil {
 			completedSet = make(map[string]struct{})
 		}

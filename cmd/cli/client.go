@@ -146,6 +146,98 @@ func getJobVerify(jobID string) (map[string]interface{}, error) {
 	return out, nil
 }
 
+func getJobLedger(jobID string) (map[string]interface{}, error) {
+	var out map[string]interface{}
+	resp, err := newClient().R().
+		SetResult(&out).
+		Get("/api/jobs/" + jobID + "/ledger")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("GET ledger: %s", resp.String())
+	}
+	return out, nil
+}
+
+func listAgentApprovals(agentID string) ([]map[string]interface{}, error) {
+	var out struct {
+		Approvals []map[string]interface{} `json:"approvals"`
+	}
+	resp, err := newClient().R().
+		SetResult(&out).
+		Get("/api/agents/" + agentID + "/approvals")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("GET approvals: %s", resp.String())
+	}
+	return out.Approvals, nil
+}
+
+func getJobApproval(jobID string) (map[string]interface{}, error) {
+	var out map[string]interface{}
+	resp, err := newClient().R().
+		SetResult(&out).
+		Get("/api/jobs/" + jobID + "/approval")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("GET approval: %s", resp.String())
+	}
+	return out, nil
+}
+
+func approveJobApproval(jobID, reason string) (map[string]interface{}, error) {
+	var out map[string]interface{}
+	body := map[string]string{"reason": reason}
+	resp, err := newClient().R().
+		SetBody(body).
+		SetResult(&out).
+		Post("/api/jobs/" + jobID + "/approval/approve")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("POST approve: %s", resp.String())
+	}
+	return out, nil
+}
+
+func rejectJobApproval(jobID, reason string) (map[string]interface{}, error) {
+	var out map[string]interface{}
+	body := map[string]string{"reason": reason}
+	resp, err := newClient().R().
+		SetBody(body).
+		SetResult(&out).
+		Post("/api/jobs/" + jobID + "/approval/reject")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("POST reject: %s", resp.String())
+	}
+	return out, nil
+}
+
+func delegateJobApproval(jobID, delegateTo, reason string) (map[string]interface{}, error) {
+	var out map[string]interface{}
+	body := map[string]string{"delegate_to": delegateTo, "reason": reason}
+	resp, err := newClient().R().
+		SetBody(body).
+		SetResult(&out).
+		Post("/api/jobs/" + jobID + "/approval/delegate")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("POST delegate: %s", resp.String())
+	}
+	return out, nil
+}
+
 func listWorkers() ([]string, error) {
 	var out struct {
 		Workers []string `json:"workers"`

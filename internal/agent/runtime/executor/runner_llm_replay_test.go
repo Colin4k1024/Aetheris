@@ -17,6 +17,7 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -147,6 +148,142 @@ func TestReplay_LLMWithEffectStore(t *testing.T) {
 	err := runner.RunForJob(ctx, agent, job)
 	require.NoError(t, err)
 	require.Equal(t, int32(0), atomic.LoadInt32(&callCount), "Replay with EffectStore must not call LLM")
+}
+
+// TestRunForJob_CheckpointSaveFailure_RetryReplaysWithoutReexecutingLLM 证明：
+// 即使 node_finished 已写入但 checkpoint 保存失败，下一次运行也必须依赖事件流跳过已完成的 LLM。
+func TestRunForJob_CheckpointSaveFailure_RetryReplaysWithoutReexecutingLLM(t *testing.T) {
+	ctx := context.Background()
+	jobID := "job-llm-checkpoint-save-failure"
+	eventStore := jobstore.NewMemoryStore()
+	graph := &planner.TaskGraph{
+		Nodes: []planner.TaskNode{{ID: "llm1", Type: planner.NodeLLM, Config: map[string]any{"goal": "Summarize approval context"}}},
+		Edges: []planner.TaskEdge{},
+	}
+	graphBytes, err := graph.Marshal()
+	if err != nil {
+		t.Fatalf("marshal graph: %v", err)
+	}
+	planPayload, _ := json.Marshal(map[string]any{"task_graph": json.RawMessage(graphBytes), "goal": "g1"})
+	if _, err := eventStore.Append(ctx, jobID, 0, jobstore.JobEvent{JobID: jobID, Type: jobstore.PlanGenerated, Payload: planPayload}); err != nil {
+		t.Fatalf("append plan_generated: %v", err)
+	}
+
+	var callCount int32
+	mockLLM := &mockLLMWithCallCount{callCount: &callCount, response: "LLM response after checkpoint failure"}
+	sink := &jobStoreReplaySink{store: eventStore}
+	adapter := &LLMNodeAdapter{LLM: mockLLM, CommandEventSink: sink}
+	runner := NewRunner(NewCompiler(map[string]NodeAdapter{planner.NodeLLM: adapter}))
+	cpStore := &failSaveOnceCheckpointStore{base: runtime.NewCheckpointStoreMem()}
+	jobStore := &cursorTrackingJobStore{}
+	runner.SetCheckpointStores(cpStore, jobStore)
+	runner.SetReplayContextBuilder(replay.NewReplayContextBuilder(eventStore))
+	runner.SetNodeEventSink(sink)
+
+	err = runner.RunForJob(ctx, &runtime.Agent{ID: "a1"}, &JobForRunner{ID: jobID, AgentID: "a1", Goal: "g1"})
+	if err == nil || !strings.Contains(err.Error(), "save checkpoint failed") {
+		t.Fatalf("expected save checkpoint failure, got %v", err)
+	}
+	if atomic.LoadInt32(&callCount) != 1 {
+		t.Fatalf("expected first run to execute LLM exactly once, got %d", callCount)
+	}
+	if cpStore.saveCalls != 1 {
+		t.Fatalf("expected one checkpoint save attempt, got %d", cpStore.saveCalls)
+	}
+	if jobStore.cursorCalls != 0 {
+		t.Fatalf("cursor should not update after checkpoint save failure, got %d", jobStore.cursorCalls)
+	}
+	_, status := jobStore.getLast()
+	const statusFailed = 3
+	if status != statusFailed {
+		t.Fatalf("UpdateStatus = %d, want %d", status, statusFailed)
+	}
+
+	retryRunner := NewRunner(NewCompiler(map[string]NodeAdapter{planner.NodeLLM: adapter}))
+	retryStore := &cursorTrackingJobStore{}
+	retryRunner.SetCheckpointStores(runtime.NewCheckpointStoreMem(), retryStore)
+	retryRunner.SetReplayContextBuilder(replay.NewReplayContextBuilder(eventStore))
+	retryRunner.SetNodeEventSink(sink)
+	err = retryRunner.RunForJob(ctx, &runtime.Agent{ID: "a1"}, &JobForRunner{ID: jobID, AgentID: "a1", Goal: "g1"})
+	if err != nil {
+		t.Fatalf("retry RunForJob: %v", err)
+	}
+	if atomic.LoadInt32(&callCount) != 1 {
+		t.Fatalf("expected retry to replay from events without re-executing LLM, got %d calls", callCount)
+	}
+	_, retryStatus := retryStore.getLast()
+	const statusCompleted = 2
+	if retryStatus != statusCompleted {
+		t.Fatalf("retry UpdateStatus = %d, want %d", retryStatus, statusCompleted)
+	}
+}
+
+// TestRunForJob_UpdateCursorFailure_RetryReplaysWithoutReexecutingLLM 证明：
+// 即使 checkpoint 已保存但 UpdateCursor 失败，下一次运行在旧 cursor 下也必须依赖事件流跳过已完成的 LLM。
+func TestRunForJob_UpdateCursorFailure_RetryReplaysWithoutReexecutingLLM(t *testing.T) {
+	ctx := context.Background()
+	jobID := "job-llm-cursor-update-failure"
+	eventStore := jobstore.NewMemoryStore()
+	graph := &planner.TaskGraph{
+		Nodes: []planner.TaskNode{{ID: "llm1", Type: planner.NodeLLM, Config: map[string]any{"goal": "Draft approval summary"}}},
+		Edges: []planner.TaskEdge{},
+	}
+	graphBytes, err := graph.Marshal()
+	if err != nil {
+		t.Fatalf("marshal graph: %v", err)
+	}
+	planPayload, _ := json.Marshal(map[string]any{"task_graph": json.RawMessage(graphBytes), "goal": "g1"})
+	if _, err := eventStore.Append(ctx, jobID, 0, jobstore.JobEvent{JobID: jobID, Type: jobstore.PlanGenerated, Payload: planPayload}); err != nil {
+		t.Fatalf("append plan_generated: %v", err)
+	}
+
+	var callCount int32
+	mockLLM := &mockLLMWithCallCount{callCount: &callCount, response: "LLM response after cursor failure"}
+	sink := &jobStoreReplaySink{store: eventStore}
+	adapter := &LLMNodeAdapter{LLM: mockLLM, CommandEventSink: sink}
+	runner := NewRunner(NewCompiler(map[string]NodeAdapter{planner.NodeLLM: adapter}))
+	jobStore := &cursorTrackingJobStore{failCursorOnce: true}
+	cpStore := &recordingCheckpointStore{base: runtime.NewCheckpointStoreMem()}
+	runner.SetCheckpointStores(cpStore, jobStore)
+	runner.SetReplayContextBuilder(replay.NewReplayContextBuilder(eventStore))
+	runner.SetNodeEventSink(sink)
+
+	err = runner.RunForJob(ctx, &runtime.Agent{ID: "a1"}, &JobForRunner{ID: jobID, AgentID: "a1", Goal: "g1"})
+	if err == nil || !strings.Contains(err.Error(), "update cursor failed") {
+		t.Fatalf("expected update cursor failure, got %v", err)
+	}
+	if atomic.LoadInt32(&callCount) != 1 {
+		t.Fatalf("expected first run to execute LLM exactly once, got %d", callCount)
+	}
+	if cpStore.saveCalls != 1 {
+		t.Fatalf("expected checkpoint to be saved once before cursor failure, got %d", cpStore.saveCalls)
+	}
+	if jobStore.cursorCalls != 1 {
+		t.Fatalf("expected one cursor update attempt, got %d", jobStore.cursorCalls)
+	}
+	_, status := jobStore.getLast()
+	const statusFailedCursor = 3
+	if status != statusFailedCursor {
+		t.Fatalf("UpdateStatus = %d, want %d", status, statusFailedCursor)
+	}
+
+	retryRunner := NewRunner(NewCompiler(map[string]NodeAdapter{planner.NodeLLM: adapter}))
+	retryStore := &cursorTrackingJobStore{}
+	retryRunner.SetCheckpointStores(runtime.NewCheckpointStoreMem(), retryStore)
+	retryRunner.SetReplayContextBuilder(replay.NewReplayContextBuilder(eventStore))
+	retryRunner.SetNodeEventSink(sink)
+	err = retryRunner.RunForJob(ctx, &runtime.Agent{ID: "a1"}, &JobForRunner{ID: jobID, AgentID: "a1", Goal: "g1"})
+	if err != nil {
+		t.Fatalf("retry RunForJob: %v", err)
+	}
+	if atomic.LoadInt32(&callCount) != 1 {
+		t.Fatalf("expected retry to skip LLM via replay after cursor failure, got %d calls", callCount)
+	}
+	_, retryStatus := retryStore.getLast()
+	const statusCompletedCursor = 2
+	if retryStatus != statusCompletedCursor {
+		t.Fatalf("retry UpdateStatus = %d, want %d", retryStatus, statusCompletedCursor)
+	}
 }
 
 // TestLLMAdapter_RequiresEffectStoreInProduction 验证生产模式下 LLM 必须配置 Effect Store

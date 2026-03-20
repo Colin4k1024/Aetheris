@@ -27,11 +27,16 @@ Compatibility window:
 - `GET /api/jobs/:id`
 - `POST /api/jobs/:id/stop`
 - `POST /api/jobs/:id/signal`
+- `GET /api/jobs/:id/approval`
+- `POST /api/jobs/:id/approval/approve`
+- `POST /api/jobs/:id/approval/reject`
+- `POST /api/jobs/:id/approval/delegate`
 - `POST /api/jobs/:id/message`
 - `GET /api/jobs/:id/events`
 - `GET /api/jobs/:id/trace`
 - `GET /api/jobs/:id/replay`
 - `GET /api/jobs/:id/verify`
+- `GET /api/jobs/:id/ledger`
 - `POST /api/jobs/:id/export`
 
 ### Run APIs
@@ -49,6 +54,7 @@ Compatibility window:
 - `POST /api/agents`
 - `GET /api/agents`
 - `GET /api/agents/:id/state`
+- `GET /api/agents/:id/approvals`
 - `POST /api/agents/:id/resume`
 - `POST /api/agents/:id/stop`
 - `GET /api/agents/:id/jobs`
@@ -168,3 +174,19 @@ A `2.x` release should not be published unless:
 - `docs/release-checklist-2.0.md`
 - `docs/upgrade-1.x-to-2.0.md`
 - `docs/runtime-guarantees.md`
+
+## 9. Approval and Ledger Notes
+
+The following endpoints are part of the stable operator-facing surface in `2.x`:
+
+- Approval detail and actions are exposed under `/api/jobs/:id/approval*`
+- Agent approval inbox listing is exposed under `/api/agents/:id/approvals`
+- Tool invocation audit/troubleshooting is exposed under `/api/jobs/:id/ledger`
+
+These endpoints are intended to support human-in-the-loop approval workflows and operator inspection without dropping down into raw event streams.
+
+Approval responses may include optional `expires_at`, `expired`, and `expiry_action` fields for wait states configured with an expiration deadline. `expiry_action` tells operators whether timeout will default to `expired`, resume as `rejected`, or terminal-cancel the job.
+
+When an approval wait has already expired, action endpoints such as approve, reject, and delegate return `409 Conflict` rather than re-opening the wait.
+
+When a worker or embedded runtime is running, expired approval waits are also auto-settled in the background. The default behavior appends `wait_completed` with decision `expired` and moves the job back to `pending`, while nodes configured with `expiry_action=rejected` resume on the rejection path and `expiry_action=cancelled` move the job to terminal `job_cancelled`.

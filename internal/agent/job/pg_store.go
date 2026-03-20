@@ -506,6 +506,51 @@ func (s *JobStorePg) CountByStatus(ctx context.Context) (map[string]int64, error
 	return out, rows.Err()
 }
 
+func (s *JobStorePg) ListByStatuses(ctx context.Context, statuses []JobStatus, tenantID string) ([]*Job, error) {
+	if len(statuses) == 0 {
+		return nil, nil
+	}
+	pgStatuses := make([]int32, 0, len(statuses))
+	for _, status := range statuses {
+		pgStatuses = append(pgStatuses, int32(statusToPg(status)))
+	}
+	query := `SELECT id, agent_id, goal, status, retry_count, created_at, updated_at, cursor, cancel_requested_at, queue_class, priority, required_capabilities, tenant_id, session_id, idempotency_key FROM jobs WHERE status = ANY($1)`
+	args := []any{pgStatuses}
+	if tenantID != "" {
+		query += ` AND tenant_id = $2`
+		args = append(args, tenantID)
+	}
+	query += ` ORDER BY updated_at ASC, id ASC`
+	rows, err := s.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var list []*Job
+	for rows.Next() {
+		j := &Job{}
+		var status int
+		var caps *string
+		var tenantID, sessionID, idempotencyKey *string
+		if err := rows.Scan(&j.ID, &j.AgentID, &j.Goal, &status, &j.RetryCount, &j.CreatedAt, &j.UpdatedAt, &j.Cursor, &j.CancelRequestedAt, &j.QueueClass, &j.Priority, &caps, &tenantID, &sessionID, &idempotencyKey); err != nil {
+			return nil, err
+		}
+		j.Status = pgToStatus(status)
+		j.RequiredCapabilities = pgToCaps(caps)
+		if tenantID != nil {
+			j.TenantID = *tenantID
+		}
+		if sessionID != nil {
+			j.SessionID = *sessionID
+		}
+		if idempotencyKey != nil {
+			j.IdempotencyKey = *idempotencyKey
+		}
+		list = append(list, j)
+	}
+	return list, rows.Err()
+}
+
 func (s *JobStorePg) SetWaiting(ctx context.Context, jobID, correlationKey, waitType, reason string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {

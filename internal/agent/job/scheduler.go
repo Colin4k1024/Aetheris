@@ -28,6 +28,33 @@ import (
 // RunJobFunc 执行单条 Job 的回调（由应用层注入，如 Runner.RunForJob）
 type RunJobFunc func(ctx context.Context, j *Job) error
 
+// TerminalStateSyncError 表示 runJob 在执行完成后，同步终态事件/状态时失败。
+// Phase 为 event 或 status：
+// - event: 终态事件未持久化，scheduler 不应重试或改写 metadata，避免重复副作用或伪终态
+// - status: 终态事件已存在但 metadata 状态更新失败，scheduler 可安全补一次状态
+type TerminalStateSyncError struct {
+	Status JobStatus
+	Phase  string
+	Err    error
+}
+
+func (e *TerminalStateSyncError) Error() string {
+	if e == nil {
+		return "terminal state sync error"
+	}
+	if e.Err == nil {
+		return "terminal state sync error"
+	}
+	return e.Err.Error()
+}
+
+func (e *TerminalStateSyncError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 // CompensateFunc 在 CompensatableFailure 时调用（jobID、failed节点 nodeID）；Week 1 可为 stub，Phase B 接真实回滚
 type CompensateFunc func(ctx context.Context, jobID, nodeID string) error
 
@@ -167,6 +194,21 @@ func (s *Scheduler) Start(ctx context.Context) {
 					// 使用 detached context，避免外层 ctx 取消影响已认领的 job
 					runCtx := context.WithoutCancel(ctx)
 					err := s.runJob(runCtx, job)
+					if current, getErr := s.store.Get(runCtx, job.ID); getErr == nil && shouldSkipSchedulerPostRun(current) {
+						return
+					}
+					if err != nil && errors.Is(err, agentexec.ErrJobWaiting) {
+						return
+					}
+					var syncErr *TerminalStateSyncError
+					if errors.As(err, &syncErr) {
+						if syncErr.Phase == "status" {
+							if updateErr := s.store.UpdateStatus(runCtx, job.ID, syncErr.Status); updateErr != nil && s.logger != nil {
+								s.logger.Error("failed to repair job status after terminal event commit", "job_id", job.ID, "error", updateErr)
+							}
+						}
+						return
+					}
 					if err != nil {
 						var sf *agentexec.StepFailure
 						if errors.As(err, &sf) {
@@ -233,4 +275,16 @@ func (s *Scheduler) Start(ctx context.Context) {
 func (s *Scheduler) Stop() {
 	close(s.stopCh)
 	s.wg.Wait()
+}
+
+func shouldSkipSchedulerPostRun(j *Job) bool {
+	if j == nil {
+		return false
+	}
+	switch j.Status {
+	case StatusPending, StatusWaiting, StatusParked, StatusCompleted, StatusFailed, StatusCancelled:
+		return true
+	default:
+		return false
+	}
 }

@@ -93,6 +93,10 @@ func (s *JobStoreEmbedded) UpdateCursor(ctx context.Context, jobID string, curso
 	return s.persist()
 }
 
+func (s *JobStoreEmbedded) ListByStatuses(ctx context.Context, statuses []JobStatus, tenantID string) ([]*Job, error) {
+	return s.JobStoreMem.ListByStatuses(ctx, statuses, tenantID)
+}
+
 func (s *JobStoreEmbedded) ClaimNextPending(ctx context.Context) (*Job, error) {
 	j, err := s.JobStoreMem.ClaimNextPending(ctx)
 	if err != nil || j == nil {

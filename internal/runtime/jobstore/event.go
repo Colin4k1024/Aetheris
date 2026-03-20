@@ -117,8 +117,57 @@ type JobWaitingPayload struct {
 	ResumptionContext json.RawMessage `json:"resumption_context,omitempty"` // 恢复上下文：payload_results snapshot + plan_decision_id，保证等待后"同一思维"继续（design/agent-process-model.md § Continuation）
 }
 
+// ApprovalMetadata 结构化审批元数据；嵌入 wait_completed payload，提供审计字段而不改变现有 resume 语义。
+type ApprovalMetadata struct {
+	Decision          string `json:"decision,omitempty"` // approved | rejected | delegated | signaled
+	Reason            string `json:"reason,omitempty"`
+	DelegateTo        string `json:"delegate_to,omitempty"`
+	ApproverID        string `json:"approver_id,omitempty"`
+	TenantID          string `json:"tenant_id,omitempty"`
+	ApprovedAtRFC3339 string `json:"approved_at,omitempty"`
+}
+
+// WaitCompletedPayload wait_completed 事件 payload；payload 为恢复输入，approval 为结构化审批审计信息。
+type WaitCompletedPayload struct {
+	NodeID         string           `json:"node_id"`
+	Payload        json.RawMessage  `json:"payload,omitempty"`
+	CorrelationKey string           `json:"correlation_key"`
+	Approval       ApprovalMetadata `json:"approval,omitempty"`
+}
+
+// HumanApprovalPayload human_approval_given 事件 payload；用于记录审批动作与委派链，而不一定立即解除等待。
+type HumanApprovalPayload struct {
+	NodeID          string          `json:"node_id"`
+	CorrelationKey  string          `json:"correlation_key"`
+	Decision        string          `json:"decision"`
+	Reason          string          `json:"reason,omitempty"`
+	DelegateTo      string          `json:"delegate_to,omitempty"`
+	ApproverID      string          `json:"approver_id,omitempty"`
+	TenantID        string          `json:"tenant_id,omitempty"`
+	ActionAtRFC3339 string          `json:"action_at"`
+	Payload         json.RawMessage `json:"payload,omitempty"`
+}
+
 // ParseJobWaitingPayload 解析 job_waiting 事件的 payload；若缺少 correlation_key returned empty字符串
 func ParseJobWaitingPayload(payload []byte) (p JobWaitingPayload, err error) {
+	if len(payload) == 0 {
+		return p, nil
+	}
+	err = json.Unmarshal(payload, &p)
+	return p, err
+}
+
+// ParseWaitCompletedPayload 解析 wait_completed 事件 payload。
+func ParseWaitCompletedPayload(payload []byte) (p WaitCompletedPayload, err error) {
+	if len(payload) == 0 {
+		return p, nil
+	}
+	err = json.Unmarshal(payload, &p)
+	return p, err
+}
+
+// ParseHumanApprovalPayload 解析 human_approval_given 事件 payload。
+func ParseHumanApprovalPayload(payload []byte) (p HumanApprovalPayload, err error) {
 	if len(payload) == 0 {
 		return p, nil
 	}

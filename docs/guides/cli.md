@@ -60,7 +60,13 @@ The CLI uses the **AETHERIS_API_URL** environment variable for the API base URL;
 | migrate m1-sql                                                    | Print M1 incremental migration SQL (job_events hash fields)                                                             |
 | migrate backfill-hashes --input events.ndjson --output out.ndjson | Backfill `prev_hash/hash` for NDJSON event exports                                                                      |
 | cancel \<job_id\>                                                 | Request cancel of a running job                                                                                         |
-| signal \<job_id\>                                                 | Send signal to a job                                                                                                    |
+| signal \<job_id\> \<correlation_key\>                           | Send signal to a waiting or parked job                                                                                  |
+| approvals list \<agent_id\>                                      | List current pending approvals for an agent                                                                            |
+| approvals get \<job_id\>                                         | Get approval details for a waiting job                                                                                  |
+| approvals approve \<job_id\> [reason]                            | Approve a waiting job and move it back to pending                                                                       |
+| approvals reject \<job_id\> [reason]                             | Reject a waiting job and move it back to pending                                                                        |
+| approvals delegate \<job_id\> \<delegate_to\> [reason]          | Record a delegation action and keep the job waiting                                                                     |
+| ledger inspect \<job_id\>                                        | Inspect tool invocation ledger state for a job                                                                          |
 | debug \<job_id\> [--compare-replay]                               | Agent debugger: timeline + evidence + replay verification                                                               |
 | verify \<job_id\>                                                 | Execution verification: execution_hash, event_chain_root_hash, ledger proof, replay proof                               |
 | verify \<evidence.zip\>                                           | Offline evidence package verification                                                                                   |
@@ -85,11 +91,44 @@ The CLI uses the **AETHERIS_API_URL** environment variable for the API base URL;
 | monitor                   | GET /api/observability/summary                                                      |
 | stuck                     | GET /api/observability/stuck                                                        |
 | cancel \<job_id\>         | POST /api/jobs/:id/stop                                                             |
-| signal \<job_id\>         | POST /api/jobs/:id/signal                                                           |
+| signal \<job_id\> \<correlation_key\> | POST /api/jobs/:id/signal                                             |
+| approvals list \<agent_id\>      | GET /api/agents/:id/approvals                                                     |
+| approvals get \<job_id\>         | GET /api/jobs/:id/approval                                                        |
+| approvals approve \<job_id\>     | POST /api/jobs/:id/approval/approve                                               |
+| approvals reject \<job_id\>      | POST /api/jobs/:id/approval/reject                                                |
+| approvals delegate \<job_id\> \<delegate_to\> | POST /api/jobs/:id/approval/delegate                               |
+| ledger inspect \<job_id\>        | GET /api/jobs/:id/ledger                                                          |
 | evidence-graph \<job_id\> | GET /api/jobs/:id/evidence-graph                                                    |
 | export \<job_id\>         | POST /api/jobs/:id/export                                                           |
 | verify \<job_id\>         | GET /api/jobs/:id/verify                                                            |
 | tool list                 | GET /api/tools                                                                      |
 | tool get \<name\>         | GET /api/tools/:name                                                                |
+
+## Approval workflow shortcuts
+
+For human-in-the-loop jobs, a typical CLI flow is:
+
+```bash
+# Find pending approvals for an agent
+aetheris approvals list refund-agent
+
+# Inspect the approval request
+aetheris approvals get <job_id>
+
+# If the response shows expired=true, the approval can no longer be acted on
+# The response also shows expiry_action so operators can see the configured timeout outcome.
+# Running workers auto-settle expired approval waits using the node's expiry_action.
+# The default is decision=expired; configured nodes may instead resume as rejected or terminal-cancel the job.
+
+# Approve or reject it
+aetheris approvals approve <job_id> "policy-ok"
+aetheris approvals reject <job_id> "missing evidence"
+
+# Or delegate while keeping the job in waiting state
+aetheris approvals delegate <job_id> backup-reviewer "OOO"
+
+# For at-most-once troubleshooting, inspect the tool ledger
+aetheris ledger inspect <job_id>
+```
 
 For more endpoints and flows see [usage.md](usage.md) "API endpoint summary" and "Typical flows".

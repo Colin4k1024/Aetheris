@@ -116,6 +116,43 @@ func TestMemoryStore_Claim_Heartbeat(t *testing.T) {
 	}
 }
 
+func TestMemoryStore_HeartbeatPreservesAttemptID(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemoryStore()
+	jobID := "job-heartbeat-attempt"
+	_, _ = s.Append(ctx, jobID, 0, JobEvent{JobID: jobID, Type: JobCreated})
+
+	_, _, attemptID, err := s.Claim(ctx, "worker-1")
+	if err != nil {
+		t.Fatalf("Claim: %v", err)
+	}
+	if attemptID == "" {
+		t.Fatal("expected non-empty attempt ID")
+	}
+
+	if err := s.Heartbeat(ctx, "worker-1", jobID); err != nil {
+		t.Fatalf("Heartbeat: %v", err)
+	}
+
+	currentAttemptID, err := s.GetCurrentAttemptID(ctx, jobID)
+	if err != nil {
+		t.Fatalf("GetCurrentAttemptID: %v", err)
+	}
+	if currentAttemptID != attemptID {
+		t.Fatalf("heartbeat changed attempt ID: got %q want %q", currentAttemptID, attemptID)
+	}
+
+	ctxOK := WithAttemptID(ctx, attemptID)
+	if _, err := s.Append(ctxOK, jobID, 1, JobEvent{JobID: jobID, Type: PlanGenerated}); err != nil {
+		t.Fatalf("Append with preserved attempt ID: %v", err)
+	}
+
+	ctxBad := WithAttemptID(ctx, "stale-attempt")
+	if _, err := s.Append(ctxBad, jobID, 2, JobEvent{JobID: jobID, Type: NodeStarted}); err != ErrStaleAttempt {
+		t.Fatalf("expected ErrStaleAttempt for wrong attempt after heartbeat, got %v", err)
+	}
+}
+
 func TestMemoryStore_Claim_NoJob(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()

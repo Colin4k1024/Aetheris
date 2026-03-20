@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
@@ -238,6 +239,51 @@ func TestJobSignal_SuccessAndIdempotentUnblock(t *testing.T) {
 	}
 }
 
+func TestJobSignal_IncludesApprovalMetadata(t *testing.T) {
+	ctx := auth.WithUserID(context.Background(), "approver-1")
+	handler, jobID := setupJobSignalHandler(t)
+	h := server.Default(server.WithHostPorts(":0"))
+	h.POST("/api/jobs/:id/signal", func(c context.Context, reqCtx *app.RequestContext) {
+		handler.JobSignal(auth.WithUserID(c, "approver-1"), reqCtx)
+	})
+
+	body := []byte(`{"correlation_key":"expected-key","decision":"approved","reason":"policy-ok","delegate_to":"backup-1","payload":{"approved":true}}`)
+	w := ut.PerformRequest(h.Engine, "POST", "/api/jobs/"+jobID+"/signal", &ut.Body{Body: bytes.NewReader(body), Len: len(body)})
+	resp := w.Result()
+	if resp.StatusCode() != 200 {
+		t.Fatalf("JobSignal status got %d, want 200", resp.StatusCode())
+	}
+	if !bytes.Contains(resp.Body(), []byte(`"approver_id":"approver-1"`)) {
+		t.Fatalf("JobSignal response missing approver metadata: %s", resp.Body())
+	}
+
+	events, _, err := handler.jobEventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		t.Fatalf("ListEvents: %v", err)
+	}
+	var found jobstore.WaitCompletedPayload
+	for _, e := range events {
+		if e.Type == jobstore.WaitCompleted {
+			found, err = jobstore.ParseWaitCompletedPayload(e.Payload)
+			if err != nil {
+				t.Fatalf("ParseWaitCompletedPayload: %v", err)
+			}
+		}
+	}
+	if found.CorrelationKey != "expected-key" {
+		t.Fatalf("unexpected correlation key: %+v", found)
+	}
+	if found.Approval.Decision != "approved" || found.Approval.Reason != "policy-ok" || found.Approval.DelegateTo != "backup-1" {
+		t.Fatalf("unexpected approval metadata: %+v", found.Approval)
+	}
+	if found.Approval.ApproverID != "approver-1" {
+		t.Fatalf("unexpected approver id: %+v", found.Approval)
+	}
+	if !bytes.Contains(found.Payload, []byte(`"decision":"approved"`)) || !bytes.Contains(found.Payload, []byte(`"reason":"policy-ok"`)) {
+		t.Fatalf("signal payload missing approval fields: %s", found.Payload)
+	}
+}
+
 var _ signal.SignalInbox = (*fakeSignalInbox)(nil)
 
 type conflictOnceEventStore struct {
@@ -292,6 +338,370 @@ func TestJobSignal_ConcurrentVersionConflictStillIdempotent(t *testing.T) {
 	if waitCompleted != 1 {
 		t.Fatalf("wait_completed count = %d, want 1", waitCompleted)
 	}
+}
+
+func TestGetJobLedger(t *testing.T) {
+	ctx := context.Background()
+	meta := job.NewJobStoreMem()
+	eventStore := jobstore.NewMemoryStore()
+	jobID := "ledger-job-1"
+	_, err := meta.Create(ctx, &job.Job{ID: jobID, AgentID: "agent-1", Goal: "g1", Status: job.StatusRunning})
+	if err != nil {
+		t.Fatalf("Create job: %v", err)
+	}
+	_, _ = eventStore.Append(ctx, jobID, 0, jobstore.JobEvent{JobID: jobID, Type: jobstore.JobCreated})
+	started1 := []byte(`{"invocation_id":"inv-1","step_id":"step-1","tool_name":"refund","arguments_hash":"args-1","idempotency_key":"key-1","started_at":"2026-03-20T10:00:00Z"}`)
+	finished1 := []byte(`{"invocation_id":"inv-1","step_id":"step-1","tool_name":"refund","arguments_hash":"args-1","idempotency_key":"key-1","finished_at":"2026-03-20T10:00:01Z","outcome":"success","result":{"ok":true}}`)
+	started2 := []byte(`{"invocation_id":"inv-2","step_id":"step-2","tool_name":"notify","arguments_hash":"args-2","idempotency_key":"key-2","started_at":"2026-03-20T10:00:02Z"}`)
+	_, _ = eventStore.Append(ctx, jobID, 1, jobstore.JobEvent{JobID: jobID, Type: jobstore.ToolInvocationStarted, Payload: started1})
+	_, _ = eventStore.Append(ctx, jobID, 2, jobstore.JobEvent{JobID: jobID, Type: jobstore.ToolInvocationFinished, Payload: finished1})
+	_, _ = eventStore.Append(ctx, jobID, 3, jobstore.JobEvent{JobID: jobID, Type: jobstore.ToolInvocationStarted, Payload: started2})
+
+	handler := NewHandler(nil, nil)
+	handler.SetJobStore(meta)
+	handler.SetJobEventStore(eventStore)
+
+	h := server.Default(server.WithHostPorts(":0"))
+	h.GET("/api/jobs/:id/ledger", func(c context.Context, reqCtx *app.RequestContext) {
+		handler.GetJobLedger(c, reqCtx)
+	})
+
+	w := ut.PerformRequest(h.Engine, "GET", "/api/jobs/"+jobID+"/ledger", &ut.Body{Body: bytes.NewReader(nil), Len: 0})
+	resp := w.Result()
+	if resp.StatusCode() != 200 {
+		t.Fatalf("GetJobLedger status got %d, want 200", resp.StatusCode())
+	}
+	if !bytes.Contains(resp.Body(), []byte(`"total":2`)) || !bytes.Contains(resp.Body(), []byte(`"committed":1`)) || !bytes.Contains(resp.Body(), []byte(`"pending":1`)) {
+		t.Fatalf("unexpected ledger summary body: %s", resp.Body())
+	}
+}
+
+func TestGetJobApproval(t *testing.T) {
+	ctx := context.Background()
+	handler, jobID := setupJobSignalHandler(t)
+	h := server.Default(server.WithHostPorts(":0"))
+	h.GET("/api/jobs/:id/approval", func(c context.Context, reqCtx *app.RequestContext) {
+		handler.GetJobApproval(c, reqCtx)
+	})
+
+	w := ut.PerformRequest(h.Engine, "GET", "/api/jobs/"+jobID+"/approval", &ut.Body{Body: bytes.NewReader(nil), Len: 0})
+	resp := w.Result()
+	if resp.StatusCode() != 200 {
+		t.Fatalf("GetJobApproval status got %d, want 200", resp.StatusCode())
+	}
+	if !bytes.Contains(resp.Body(), []byte(`"correlation_key":"expected-key"`)) || !bytes.Contains(resp.Body(), []byte(`"decision":"pending"`)) {
+		t.Fatalf("unexpected approval body: %s", resp.Body())
+	}
+
+	_, _ = handler.jobEventStore.Append(ctx, jobID, 3, jobstore.JobEvent{JobID: jobID, Type: jobstore.HumanApprovalGiven, Payload: []byte(`{"node_id":"n1","correlation_key":"expected-key","decision":"delegated","delegate_to":"backup-1","approver_id":"approver-1","action_at":"2026-03-20T10:00:00Z"}`)})
+	w2 := ut.PerformRequest(h.Engine, "GET", "/api/jobs/"+jobID+"/approval", &ut.Body{Body: bytes.NewReader(nil), Len: 0})
+	resp2 := w2.Result()
+	if !bytes.Contains(resp2.Body(), []byte(`"decision":"delegated"`)) || !bytes.Contains(resp2.Body(), []byte(`"delegate_to":"backup-1"`)) {
+		t.Fatalf("unexpected delegated approval body: %s", resp2.Body())
+	}
+}
+
+func TestGetJobApproval_Expired(t *testing.T) {
+	ctx := context.Background()
+	handler, jobID := setupJobSignalHandler(t)
+	expiredPayload, _ := json.Marshal(jobstore.JobWaitingPayload{
+		NodeID:            "n1",
+		CorrelationKey:    "expected-key",
+		WaitType:          "signal",
+		WaitKind:          "human",
+		Reason:            "need approval",
+		ExpiresAtRFC3339:  time.Now().Add(-5 * time.Minute).UTC().Format(time.RFC3339),
+		ResumptionContext: json.RawMessage(`{"expiry_action":"rejected"}`),
+	})
+	_, _ = handler.jobEventStore.Append(ctx, jobID, 3, jobstore.JobEvent{JobID: jobID, Type: jobstore.JobWaiting, Payload: expiredPayload})
+
+	h := server.Default(server.WithHostPorts(":0"))
+	h.GET("/api/jobs/:id/approval", func(c context.Context, reqCtx *app.RequestContext) {
+		handler.GetJobApproval(c, reqCtx)
+	})
+
+	w := ut.PerformRequest(h.Engine, "GET", "/api/jobs/"+jobID+"/approval", &ut.Body{Body: bytes.NewReader(nil), Len: 0})
+	resp := w.Result()
+	if resp.StatusCode() != 200 {
+		t.Fatalf("GetJobApproval expired status got %d, want 200", resp.StatusCode())
+	}
+	if !bytes.Contains(resp.Body(), []byte(`"expired":true`)) || !bytes.Contains(resp.Body(), []byte(`"actionable":false`)) {
+		t.Fatalf("unexpected expired approval body: %s", resp.Body())
+	}
+	if !bytes.Contains(resp.Body(), []byte(`"expires_at"`)) {
+		t.Fatalf("expired approval should expose expires_at: %s", resp.Body())
+	}
+	if !bytes.Contains(resp.Body(), []byte(`"expiry_action":"rejected"`)) {
+		t.Fatalf("expired approval should expose expiry_action: %s", resp.Body())
+	}
+}
+
+func TestListAgentApprovals(t *testing.T) {
+	handler, jobID := setupJobSignalHandler(t)
+	h := server.Default(server.WithHostPorts(":0"))
+	h.GET("/api/agents/:id/approvals", func(c context.Context, reqCtx *app.RequestContext) {
+		handler.ListAgentApprovals(c, reqCtx)
+	})
+
+	w := ut.PerformRequest(h.Engine, "GET", "/api/agents/a1/approvals", &ut.Body{Body: bytes.NewReader(nil), Len: 0})
+	resp := w.Result()
+	if resp.StatusCode() != 200 {
+		t.Fatalf("ListAgentApprovals status got %d, want 200", resp.StatusCode())
+	}
+	if !bytes.Contains(resp.Body(), []byte(jobID)) || !bytes.Contains(resp.Body(), []byte(`"total":1`)) {
+		t.Fatalf("unexpected approvals list body: %s", resp.Body())
+	}
+}
+
+func TestListAgentApprovals_DefaultExpiryAction(t *testing.T) {
+	handler, jobID := setupJobSignalHandler(t)
+	h := server.Default(server.WithHostPorts(":0"))
+	h.GET("/api/agents/:id/approvals", func(c context.Context, reqCtx *app.RequestContext) {
+		handler.ListAgentApprovals(c, reqCtx)
+	})
+
+	w := ut.PerformRequest(h.Engine, "GET", "/api/agents/a1/approvals", &ut.Body{Body: bytes.NewReader(nil), Len: 0})
+	resp := w.Result()
+	if resp.StatusCode() != 200 {
+		t.Fatalf("ListAgentApprovals status got %d, want 200", resp.StatusCode())
+	}
+	if !bytes.Contains(resp.Body(), []byte(jobID)) || !bytes.Contains(resp.Body(), []byte(`"expiry_action":"expired"`)) {
+		t.Fatalf("unexpected approvals list body: %s", resp.Body())
+	}
+}
+
+func TestDelegateJobApproval(t *testing.T) {
+	ctx := auth.WithUserID(context.Background(), "approver-1")
+	handler, jobID := setupJobSignalHandler(t)
+	h := server.Default(server.WithHostPorts(":0"))
+	h.POST("/api/jobs/:id/approval/delegate", func(c context.Context, reqCtx *app.RequestContext) {
+		handler.DelegateJobApproval(auth.WithUserID(c, "approver-1"), reqCtx)
+	})
+
+	body := []byte(`{"delegate_to":"backup-1","reason":"ooo"}`)
+	w := ut.PerformRequest(h.Engine, "POST", "/api/jobs/"+jobID+"/approval/delegate", &ut.Body{Body: bytes.NewReader(body), Len: len(body)})
+	resp := w.Result()
+	if resp.StatusCode() != 200 {
+		t.Fatalf("DelegateJobApproval status got %d, want 200", resp.StatusCode())
+	}
+	if !bytes.Contains(resp.Body(), []byte(`"delegate_to":"backup-1"`)) {
+		t.Fatalf("unexpected delegate response: %s", resp.Body())
+	}
+
+	events, _, err := handler.jobEventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		t.Fatalf("ListEvents: %v", err)
+	}
+	found := false
+	for _, e := range events {
+		if e.Type != jobstore.HumanApprovalGiven {
+			continue
+		}
+		p, err := jobstore.ParseHumanApprovalPayload(e.Payload)
+		if err != nil {
+			t.Fatalf("ParseHumanApprovalPayload: %v", err)
+		}
+		if p.Decision == "delegated" && p.DelegateTo == "backup-1" && p.ApproverID == "approver-1" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("expected delegated approval event to be recorded")
+	}
+	j, err := handler.jobStore.Get(ctx, jobID)
+	if err != nil {
+		t.Fatalf("jobStore.Get: %v", err)
+	}
+	if j.Status != job.StatusWaiting {
+		t.Fatalf("job status = %v, want Waiting", j.Status)
+	}
+}
+
+func TestApproveJobApproval(t *testing.T) {
+	ctx := auth.WithUserID(context.Background(), "approver-approve")
+	handler, jobID := setupJobSignalHandler(t)
+	h := server.Default(server.WithHostPorts(":0"))
+	h.POST("/api/jobs/:id/approval/approve", func(c context.Context, reqCtx *app.RequestContext) {
+		handler.ApproveJobApproval(auth.WithUserID(c, "approver-approve"), reqCtx)
+	})
+
+	body := []byte(`{"reason":"looks-good","payload":{"ticket":"R-1001"}}`)
+	w := ut.PerformRequest(h.Engine, "POST", "/api/jobs/"+jobID+"/approval/approve", &ut.Body{Body: bytes.NewReader(body), Len: len(body)})
+	resp := w.Result()
+	if resp.StatusCode() != 200 {
+		t.Fatalf("ApproveJobApproval status got %d, want 200", resp.StatusCode())
+	}
+	if !bytes.Contains(resp.Body(), []byte(`"decision":"approved"`)) {
+		t.Fatalf("unexpected approve response: %s", resp.Body())
+	}
+
+	j, err := handler.jobStore.Get(ctx, jobID)
+	if err != nil {
+		t.Fatalf("jobStore.Get: %v", err)
+	}
+	if j.Status != job.StatusPending {
+		t.Fatalf("job status = %v, want Pending", j.Status)
+	}
+
+	events, _, err := handler.jobEventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		t.Fatalf("ListEvents: %v", err)
+	}
+	var found jobstore.WaitCompletedPayload
+	for _, e := range events {
+		if e.Type != jobstore.WaitCompleted {
+			continue
+		}
+		found, err = jobstore.ParseWaitCompletedPayload(e.Payload)
+		if err != nil {
+			t.Fatalf("ParseWaitCompletedPayload: %v", err)
+		}
+	}
+	if found.Approval.Decision != "approved" || found.Approval.Reason != "looks-good" {
+		t.Fatalf("unexpected approval payload: %+v", found.Approval)
+	}
+	if found.Approval.ApproverID != "approver-approve" {
+		t.Fatalf("unexpected approver id: %+v", found.Approval)
+	}
+	if !bytes.Contains(found.Payload, []byte(`"approved":true`)) || !bytes.Contains(found.Payload, []byte(`"ticket":"R-1001"`)) {
+		t.Fatalf("approve payload missing expected fields: %s", found.Payload)
+	}
+}
+
+func TestApproveJobApproval_Expired(t *testing.T) {
+	ctx := context.Background()
+	handler, jobID := setupJobSignalHandler(t)
+	expiredPayload, _ := json.Marshal(jobstore.JobWaitingPayload{
+		NodeID:           "n1",
+		CorrelationKey:   "expected-key",
+		WaitType:         "signal",
+		WaitKind:         "human",
+		Reason:           "need approval",
+		ExpiresAtRFC3339: time.Now().Add(-5 * time.Minute).UTC().Format(time.RFC3339),
+	})
+	_, _ = handler.jobEventStore.Append(ctx, jobID, 3, jobstore.JobEvent{JobID: jobID, Type: jobstore.JobWaiting, Payload: expiredPayload})
+
+	h := server.Default(server.WithHostPorts(":0"))
+	h.POST("/api/jobs/:id/approval/approve", func(c context.Context, reqCtx *app.RequestContext) {
+		handler.ApproveJobApproval(c, reqCtx)
+	})
+
+	body := []byte(`{"reason":"late approval"}`)
+	w := ut.PerformRequest(h.Engine, "POST", "/api/jobs/"+jobID+"/approval/approve", &ut.Body{Body: bytes.NewReader(body), Len: len(body)})
+	resp := w.Result()
+	if resp.StatusCode() != 409 {
+		t.Fatalf("ApproveJobApproval expired status got %d, want 409", resp.StatusCode())
+	}
+	if !bytes.Contains(resp.Body(), []byte("已过期")) {
+		t.Fatalf("unexpected expired approve response: %s", resp.Body())
+	}
+	if j, err := handler.jobStore.Get(ctx, jobID); err != nil || j.Status != job.StatusWaiting {
+		t.Fatalf("expired approval should keep job waiting, job=%+v err=%v", j, err)
+	}
+	events, _, err := handler.jobEventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		t.Fatalf("ListEvents: %v", err)
+	}
+	if count := countEventsOfType(events, jobstore.WaitCompleted); count != 0 {
+		t.Fatalf("expired approval should not append wait_completed, got %d", count)
+	}
+}
+
+func TestDelegateJobApproval_Expired(t *testing.T) {
+	ctx := context.Background()
+	handler, jobID := setupJobSignalHandler(t)
+	expiredPayload, _ := json.Marshal(jobstore.JobWaitingPayload{
+		NodeID:           "n1",
+		CorrelationKey:   "expected-key",
+		WaitType:         "signal",
+		WaitKind:         "human",
+		Reason:           "need approval",
+		ExpiresAtRFC3339: time.Now().Add(-5 * time.Minute).UTC().Format(time.RFC3339),
+	})
+	_, _ = handler.jobEventStore.Append(ctx, jobID, 3, jobstore.JobEvent{JobID: jobID, Type: jobstore.JobWaiting, Payload: expiredPayload})
+
+	h := server.Default(server.WithHostPorts(":0"))
+	h.POST("/api/jobs/:id/approval/delegate", func(c context.Context, reqCtx *app.RequestContext) {
+		handler.DelegateJobApproval(c, reqCtx)
+	})
+
+	body := []byte(`{"delegate_to":"backup-1","reason":"too late"}`)
+	w := ut.PerformRequest(h.Engine, "POST", "/api/jobs/"+jobID+"/approval/delegate", &ut.Body{Body: bytes.NewReader(body), Len: len(body)})
+	resp := w.Result()
+	if resp.StatusCode() != 409 {
+		t.Fatalf("DelegateJobApproval expired status got %d, want 409", resp.StatusCode())
+	}
+	if !bytes.Contains(resp.Body(), []byte("已过期")) {
+		t.Fatalf("unexpected expired delegate response: %s", resp.Body())
+	}
+	events, _, err := handler.jobEventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		t.Fatalf("ListEvents: %v", err)
+	}
+	if count := countEventsOfType(events, jobstore.HumanApprovalGiven); count != 0 {
+		t.Fatalf("expired approval should not append delegation event, got %d", count)
+	}
+}
+
+func TestRejectJobApproval(t *testing.T) {
+	ctx := auth.WithUserID(context.Background(), "approver-reject")
+	handler, jobID := setupJobSignalHandler(t)
+	h := server.Default(server.WithHostPorts(":0"))
+	h.POST("/api/jobs/:id/approval/reject", func(c context.Context, reqCtx *app.RequestContext) {
+		handler.RejectJobApproval(auth.WithUserID(c, "approver-reject"), reqCtx)
+	})
+
+	body := []byte(`{"reason":"insufficient-evidence","payload":{"case_id":"C-22"}}`)
+	w := ut.PerformRequest(h.Engine, "POST", "/api/jobs/"+jobID+"/approval/reject", &ut.Body{Body: bytes.NewReader(body), Len: len(body)})
+	resp := w.Result()
+	if resp.StatusCode() != 200 {
+		t.Fatalf("RejectJobApproval status got %d, want 200", resp.StatusCode())
+	}
+	if !bytes.Contains(resp.Body(), []byte(`"decision":"rejected"`)) {
+		t.Fatalf("unexpected reject response: %s", resp.Body())
+	}
+
+	j, err := handler.jobStore.Get(ctx, jobID)
+	if err != nil {
+		t.Fatalf("jobStore.Get: %v", err)
+	}
+	if j.Status != job.StatusPending {
+		t.Fatalf("job status = %v, want Pending", j.Status)
+	}
+
+	events, _, err := handler.jobEventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		t.Fatalf("ListEvents: %v", err)
+	}
+	var found jobstore.WaitCompletedPayload
+	for _, e := range events {
+		if e.Type != jobstore.WaitCompleted {
+			continue
+		}
+		found, err = jobstore.ParseWaitCompletedPayload(e.Payload)
+		if err != nil {
+			t.Fatalf("ParseWaitCompletedPayload: %v", err)
+		}
+	}
+	if found.Approval.Decision != "rejected" || found.Approval.Reason != "insufficient-evidence" {
+		t.Fatalf("unexpected rejection payload: %+v", found.Approval)
+	}
+	if found.Approval.ApproverID != "approver-reject" {
+		t.Fatalf("unexpected approver id: %+v", found.Approval)
+	}
+	if !bytes.Contains(found.Payload, []byte(`"approved":false`)) || !bytes.Contains(found.Payload, []byte(`"case_id":"C-22"`)) {
+		t.Fatalf("reject payload missing expected fields: %s", found.Payload)
+	}
+}
+
+func countEventsOfType(events []jobstore.JobEvent, want jobstore.EventType) int {
+	count := 0
+	for _, event := range events {
+		if event.Type == want {
+			count++
+		}
+	}
+	return count
 }
 
 func TestGetJob_TenantIsolation(t *testing.T) {

@@ -360,6 +360,45 @@ func (a *ToolNodeAdapter) writeCatchUpFinished(ctx context.Context, jobID, taskI
 	return nil
 }
 
+func (a *ToolNodeAdapter) restoreFromEffectStore(ctx context.Context, jobID, taskID, stepIDForLedger, toolName, idempotencyKey, argsHash string, stepChanges []StateChangeForVerify, p *AgentDAGPayload) (*AgentDAGPayload, bool, error) {
+	if a.EffectStore == nil || jobID == "" {
+		return nil, false, nil
+	}
+	eff, err := a.EffectStore.GetEffectByJobAndIdempotencyKey(ctx, jobID, idempotencyKey)
+	if err != nil || eff == nil || len(eff.Output) == 0 {
+		return nil, false, nil
+	}
+	metrics.ToolInvocationTotal.WithLabelValues("restored").Inc()
+	metrics.ToolInvocationsTotal.WithLabelValues(TenantIDFromContext(ctx), toolName, "restore").Inc()
+	if err := a.runConfirmation(ctx, jobID, taskID, stepChanges); err != nil {
+		return nil, false, err
+	}
+	if err := a.writeCatchUpFinished(ctx, jobID, taskID, stepIDForLedger, idempotencyKey, argsHash, eff.Output); err != nil {
+		return nil, false, err
+	}
+	if a.InvocationLedger != nil {
+		if err := a.InvocationLedger.Commit(ctx, "catchup-"+idempotencyKey, idempotencyKey, eff.Output); err != nil {
+			return nil, false, err
+		}
+	}
+	if a.InvocationStore != nil {
+		if err := a.InvocationStore.SetFinished(ctx, idempotencyKey, ToolInvocationStatusSuccess, eff.Output, true, ""); err != nil {
+			return nil, false, err
+		}
+	}
+	var nodeResult map[string]any
+	_ = json.Unmarshal(eff.Output, &nodeResult)
+	if nodeResult == nil {
+		nodeResult = make(map[string]any)
+	}
+	if p.Results == nil {
+		p.Results = make(map[string]any)
+	}
+	attachToolEvidence(nodeResult, idempotencyKey)
+	p.Results[taskID] = nodeResult
+	return p, true, nil
+}
+
 func (a *ToolNodeAdapter) runNode(ctx context.Context, taskID, toolName string, cfg map[string]any, agent *runtime.Agent, p *AgentDAGPayload) (*AgentDAGPayload, error) {
 	jobID := JobIDFromContext(ctx)
 	stepIDForLedger := ExecutionStepIDFromContext(ctx)
@@ -410,6 +449,11 @@ func (a *ToolNodeAdapter) runNode(ctx context.Context, taskID, toolName string, 
 				attachToolEvidence(nodeResult, idempotencyKey)
 				p.Results[taskID] = nodeResult
 				return p, nil
+			}
+			if out, restored, err := a.restoreFromEffectStore(ctx, jobID, taskID, stepIDForLedger, toolName, idempotencyKey, argsHash, stepChanges, p); err != nil {
+				return nil, err
+			} else if restored {
+				return out, nil
 			}
 			return nil, &StepFailure{
 				Type:   StepResultPermanentFailure,
@@ -507,35 +551,10 @@ func (a *ToolNodeAdapter) runNode(ctx context.Context, taskID, toolName string, 
 		}
 	}
 	// Effect Store catch-up：事件流无 command_committed 但 EffectStore 已有 effect（上一 Worker 执行后崩溃），则只写回事件不重执行（强 Replay）
-	if a.EffectStore != nil && jobID != "" {
-		eff, err := a.EffectStore.GetEffectByJobAndIdempotencyKey(ctx, jobID, idempotencyKey)
-		if err == nil && eff != nil && len(eff.Output) > 0 {
-			metrics.ToolInvocationTotal.WithLabelValues("restored").Inc()
-			metrics.ToolInvocationsTotal.WithLabelValues(TenantIDFromContext(ctx), toolName, "restore").Inc()
-			if err := a.runConfirmation(ctx, jobID, taskID, stepChanges); err != nil {
-				return nil, err
-			}
-			if err := a.writeCatchUpFinished(ctx, jobID, taskID, stepIDForLedger, idempotencyKey, argsHash, eff.Output); err != nil {
-				return nil, err
-			}
-			if a.InvocationLedger != nil {
-				_ = a.InvocationLedger.Commit(ctx, "catchup-"+idempotencyKey, idempotencyKey, eff.Output)
-			}
-			if a.InvocationStore != nil {
-				_ = a.InvocationStore.SetFinished(ctx, idempotencyKey, ToolInvocationStatusSuccess, eff.Output, true, "")
-			}
-			var nodeResult map[string]any
-			_ = json.Unmarshal(eff.Output, &nodeResult)
-			if nodeResult == nil {
-				nodeResult = make(map[string]any)
-			}
-			if p.Results == nil {
-				p.Results = make(map[string]any)
-			}
-			attachToolEvidence(nodeResult, idempotencyKey)
-			p.Results[taskID] = nodeResult
-			return p, nil
-		}
+	if out, restored, err := a.restoreFromEffectStore(ctx, jobID, taskID, stepIDForLedger, toolName, idempotencyKey, argsHash, stepChanges, p); err != nil {
+		return nil, err
+	} else if restored {
+		return out, nil
 	}
 	// 1.0 短路：Replay 已注入的节点结果不再执行
 	if prev, ok := p.Results[taskID]; ok {
@@ -728,21 +747,29 @@ func (a *ToolNodeAdapter) runNodeExecute(ctx context.Context, jobID, taskID, too
 	}
 	// Phase 2：写事件流与 Ledger/Store
 	if a.ToolEventSink != nil && jobID != "" {
-		_ = a.ToolEventSink.AppendToolInvocationFinished(ctx, jobID, nodeIDForEvent, &ToolInvocationFinishedPayload{
+		if err := a.ToolEventSink.AppendToolInvocationFinished(ctx, jobID, nodeIDForEvent, &ToolInvocationFinishedPayload{
 			InvocationID:   invocationID,
 			IdempotencyKey: idempotencyKey,
 			Outcome:        ToolInvocationOutcomeSuccess,
 			Result:         resultBytes,
 			FinishedAt:     FormatStartedAt(finishedAt),
-		})
+		}); err != nil {
+			return nil, err
+		}
 	}
 	if a.CommandEventSink != nil && jobID != "" {
-		_ = a.CommandEventSink.AppendCommandCommitted(ctx, jobID, nodeIDForEvent, taskID, resultBytes, argsHash)
+		if err := a.CommandEventSink.AppendCommandCommitted(ctx, jobID, nodeIDForEvent, taskID, resultBytes, argsHash); err != nil {
+			return nil, err
+		}
 	}
 	if a.InvocationLedger != nil && jobID != "" {
-		_ = a.InvocationLedger.Commit(ctx, invocationID, idempotencyKey, resultBytes)
+		if err := a.InvocationLedger.Commit(ctx, invocationID, idempotencyKey, resultBytes); err != nil {
+			return nil, err
+		}
 	} else if a.InvocationStore != nil && jobID != "" {
-		_ = a.InvocationStore.SetFinished(ctx, idempotencyKey, ToolInvocationStatusSuccess, resultBytes, true, externalID)
+		if err := a.InvocationStore.SetFinished(ctx, idempotencyKey, ToolInvocationStatusSuccess, resultBytes, true, externalID); err != nil {
+			return nil, err
+		}
 	}
 	if p.Results == nil {
 		p.Results = make(map[string]any)

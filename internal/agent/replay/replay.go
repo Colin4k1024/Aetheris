@@ -40,6 +40,7 @@ type ReplayContext struct {
 	TaskGraphState           []byte                         // PlanGenerated 的 task_graph
 	CursorNode               string                         // 最后一条 NodeFinished 的 node_id，兼容 Trace/旧逻辑
 	PayloadResults           []byte                         // 最后一条 NodeFinished 的 payload_results（累积状态）
+	PendingWait              *jobstore.JobWaitingPayload    // 最新一条尚未被 wait_completed 解除的等待态；恢复时直接返回 waiting，禁止重复写 job_waiting
 	CompletedNodeIDs         map[string]struct{}            // 所有已出现 NodeFinished 的 node_id 集合，供确定性重放
 	PayloadResultsByNode     map[string][]byte              // 按 node_id 的 payload_results，供跳过时合并（可选）
 	CompletedCommandIDs      map[string]struct{}            // 所有已出现 command_committed 的 command_id，已提交命令永不重放
@@ -228,7 +229,12 @@ func (b *replayBuilder) BuildFromEvents(ctx context.Context, jobID string) (*Rep
 			out.StateChangesByStep[pl.NodeID] = append(out.StateChangesByStep[pl.NodeID], pl.StateChanges...)
 		case jobstore.JobWaiting:
 			p, err := jobstore.ParseJobWaitingPayload(e.Payload)
-			if err != nil || len(p.ResumptionContext) == 0 {
+			if err != nil {
+				continue
+			}
+			cp := p
+			out.PendingWait = &cp
+			if len(p.ResumptionContext) == 0 {
 				continue
 			}
 			var resumption map[string]interface{}
@@ -260,6 +266,9 @@ func (b *replayBuilder) BuildFromEvents(ctx context.Context, jobID string) (*Rep
 			}
 			if err := json.Unmarshal(e.Payload, &pl); err != nil || pl.NodeID == "" {
 				continue
+			}
+			if out.PendingWait != nil && (out.PendingWait.CorrelationKey == pl.CorrelationKey || out.PendingWait.NodeID == pl.NodeID) {
+				out.PendingWait = nil
 			}
 			out.CompletedNodeIDs[pl.NodeID] = struct{}{}
 			out.CursorNode = pl.NodeID
@@ -425,6 +434,12 @@ func deserializeSnapshot(snapshotData []byte) (*ReplayContext, error) {
 		RecordedUUID:             payload.RecordedUUID,
 		RecordedHTTP:             make(map[string][]byte),
 	}
+	if len(payload.PendingWait) > 0 {
+		var pending jobstore.JobWaitingPayload
+		if err := json.Unmarshal(payload.PendingWait, &pending); err == nil {
+			rc.PendingWait = &pending
+		}
+	}
 
 	// 转换 slice 为 map
 	for _, nodeID := range payload.CompletedNodeIDs {
@@ -585,7 +600,12 @@ func (b *replayBuilder) applyIncrementalEvents(rc *ReplayContext, events []jobst
 			rc.StateChangesByStep[pl.NodeID] = append(rc.StateChangesByStep[pl.NodeID], pl.StateChanges...)
 		case jobstore.JobWaiting:
 			p, err := jobstore.ParseJobWaitingPayload(e.Payload)
-			if err != nil || len(p.ResumptionContext) == 0 {
+			if err != nil {
+				continue
+			}
+			cp := p
+			rc.PendingWait = &cp
+			if len(p.ResumptionContext) == 0 {
 				continue
 			}
 			var resumption map[string]interface{}
@@ -617,6 +637,9 @@ func (b *replayBuilder) applyIncrementalEvents(rc *ReplayContext, events []jobst
 			}
 			if err := json.Unmarshal(e.Payload, &pl); err != nil || pl.NodeID == "" {
 				continue
+			}
+			if rc.PendingWait != nil && (rc.PendingWait.CorrelationKey == pl.CorrelationKey || rc.PendingWait.NodeID == pl.NodeID) {
+				rc.PendingWait = nil
 			}
 			rc.CompletedNodeIDs[pl.NodeID] = struct{}{}
 			rc.CursorNode = pl.NodeID
@@ -711,6 +734,11 @@ func SerializeReplayContext(rc *ReplayContext) ([]byte, error) {
 		RecordedRandom:           make(map[string]json.RawMessage),
 		RecordedUUID:             rc.RecordedUUID,
 		RecordedHTTP:             make(map[string]json.RawMessage),
+	}
+	if rc.PendingWait != nil {
+		if pendingWaitBytes, err := json.Marshal(rc.PendingWait); err == nil {
+			payload.PendingWait = json.RawMessage(pendingWaitBytes)
+		}
 	}
 
 	// 转换 map 为 slice

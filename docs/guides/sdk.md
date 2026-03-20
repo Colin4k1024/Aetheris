@@ -83,6 +83,23 @@ runner, err := agentFactory.CreateAgent(ctx, eino.AgentBuildConfig{
 
 详见 [design/step-contract.md](../design/step-contract.md)。
 
+## Approval Timeout Strategy
+
+If your TaskGraph uses `approval` or other wait-like nodes with `expires_at`, you can choose what happens when the deadline passes by setting `config.expiry_action` on the node:
+
+```go
+Config: map[string]any{
+    "expires_at":    "2026-03-21T10:00:00Z",
+    "expiry_action": "rejected", // expired | rejected | cancelled
+}
+```
+
+- `expired`: default behavior; runtime appends `wait_completed` with `approval.decision=expired` and resumes the job.
+- `rejected`: runtime appends `wait_completed` with `approval.decision=rejected` and resumes the job on the rejection path.
+- `cancelled`: runtime appends `job_cancelled` and moves the job directly to terminal cancelled state.
+
+This strategy is only applied by the background approval-expiry settlement loop for approval-like waits.
+
 ## 参考
 
 - [usage.md](usage.md) — API 与 Job 流程

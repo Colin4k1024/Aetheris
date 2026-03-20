@@ -177,6 +177,27 @@ func (s *JobStoreMem) ListByAgent(ctx context.Context, agentID string, tenantID 
 	return list, nil
 }
 
+func (s *JobStoreMem) ListByStatuses(ctx context.Context, statuses []JobStatus, tenantID string) ([]*Job, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	allowed := make(map[JobStatus]struct{}, len(statuses))
+	for _, status := range statuses {
+		allowed[status] = struct{}{}
+	}
+	var list []*Job
+	for _, j := range s.byID {
+		if _, ok := allowed[j.Status]; !ok {
+			continue
+		}
+		if tenantID != "" && j.TenantID != tenantID {
+			continue
+		}
+		cp := *j
+		list = append(list, &cp)
+	}
+	return list, nil
+}
+
 func (s *JobStoreMem) UpdateStatus(ctx context.Context, jobID string, status JobStatus) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

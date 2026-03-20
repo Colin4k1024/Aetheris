@@ -52,6 +52,7 @@ import (
 	"rag-platform/internal/api/http"
 	"rag-platform/internal/api/http/middleware"
 	"rag-platform/internal/app"
+	"rag-platform/internal/app/approvalexpiry"
 	"rag-platform/internal/einoext"
 	"rag-platform/internal/ingestqueue"
 	"rag-platform/internal/model/llm"
@@ -73,15 +74,19 @@ type otelProviderShutdown interface {
 
 // App API 应用（装配 HTTP Router、Handler、Middleware；仅依赖 Engine + DocumentService）
 type App struct {
-	config       *app.Bootstrap
-	engine       *eino.Engine
-	docService   app.DocumentService
-	router       *http.Router
-	hertz        *server.Hertz
-	grpcServer   *grpcRun
-	otelProvider otelProviderShutdown
-	jobScheduler *job.Scheduler
-	mcpManager   *mcp.Manager
+	config        *app.Bootstrap
+	engine        *eino.Engine
+	docService    app.DocumentService
+	router        *http.Router
+	hertz         *server.Hertz
+	grpcServer    *grpcRun
+	otelProvider  otelProviderShutdown
+	jobScheduler  *job.Scheduler
+	mcpManager    *mcp.Manager
+	jobStore      job.JobStore
+	jobEventStore jobstore.JobStore
+	wakeupQueue   job.WakeupQueue
+	expiryCancel  context.CancelFunc
 }
 
 // jobStoreForRunnerAdapter 将 job.JobStore 适配为 agentexec.JobStoreForRunner（status int）
@@ -600,13 +605,17 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 		if agentStateStore != nil && agent.Session != nil {
 			_ = agentStateStore.SaveAgentState(ctx, j.AgentID, agent.Session.ID, runtime.SessionToAgentState(agent.Session))
 		}
-		// 事件流补全：执行结束后追加 JobCompleted / JobFailed，便于审计与回放
+		if err != nil && errors.Is(err, agentexec.ErrJobWaiting) {
+			return err
+		}
+		// 事件流与 metadata 终态统一收敛到同一 helper，避免 API scheduler 与 event stream 失配。
 		if jobEventStore != nil {
-			_, ver, _ := jobEventStore.ListEvents(ctx, j.ID)
 			evType := jobstore.JobCompleted
+			status := job.StatusCompleted
 			pl := map[string]interface{}{"goal": j.Goal}
 			if err != nil {
 				evType = jobstore.JobFailed
+				status = job.StatusFailed
 				pl["error"] = err.Error()
 				var sf *agentexec.StepFailure
 				if errors.As(err, &sf) {
@@ -616,7 +625,9 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 				}
 			}
 			payload, _ := json.Marshal(pl)
-			_, _ = jobEventStore.Append(ctx, j.ID, ver, jobstore.JobEvent{JobID: j.ID, Type: evType, Payload: payload})
+			if syncErr := appendTerminalEventAndUpdateStatus(ctx, jobEventStore, jobStore, j.ID, payload, evType, status); syncErr != nil {
+				return syncErr
+			}
 		}
 		return err
 	}
@@ -713,13 +724,16 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	}
 
 	appObj := &App{
-		config:       bootstrap,
-		engine:       engine,
-		docService:   docService,
-		router:       router,
-		hertz:        nil,
-		jobScheduler: jobScheduler,
-		mcpManager:   mcpMgr,
+		config:        bootstrap,
+		engine:        engine,
+		docService:    docService,
+		router:        router,
+		hertz:         nil,
+		jobScheduler:  jobScheduler,
+		mcpManager:    mcpMgr,
+		jobStore:      jobStore,
+		jobEventStore: jobEventStore,
+		wakeupQueue:   wakeupQueue,
 	}
 	if bootstrap.Config != nil && bootstrap.Config.API.Grpc.Enable && bootstrap.Config.API.Grpc.Port > 0 {
 		gs, err := startGRPC(engine, docService, bootstrap.Config.API.Grpc.Port)
@@ -736,6 +750,11 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 // Run 启动 HTTP 服务，addr 如 ":8080"
 func (a *App) Run(addr string) error {
 	a.config.Logger.Info("API 服务启动", "addr", addr)
+	if a.jobStore != nil && a.jobEventStore != nil && a.expiryCancel == nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		a.expiryCancel = cancel
+		go a.runApprovalExpiryLoop(ctx)
+	}
 
 	// 使用 Hertz slog 扩展，与 bootstrap 配置对齐
 	output := os.Stdout
@@ -814,6 +833,9 @@ func (a *App) Run(addr string) error {
 
 // Shutdown 优雅关闭（传入 ctx 以支持超时，如 cmd 层 WithTimeout）
 func (a *App) Shutdown(ctx context.Context) error {
+	if a.expiryCancel != nil {
+		a.expiryCancel()
+	}
 	if a.mcpManager != nil {
 		_ = a.mcpManager.Close()
 	}
@@ -837,6 +859,26 @@ func (a *App) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+func (a *App) runApprovalExpiryLoop(ctx context.Context) {
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		expired, err := approvalexpiry.ExpireApprovalWaitsOnce(ctx, a.jobStore, a.jobEventStore, a.wakeupQueue)
+		if err != nil {
+			a.config.Logger.Warn("审批过期自动收敛 failed", "error", err)
+			continue
+		}
+		if expired > 0 {
+			a.config.Logger.Info("审批过期自动收敛完成", "jobs", expired)
+		}
+	}
+}
+
 // parseDuration 解析时长字符串，无效或空时返回 defaultVal
 func parseDuration(s string, defaultVal time.Duration) time.Duration {
 	if s == "" {
@@ -847,6 +889,20 @@ func parseDuration(s string, defaultVal time.Duration) time.Duration {
 		return defaultVal
 	}
 	return d
+}
+
+func appendTerminalEventAndUpdateStatus(ctx context.Context, eventStore jobstore.JobStore, metaStore job.JobStore, jobID string, payload []byte, eventType jobstore.EventType, status job.JobStatus) error {
+	_, ver, err := eventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		return &job.TerminalStateSyncError{Status: status, Phase: "event", Err: err}
+	}
+	if _, err := eventStore.Append(ctx, jobID, ver, jobstore.JobEvent{JobID: jobID, Type: eventType, Payload: payload}); err != nil {
+		return &job.TerminalStateSyncError{Status: status, Phase: "event", Err: err}
+	}
+	if err := metaStore.UpdateStatus(ctx, jobID, status); err != nil {
+		return &job.TerminalStateSyncError{Status: status, Phase: "status", Err: err}
+	}
+	return nil
 }
 
 func embeddedDataDir(cfg *config.Config) string {

@@ -16,6 +16,7 @@ package job
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -129,5 +130,98 @@ func TestReclaimOrphanedFromEventStore_SkipsBlocked(t *testing.T) {
 	j, _ := metadata.Get(ctx, "j1")
 	if j != nil && j.Status != StatusRunning {
 		t.Errorf("j1 status = %v, want still Running", j.Status)
+	}
+}
+
+func TestReclaimOrphanedFromEventStore_ReconcilesTerminalStatusFromEvents(t *testing.T) {
+	ctx := context.Background()
+	metadata := NewJobStoreMem()
+	j1 := &Job{ID: "j1", AgentID: "a1", Goal: "g1", Status: StatusRunning}
+	_, _ = metadata.Create(ctx, j1)
+	_ = metadata.UpdateStatus(ctx, "j1", StatusRunning)
+
+	now := time.Now()
+	ev := func(typ jobstore.EventType) jobstore.JobEvent {
+		return jobstore.JobEvent{JobID: "j1", Type: typ, CreatedAt: now}
+	}
+	eventStore := &fakeEventStore{
+		expiredIDs: []string{"j1"},
+		events: map[string][]jobstore.JobEvent{
+			"j1": {ev(jobstore.JobCreated), ev(jobstore.JobRunning), ev(jobstore.JobCompleted)},
+		},
+	}
+	n, err := ReclaimOrphanedFromEventStore(ctx, metadata, eventStore)
+	if err != nil {
+		t.Fatalf("ReclaimOrphanedFromEventStore: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("reclaimed = %d, want 1", n)
+	}
+	j, _ := metadata.Get(ctx, "j1")
+	if j == nil || j.Status != StatusCompleted {
+		t.Fatalf("j1 status = %v, want Completed", j.Status)
+	}
+}
+
+func TestReclaimOrphanedFromEventStore_TerminalEventPreventsRerunAfterRestart(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventType jobstore.EventType
+		want      JobStatus
+	}{
+		{name: "completed", eventType: jobstore.JobCompleted, want: StatusCompleted},
+		{name: "failed", eventType: jobstore.JobFailed, want: StatusFailed},
+		{name: "cancelled", eventType: jobstore.JobCancelled, want: StatusCancelled},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			metadata := NewJobStoreMem()
+			j1 := &Job{ID: "j1", AgentID: "a1", Goal: "g1", Status: StatusRunning}
+			_, _ = metadata.Create(ctx, j1)
+			_ = metadata.UpdateStatus(ctx, "j1", StatusRunning)
+
+			now := time.Now()
+			ev := func(typ jobstore.EventType) jobstore.JobEvent {
+				return jobstore.JobEvent{JobID: "j1", Type: typ, CreatedAt: now}
+			}
+			eventStore := &fakeEventStore{
+				expiredIDs: []string{"j1"},
+				events: map[string][]jobstore.JobEvent{
+					"j1": {ev(jobstore.JobCreated), ev(jobstore.JobRunning), ev(tt.eventType)},
+				},
+			}
+
+			n, err := ReclaimOrphanedFromEventStore(ctx, metadata, eventStore)
+			if err != nil {
+				t.Fatalf("ReclaimOrphanedFromEventStore: %v", err)
+			}
+			if n != 1 {
+				t.Fatalf("reclaimed = %d, want 1", n)
+			}
+
+			var runCount int32
+			sched := NewScheduler(metadata, func(_ context.Context, j *Job) error {
+				atomic.AddInt32(&runCount, 1)
+				return nil
+			}, SchedulerConfig{MaxConcurrency: 1, RetryMax: 0, Backoff: 10 * time.Millisecond})
+			sched.Start(ctx)
+			defer sched.Stop()
+
+			time.Sleep(150 * time.Millisecond)
+			if atomic.LoadInt32(&runCount) != 0 {
+				t.Fatalf("%s job should not rerun after reclaim, runCount=%d", tt.name, runCount)
+			}
+			j, _ := metadata.Get(ctx, "j1")
+			if j == nil || j.Status != tt.want {
+				t.Fatalf("j1 status = %v, want %v", j.Status, tt.want)
+			}
+			if pending, err := metadata.ClaimNextPending(ctx); err != nil || pending != nil {
+				t.Fatalf("%s job should not be claimable after reclaim, pending=%+v err=%v", tt.name, pending, err)
+			}
+		})
 	}
 }

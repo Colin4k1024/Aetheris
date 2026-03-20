@@ -18,10 +18,13 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"rag-platform/internal/agent/planner"
+	"rag-platform/internal/agent/runtime"
+	"rag-platform/internal/runtime/jobstore"
 )
 
 type timeoutNodeSink struct {
@@ -130,6 +133,123 @@ func TestRunnerParallelLevel_TimeoutClassifiedAsRetryableFailure(t *testing.T) {
 	gotJobID, gotStatus := jobStore.getLast()
 	if gotJobID != "job-timeout" {
 		t.Fatalf("UpdateStatus jobID = %q, want %q", gotJobID, "job-timeout")
+	}
+	const statusFailed = 3
+	if gotStatus != statusFailed {
+		t.Fatalf("UpdateStatus status = %d, want %d (Failed)", gotStatus, statusFailed)
+	}
+}
+
+type staleParallelNodeSink struct{}
+
+func (staleParallelNodeSink) AppendNodeStarted(ctx context.Context, jobID string, nodeID string, attempt int, workerID string) error {
+	return nil
+}
+
+func (staleParallelNodeSink) AppendNodeFinished(ctx context.Context, jobID string, nodeID string, payloadResults []byte, durationMs int64, state string, attempt int, resultType StepResultType, reason string, stepID string, inputHash string) error {
+	return jobstore.ErrStaleAttempt
+}
+
+func (staleParallelNodeSink) AppendStepCommitted(ctx context.Context, jobID string, nodeID string, stepID string, commandID string, idempotencyKey string) error {
+	return nil
+}
+
+func (staleParallelNodeSink) AppendStateCheckpointed(ctx context.Context, jobID string, nodeID string, stateBefore, stateAfter []byte, opts *StateCheckpointOpts) error {
+	return nil
+}
+
+func (staleParallelNodeSink) AppendJobWaiting(ctx context.Context, jobID string, nodeID string, waitKind, reason string, expiresAt time.Time, correlationKey string, resumptionContext []byte) error {
+	return nil
+}
+
+func (staleParallelNodeSink) AppendReasoningSnapshot(ctx context.Context, jobID string, payload []byte) error {
+	return nil
+}
+
+func (staleParallelNodeSink) AppendStepCompensated(ctx context.Context, jobID string, nodeID string, stepID string, commandID string, reason string) error {
+	return nil
+}
+
+func (staleParallelNodeSink) AppendMemoryRead(ctx context.Context, jobID string, nodeID string, stepIndex int, memoryType, keyOrScope, summary string) error {
+	return nil
+}
+
+func (staleParallelNodeSink) AppendMemoryWrite(ctx context.Context, jobID string, nodeID string, stepIndex int, memoryType, keyOrScope, summary string) error {
+	return nil
+}
+
+func (staleParallelNodeSink) AppendPlanEvolution(ctx context.Context, jobID string, planVersion int, diffSummary string) error {
+	return nil
+}
+
+// TestRunnerParallelLevel_SuccessPathNodeFinishStaleAttempt 验证并行成功分支在写 node_finished 时若被 stale-attempt 拒绝，会直接失败收敛。
+func TestRunnerParallelLevel_SuccessPathNodeFinishStaleAttempt(t *testing.T) {
+	r := NewRunner(nil)
+	jobStore := &fakeJobStoreForRunner{}
+	r.jobStore = jobStore
+	r.SetNodeEventSink(staleParallelNodeSink{})
+
+	var callCount int32
+	steps := []SteppableStep{
+		{NodeID: "n1", NodeType: planner.NodeWorkflow, Run: func(ctx context.Context, p *AgentDAGPayload) (*AgentDAGPayload, error) {
+			atomic.AddInt32(&callCount, 1)
+			p.Results["n1"] = "ok-1"
+			return p, nil
+		}},
+		{NodeID: "n2", NodeType: planner.NodeWorkflow, Run: func(ctx context.Context, p *AgentDAGPayload) (*AgentDAGPayload, error) {
+			atomic.AddInt32(&callCount, 1)
+			p.Results["n2"] = "ok-2"
+			return p, nil
+		}},
+	}
+	batch := []int{0, 1}
+	g := &planner.TaskGraph{Nodes: []planner.TaskNode{{ID: "n1", Type: planner.NodeWorkflow}, {ID: "n2", Type: planner.NodeWorkflow}}}
+	payload := &AgentDAGPayload{Goal: "parallel-success", Results: map[string]any{}}
+	j := &JobForRunner{ID: "job-parallel-stale-success", AgentID: "a1"}
+
+	err := r.runParallelLevel(context.Background(), j, steps, batch, g, payload, &runtime.Agent{ID: "a1"}, nil, map[string]struct{}{}, nil, "d1", "")
+	if !errors.Is(err, jobstore.ErrStaleAttempt) {
+		t.Fatalf("expected ErrStaleAttempt, got %v", err)
+	}
+	if atomic.LoadInt32(&callCount) != 2 {
+		t.Fatalf("expected both parallel steps to execute before stale attempt rejection, got %d", callCount)
+	}
+	gotJobID, gotStatus := jobStore.getLast()
+	if gotJobID != "job-parallel-stale-success" {
+		t.Fatalf("UpdateStatus jobID = %q, want %q", gotJobID, "job-parallel-stale-success")
+	}
+	const statusFailed = 3
+	if gotStatus != statusFailed {
+		t.Fatalf("UpdateStatus status = %d, want %d (Failed)", gotStatus, statusFailed)
+	}
+}
+
+// TestRunnerParallelLevel_FailurePathNodeFinishStaleAttempt 验证并行失败分支在写失败 node_finished 时若被 stale-attempt 拒绝，会优先返回 fencing 错误。
+func TestRunnerParallelLevel_FailurePathNodeFinishStaleAttempt(t *testing.T) {
+	r := NewRunner(nil)
+	jobStore := &fakeJobStoreForRunner{}
+	r.jobStore = jobStore
+	r.SetNodeEventSink(staleParallelNodeSink{})
+
+	steps := []SteppableStep{{
+		NodeID:   "n-fail",
+		NodeType: planner.NodeWorkflow,
+		Run: func(ctx context.Context, p *AgentDAGPayload) (*AgentDAGPayload, error) {
+			return nil, context.DeadlineExceeded
+		},
+	}}
+	batch := []int{0}
+	g := &planner.TaskGraph{Nodes: []planner.TaskNode{{ID: "n-fail", Type: planner.NodeWorkflow}}}
+	payload := &AgentDAGPayload{Goal: "parallel-fail", Results: map[string]any{}}
+	j := &JobForRunner{ID: "job-parallel-stale-failure", AgentID: "a1"}
+
+	err := r.runParallelLevel(context.Background(), j, steps, batch, g, payload, nil, nil, map[string]struct{}{}, nil, "d1", "")
+	if !errors.Is(err, jobstore.ErrStaleAttempt) {
+		t.Fatalf("expected ErrStaleAttempt, got %v", err)
+	}
+	gotJobID, gotStatus := jobStore.getLast()
+	if gotJobID != "job-parallel-stale-failure" {
+		t.Fatalf("UpdateStatus jobID = %q, want %q", gotJobID, "job-parallel-stale-failure")
 	}
 	const statusFailed = 3
 	if gotStatus != statusFailed {

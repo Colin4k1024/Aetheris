@@ -1438,6 +1438,17 @@ func (h *Handler) JobStop(ctx context.Context, c *app.RequestContext) {
 type JobSignalRequest struct {
 	CorrelationKey string                 `json:"correlation_key" binding:"required"`
 	Payload        map[string]interface{} `json:"payload"`
+	Decision       string                 `json:"decision"`
+	Reason         string                 `json:"reason"`
+	DelegateTo     string                 `json:"delegate_to"`
+	ApproverID     string                 `json:"approver_id"`
+}
+
+type ApprovalActionRequest struct {
+	Reason     string                 `json:"reason"`
+	DelegateTo string                 `json:"delegate_to"`
+	ApproverID string                 `json:"approver_id"`
+	Payload    map[string]interface{} `json:"payload"`
 }
 
 type JobPauseRequest struct {
@@ -1537,26 +1548,236 @@ func lastEventIsWaitCompletedWithCorrelationKey(events []jobstore.JobEvent, corr
 	return ck == correlationKey
 }
 
-// JobSignal 向挂起的 Job 发送 signal，写入 wait_completed 事件并将 Job 置回 Pending 供 Worker 认领继续
-func (h *Handler) JobSignal(ctx context.Context, c *app.RequestContext) {
+type approvalSnapshot struct {
+	job           *job.Job
+	wait          jobstore.JobWaitingPayload
+	requestedAt   time.Time
+	expiresAt     time.Time
+	expired       bool
+	expiryAction  string
+	hasDecision   bool
+	decision      string
+	reason        string
+	delegateTo    string
+	approverID    string
+	actionAt      string
+	actionPayload json.RawMessage
+}
+
+func (h *Handler) loadApprovalSnapshot(ctx context.Context, jobID string) (*approvalSnapshot, int, map[string]interface{}) {
+	if h.jobStore == nil || h.jobEventStore == nil {
+		return nil, consts.StatusServiceUnavailable, map[string]interface{}{"error": "Job 或事件存储未启用"}
+	}
+	j, err := h.jobStore.Get(ctx, jobID)
+	if err != nil || j == nil {
+		return nil, consts.StatusNotFound, map[string]interface{}{"error": "任务not found"}
+	}
+	tid := auth.GetTenantID(ctx)
+	if tid == "" {
+		tid = "default"
+	}
+	if j.TenantID != tid {
+		return nil, consts.StatusNotFound, map[string]interface{}{"error": "任务not found"}
+	}
+	events, _, err := h.jobEventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		return nil, consts.StatusInternalServerError, map[string]interface{}{"error": "获取事件failed"}
+	}
+	snap := &approvalSnapshot{job: j}
+	for i := len(events) - 1; i >= 0; i-- {
+		e := events[i]
+		switch e.Type {
+		case jobstore.WaitCompleted:
+			if !snap.hasDecision {
+				if p, err := jobstore.ParseWaitCompletedPayload(e.Payload); err == nil && p.CorrelationKey != "" {
+					snap.hasDecision = true
+					snap.decision = p.Approval.Decision
+					snap.reason = p.Approval.Reason
+					snap.delegateTo = p.Approval.DelegateTo
+					snap.approverID = p.Approval.ApproverID
+					snap.actionAt = p.Approval.ApprovedAtRFC3339
+					snap.actionPayload = p.Payload
+				}
+			}
+		case jobstore.HumanApprovalGiven:
+			if !snap.hasDecision {
+				if p, err := jobstore.ParseHumanApprovalPayload(e.Payload); err == nil && p.CorrelationKey != "" {
+					snap.hasDecision = true
+					snap.decision = p.Decision
+					snap.reason = p.Reason
+					snap.delegateTo = p.DelegateTo
+					snap.approverID = p.ApproverID
+					snap.actionAt = p.ActionAtRFC3339
+					snap.actionPayload = p.Payload
+				}
+			}
+		case jobstore.JobWaiting:
+			p, _ := jobstore.ParseJobWaitingPayload(e.Payload)
+			if p.CorrelationKey != "" {
+				snap.wait = p
+				snap.requestedAt = e.CreatedAt
+				snap.expiryAction = approvalExpiryAction(p)
+				if p.ExpiresAtRFC3339 != "" {
+					if expiresAt, err := time.Parse(time.RFC3339, p.ExpiresAtRFC3339); err == nil {
+						snap.expiresAt = expiresAt
+						snap.expired = !expiresAt.After(time.Now().UTC())
+					}
+				}
+				return snap, 0, nil
+			}
+		}
+	}
+	return nil, consts.StatusBadRequest, map[string]interface{}{"error": "job_waiting not found (missing correlation_key)"}
+}
+
+func approvalExpiryAction(wait jobstore.JobWaitingPayload) string {
+	if len(wait.ResumptionContext) == 0 {
+		return "expired"
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(wait.ResumptionContext, &payload); err != nil {
+		return "expired"
+	}
+	action, _ := payload["expiry_action"].(string)
+	switch strings.ToLower(strings.TrimSpace(action)) {
+	case "rejected", "reject":
+		return "rejected"
+	case "cancelled", "cancel":
+		return "cancelled"
+	default:
+		return "expired"
+	}
+}
+
+func approvalSnapshotResponse(snap *approvalSnapshot) map[string]interface{} {
+	decision := "pending"
+	if snap.hasDecision && snap.decision != "" {
+		decision = snap.decision
+	}
+	actionable := (snap.job.Status == job.StatusWaiting || snap.job.Status == job.StatusParked) && !snap.expired && decision != "approved" && decision != "rejected"
+	resp := map[string]interface{}{
+		"job_id":          snap.job.ID,
+		"agent_id":        snap.job.AgentID,
+		"status":          snap.job.Status.String(),
+		"node_id":         snap.wait.NodeID,
+		"wait_type":       snap.wait.WaitType,
+		"wait_kind":       snap.wait.WaitKind,
+		"correlation_key": snap.wait.CorrelationKey,
+		"request_reason":  snap.wait.Reason,
+		"requested_at":    snap.requestedAt,
+		"expired":         snap.expired,
+		"expiry_action":   snap.expiryAction,
+		"approval": map[string]interface{}{
+			"decision":    decision,
+			"reason":      snap.reason,
+			"delegate_to": snap.delegateTo,
+			"approver_id": snap.approverID,
+			"action_at":   snap.actionAt,
+			"actionable":  actionable,
+		},
+	}
+	if !snap.expiresAt.IsZero() {
+		resp["expires_at"] = snap.expiresAt.UTC().Format(time.RFC3339)
+	}
+	if len(snap.actionPayload) > 0 {
+		resp["approval_payload"] = json.RawMessage(snap.actionPayload)
+	}
+	return resp
+}
+
+func approvalExpiredResponse(snap *approvalSnapshot) (int, map[string]interface{}) {
+	resp := approvalSnapshotResponse(snap)
+	resp["error"] = "approval 已过期"
+	resp["message"] = "审批等待已过期，不能再执行该操作"
+	return consts.StatusConflict, resp
+}
+
+func (h *Handler) appendHumanApprovalEvent(ctx context.Context, jobID string, payload jobstore.HumanApprovalPayload) error {
 	if h.jobEventStore == nil {
+		return nil
+	}
+	b, err := marshalJSON(ctx, payload, "human_approval_payload")
+	if err != nil {
+		return err
+	}
+	_, ver, err := h.jobEventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		return err
+	}
+	_, err = h.jobEventStore.Append(ctx, jobID, ver, jobstore.JobEvent{JobID: jobID, Type: jobstore.HumanApprovalGiven, Payload: b})
+	return err
+}
+
+// ListAgentApprovals 列出指定 Agent 当前等待中的审批请求。
+func (h *Handler) ListAgentApprovals(ctx context.Context, c *app.RequestContext) {
+	if h.jobStore == nil || h.jobEventStore == nil {
 		c.JSON(consts.StatusServiceUnavailable, map[string]string{"error": "Job 或事件存储未启用"})
 		return
 	}
-	jobID := c.Param("id")
-	j, ok := h.getJobAndCheckTenant(ctx, c, jobID)
-	if !ok {
+	agentID := c.Param("id")
+	tenantID := auth.GetTenantID(ctx)
+	list, err := h.jobStore.ListByAgent(ctx, agentID, tenantID)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "列出审批failed: %v", err)
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "列出审批failed"})
 		return
 	}
-	if j.Status != job.StatusWaiting && j.Status != job.StatusParked {
-		c.JSON(consts.StatusBadRequest, map[string]string{"error": "任务未在等待状态（Waiting/Parked），无法 signal"})
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	out := make([]map[string]interface{}, 0, limit)
+	for _, j := range list {
+		if j.Status != job.StatusWaiting && j.Status != job.StatusParked {
+			continue
+		}
+		snap, status, _ := h.loadApprovalSnapshot(ctx, j.ID)
+		if status != 0 || snap == nil {
+			continue
+		}
+		out = append(out, approvalSnapshotResponse(snap))
+		if len(out) >= limit {
+			break
+		}
+	}
+	c.JSON(consts.StatusOK, map[string]interface{}{"approvals": out, "total": len(out)})
+}
+
+// GetJobApproval 返回单个 Job 的审批详情。
+func (h *Handler) GetJobApproval(ctx context.Context, c *app.RequestContext) {
+	snap, status, body := h.loadApprovalSnapshot(ctx, c.Param("id"))
+	if status != 0 || snap == nil {
+		c.JSON(status, body)
 		return
+	}
+	c.JSON(consts.StatusOK, approvalSnapshotResponse(snap))
+}
+
+func (h *Handler) processJobSignalRequest(ctx context.Context, jobID string, req JobSignalRequest) (int, map[string]interface{}) {
+	if h.jobEventStore == nil || h.jobStore == nil {
+		return consts.StatusServiceUnavailable, map[string]interface{}{"error": "Job 或事件存储未启用"}
+	}
+	j, err := h.jobStore.Get(ctx, jobID)
+	if err != nil || j == nil {
+		return consts.StatusNotFound, map[string]interface{}{"error": "任务not found"}
+	}
+	tid := auth.GetTenantID(ctx)
+	if tid == "" {
+		tid = "default"
+	}
+	if j.TenantID != tid {
+		return consts.StatusNotFound, map[string]interface{}{"error": "任务not found"}
+	}
+	if j.Status != job.StatusWaiting && j.Status != job.StatusParked {
+		return consts.StatusBadRequest, map[string]interface{}{"error": "任务未在等待状态（Waiting/Parked），无法 signal"}
 	}
 	events, ver, err := h.jobEventStore.ListEvents(ctx, jobID)
 	if err != nil {
 		hlog.CtxErrorf(ctx, "ListEvents: %v", err)
-		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "获取事件failed"})
-		return
+		return consts.StatusInternalServerError, map[string]interface{}{"error": "获取事件failed"}
 	}
 	var waitPayload jobstore.JobWaitingPayload
 	for i := len(events) - 1; i >= 0; i-- {
@@ -1566,58 +1787,79 @@ func (h *Handler) JobSignal(ctx context.Context, c *app.RequestContext) {
 		}
 	}
 	if waitPayload.CorrelationKey == "" {
-		c.JSON(consts.StatusBadRequest, map[string]string{"error": "job_waiting not found (missing correlation_key)"})
-		return
-	}
-	var req JobSignalRequest
-	if err := c.BindJSON(&req); err != nil {
-		c.JSON(consts.StatusBadRequest, map[string]string{"error": "请求体需包含 correlation_key"})
-		return
+		return consts.StatusBadRequest, map[string]interface{}{"error": "job_waiting not found (missing correlation_key)"}
 	}
 	if req.CorrelationKey != waitPayload.CorrelationKey {
-		c.JSON(consts.StatusBadRequest, map[string]string{"error": "correlation_key 与当前等待不匹配"})
-		return
+		return consts.StatusBadRequest, map[string]interface{}{"error": "correlation_key 与当前等待不匹配"}
 	}
-	// 幂等：若最后一条事件已是 wait_completed 且 correlation_key 一致，视为已送达，直接 200
 	if lastEventIsWaitCompletedWithCorrelationKey(events, req.CorrelationKey) {
-		c.JSON(consts.StatusOK, map[string]interface{}{
-			"job_id":  jobID,
-			"status":  j.Status,
-			"message": "signal 已送达（幂等）",
-		})
-		return
+		return consts.StatusOK, map[string]interface{}{"job_id": jobID, "status": j.Status, "message": "signal 已送达（幂等）"}
 	}
 	if req.Payload == nil {
 		req.Payload = make(map[string]interface{})
 	}
+	approverID := strings.TrimSpace(req.ApproverID)
+	if approverID == "" {
+		approverID = auth.GetUserID(ctx)
+	}
+	approvedAt := time.Now().UTC().Format(time.RFC3339)
+	decision := strings.TrimSpace(req.Decision)
+	if decision == "" {
+		if approved, ok := req.Payload["approved"].(bool); ok {
+			if approved {
+				decision = "approved"
+			} else {
+				decision = "rejected"
+			}
+		} else {
+			decision = "signaled"
+		}
+	}
+	if _, ok := req.Payload["decision"]; !ok && decision != "" {
+		req.Payload["decision"] = decision
+	}
+	if _, ok := req.Payload["reason"]; !ok && req.Reason != "" {
+		req.Payload["reason"] = req.Reason
+	}
+	if _, ok := req.Payload["delegate_to"]; !ok && req.DelegateTo != "" {
+		req.Payload["delegate_to"] = req.DelegateTo
+	}
+	if _, ok := req.Payload["approver_id"]; !ok && approverID != "" {
+		req.Payload["approver_id"] = approverID
+	}
+	if _, ok := req.Payload["approved_at"]; !ok {
+		req.Payload["approved_at"] = approvedAt
+	}
 	nodeID := waitPayload.NodeID
 	payloadBytes, errMarshal := marshalJSON(ctx, req.Payload, "job_signal_request_payload")
 	if errMarshal != nil {
-		c.JSON(consts.StatusBadRequest, map[string]string{"error": "signal payload 非法，无法序列化"})
-		return
+		return consts.StatusBadRequest, map[string]interface{}{"error": "signal payload 非法，无法序列化"}
 	}
-	// 2.0 at-least-once：先写持久化 inbox，再 Append wait_completed，API 崩溃不丢 signal
 	var signalID string
 	if h.signalInbox != nil {
 		signalID, err = h.signalInbox.Append(ctx, jobID, req.CorrelationKey, payloadBytes)
 		if err != nil {
 			hlog.CtxErrorf(ctx, "SignalInbox.Append: %v", err)
-			c.JSON(consts.StatusInternalServerError, map[string]string{"error": "写入 signal 收件箱failed"})
-			return
+			return consts.StatusInternalServerError, map[string]interface{}{"error": "写入 signal 收件箱failed"}
 		}
 	}
-	evPayload, errMarshal := marshalJSON(ctx, map[string]interface{}{
-		"node_id":         nodeID,
-		"payload":         json.RawMessage(payloadBytes),
-		"correlation_key": req.CorrelationKey,
+	evPayload, errMarshal := marshalJSON(ctx, jobstore.WaitCompletedPayload{
+		NodeID:         nodeID,
+		Payload:        json.RawMessage(payloadBytes),
+		CorrelationKey: req.CorrelationKey,
+		Approval: jobstore.ApprovalMetadata{
+			Decision:          decision,
+			Reason:            req.Reason,
+			DelegateTo:        req.DelegateTo,
+			ApproverID:        approverID,
+			TenantID:          auth.GetTenantID(ctx),
+			ApprovedAtRFC3339: approvedAt,
+		},
 	}, "job_wait_completed_payload")
 	if errMarshal != nil {
-		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "构建 wait_completed 事件failed"})
-		return
+		return consts.StatusInternalServerError, map[string]interface{}{"error": "构建 wait_completed 事件failed"}
 	}
-	_, err = h.jobEventStore.Append(ctx, jobID, ver, jobstore.JobEvent{
-		JobID: jobID, Type: jobstore.WaitCompleted, Payload: evPayload,
-	})
+	_, err = h.jobEventStore.Append(ctx, jobID, ver, jobstore.JobEvent{JobID: jobID, Type: jobstore.WaitCompleted, Payload: evPayload})
 	if err != nil {
 		if errors.Is(err, jobstore.ErrVersionMismatch) {
 			latestEvents, _, listErr := h.jobEventStore.ListEvents(ctx, jobID)
@@ -1625,17 +1867,11 @@ func (h *Handler) JobSignal(ctx context.Context, c *app.RequestContext) {
 				if h.signalInbox != nil && signalID != "" {
 					_ = h.signalInbox.MarkAcked(ctx, jobID, signalID)
 				}
-				c.JSON(consts.StatusOK, map[string]interface{}{
-					"job_id":  jobID,
-					"status":  j.Status,
-					"message": "signal 已送达（并发幂等）",
-				})
-				return
+				return consts.StatusOK, map[string]interface{}{"job_id": jobID, "status": j.Status, "message": "signal 已送达（并发幂等）"}
 			}
 		}
 		hlog.CtxErrorf(ctx, "Append WaitCompleted: %v", err)
-		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "write event failed"})
-		return
+		return consts.StatusInternalServerError, map[string]interface{}{"error": "write event failed"}
 	}
 	if err := h.jobStore.UpdateStatus(ctx, jobID, job.StatusPending); err != nil {
 		hlog.CtxErrorf(ctx, "UpdateStatus Pending: %v", err)
@@ -1646,11 +1882,128 @@ func (h *Handler) JobSignal(ctx context.Context, c *app.RequestContext) {
 	if h.wakeupQueue != nil {
 		_ = h.wakeupQueue.NotifyReady(ctx, jobID)
 	}
-	c.JSON(consts.StatusOK, map[string]interface{}{
+	return consts.StatusOK, map[string]interface{}{
 		"job_id":  jobID,
 		"status":  "pending",
 		"message": "已发送 signal，Job 将重新入队执行",
+		"approval": map[string]interface{}{
+			"decision":    decision,
+			"reason":      req.Reason,
+			"delegate_to": req.DelegateTo,
+			"approver_id": approverID,
+			"approved_at": approvedAt,
+		},
+	}
+}
+
+func (h *Handler) jobApprovalSignalAction(ctx context.Context, c *app.RequestContext, decision string) {
+	snap, status, body := h.loadApprovalSnapshot(ctx, c.Param("id"))
+	if status != 0 || snap == nil {
+		c.JSON(status, body)
+		return
+	}
+	if snap.expired {
+		status, body = approvalExpiredResponse(snap)
+		c.JSON(status, body)
+		return
+	}
+	var req ApprovalActionRequest
+	if err := c.BindJSON(&req); err != nil && len(c.Request.Body()) > 0 {
+		c.JSON(consts.StatusBadRequest, map[string]string{"error": "请求体非法"})
+		return
+	}
+	payload := req.Payload
+	if payload == nil {
+		payload = make(map[string]interface{})
+	}
+	payload["approved"] = decision == "approved"
+	status, out := h.processJobSignalRequest(ctx, snap.job.ID, JobSignalRequest{
+		CorrelationKey: snap.wait.CorrelationKey,
+		Payload:        payload,
+		Decision:       decision,
+		Reason:         req.Reason,
+		ApproverID:     req.ApproverID,
 	})
+	c.JSON(status, out)
+}
+
+// ApproveJobApproval 批准一个等待中的审批。
+func (h *Handler) ApproveJobApproval(ctx context.Context, c *app.RequestContext) {
+	h.jobApprovalSignalAction(ctx, c, "approved")
+}
+
+// RejectJobApproval 拒绝一个等待中的审批；当前通过 wait payload 将 rejected 结果注入后续节点。
+func (h *Handler) RejectJobApproval(ctx context.Context, c *app.RequestContext) {
+	h.jobApprovalSignalAction(ctx, c, "rejected")
+}
+
+// DelegateJobApproval 记录委派动作，但保持 Job 继续处于等待状态。
+func (h *Handler) DelegateJobApproval(ctx context.Context, c *app.RequestContext) {
+	snap, status, body := h.loadApprovalSnapshot(ctx, c.Param("id"))
+	if status != 0 || snap == nil {
+		c.JSON(status, body)
+		return
+	}
+	if snap.expired {
+		status, body = approvalExpiredResponse(snap)
+		c.JSON(status, body)
+		return
+	}
+	var req ApprovalActionRequest
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(consts.StatusBadRequest, map[string]string{"error": "请求体非法"})
+		return
+	}
+	if strings.TrimSpace(req.DelegateTo) == "" {
+		c.JSON(consts.StatusBadRequest, map[string]string{"error": "delegate_to is required"})
+		return
+	}
+	approverID := strings.TrimSpace(req.ApproverID)
+	if approverID == "" {
+		approverID = auth.GetUserID(ctx)
+	}
+	var payloadBytes []byte
+	if req.Payload != nil {
+		b, err := marshalJSON(ctx, req.Payload, "delegate_approval_payload")
+		if err != nil {
+			c.JSON(consts.StatusBadRequest, map[string]string{"error": "payload 非法，无法序列化"})
+			return
+		}
+		payloadBytes = b
+	}
+	if err := h.appendHumanApprovalEvent(ctx, snap.job.ID, jobstore.HumanApprovalPayload{
+		NodeID:          snap.wait.NodeID,
+		CorrelationKey:  snap.wait.CorrelationKey,
+		Decision:        "delegated",
+		Reason:          req.Reason,
+		DelegateTo:      strings.TrimSpace(req.DelegateTo),
+		ApproverID:      approverID,
+		TenantID:        auth.GetTenantID(ctx),
+		ActionAtRFC3339: time.Now().UTC().Format(time.RFC3339),
+		Payload:         json.RawMessage(payloadBytes),
+	}); err != nil {
+		hlog.CtxErrorf(ctx, "Append HumanApprovalGiven: %v", err)
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "记录委派failed"})
+		return
+	}
+	updatedSnap, _, _ := h.loadApprovalSnapshot(ctx, snap.job.ID)
+	c.JSON(consts.StatusOK, map[string]interface{}{
+		"job_id":   snap.job.ID,
+		"status":   snap.job.Status.String(),
+		"message":  "审批已委派，任务保持等待状态",
+		"approval": approvalSnapshotResponse(updatedSnap)["approval"],
+	})
+}
+
+// JobSignal 向挂起的 Job 发送 signal，写入 wait_completed 事件并将 Job 置回 Pending 供 Worker 认领继续
+func (h *Handler) JobSignal(ctx context.Context, c *app.RequestContext) {
+	var req JobSignalRequest
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(consts.StatusBadRequest, map[string]string{"error": "请求体需包含 correlation_key"})
+		return
+	}
+	status, out := h.processJobSignalRequest(ctx, c.Param("id"), req)
+	c.JSON(status, out)
 }
 
 // JobMessageRequest POST /api/jobs/:id/message 请求体；向 Job 投递信箱消息，若 Job 处于 Waiting 且 wait_type=message 且 channel/correlation_key 匹配则写入 wait_completed 并重新入队（design/agent-process-model.md Mailbox）

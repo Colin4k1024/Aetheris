@@ -216,6 +216,31 @@ func TestParseJobWaitingPayload(t *testing.T) {
 	}
 }
 
+func TestParseWaitCompletedPayload(t *testing.T) {
+	payload := []byte(`{"node_id":"node-1","correlation_key":"key-1","payload":{"approved":true},"approval":{"decision":"approved","reason":"looks good","approver_id":"user-1","approved_at":"2026-03-20T10:00:00Z"}}`)
+	p, err := ParseWaitCompletedPayload(payload)
+	if err != nil {
+		t.Fatalf("ParseWaitCompletedPayload failed: %v", err)
+	}
+	if p.NodeID != "node-1" || p.CorrelationKey != "key-1" {
+		t.Fatalf("unexpected wait_completed payload: %+v", p)
+	}
+	if p.Approval.Decision != "approved" || p.Approval.ApproverID != "user-1" {
+		t.Fatalf("unexpected approval metadata: %+v", p.Approval)
+	}
+}
+
+func TestParseHumanApprovalPayload(t *testing.T) {
+	payload := []byte(`{"node_id":"node-1","correlation_key":"key-1","decision":"delegated","reason":"ooo","delegate_to":"backup-1","approver_id":"user-1","action_at":"2026-03-20T10:00:00Z"}`)
+	p, err := ParseHumanApprovalPayload(payload)
+	if err != nil {
+		t.Fatalf("ParseHumanApprovalPayload failed: %v", err)
+	}
+	if p.Decision != "delegated" || p.DelegateTo != "backup-1" || p.ApproverID != "user-1" {
+		t.Fatalf("unexpected human approval payload: %+v", p)
+	}
+}
+
 func TestJobEvent_UnmarshalPayload(t *testing.T) {
 	event := &JobEvent{
 		Payload: []byte(`{"key":"value"}`),

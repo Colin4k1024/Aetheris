@@ -29,6 +29,13 @@ func TestSnapshotReplay_SerializeDeserializeRoundtrip(t *testing.T) {
 		TaskGraphState: []byte(`{"nodes":[{"id":"n1","type":"tool"}]}`),
 		CursorNode:     "n1",
 		PayloadResults: []byte(`{"result":"ok"}`),
+		PendingWait: &jobstore.JobWaitingPayload{
+			NodeID:         "wait-1",
+			WaitType:       "signal",
+			CorrelationKey: "corr-1",
+			WaitKind:       "signal",
+			Reason:         "approval_required",
+		},
 		CompletedNodeIDs: map[string]struct{}{
 			"n1": {},
 			"n2": {},
@@ -79,6 +86,9 @@ func TestSnapshotReplay_SerializeDeserializeRoundtrip(t *testing.T) {
 	if payload.Phase != int(original.Phase) {
 		t.Errorf("Phase: got %d want %d", payload.Phase, int(original.Phase))
 	}
+	if len(payload.PendingWait) == 0 {
+		t.Fatal("PendingWait should round-trip into snapshot payload")
+	}
 	if len(payload.CompletedNodeIDs) != len(original.CompletedNodeIDs) {
 		t.Errorf("CompletedNodeIDs count: got %d want %d", len(payload.CompletedNodeIDs), len(original.CompletedNodeIDs))
 	}
@@ -96,6 +106,13 @@ func TestSnapshotReplay_SerializeDeserializeRoundtrip(t *testing.T) {
 	}
 	if payload.RecordedUUID["uuid-1"] != "550e8400-e29b-41d4-a716-446655440000" {
 		t.Errorf("RecordedUUID: got %s want expected UUID", payload.RecordedUUID["uuid-1"])
+	}
+	restored, err := deserializeSnapshot(data)
+	if err != nil {
+		t.Fatalf("deserializeSnapshot: %v", err)
+	}
+	if restored.PendingWait == nil || restored.PendingWait.CorrelationKey != "corr-1" {
+		t.Fatalf("PendingWait not restored correctly: %+v", restored.PendingWait)
 	}
 }
 

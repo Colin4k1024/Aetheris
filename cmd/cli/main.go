@@ -130,6 +130,14 @@ func main() {
 			os.Exit(1)
 		}
 		runSignal(args[0], args[1])
+	case "approvals":
+		runApprovals(args)
+	case "ledger":
+		if len(args) < 2 || args[0] != "inspect" {
+			fmt.Fprintf(os.Stderr, "Usage: aetheris ledger inspect <job_id>\n")
+			os.Exit(1)
+		}
+		runLedgerInspect(args[1])
 	case "debug":
 		if len(args) < 1 {
 			fmt.Fprintf(os.Stderr, "Usage: aetheris debug <job_id> [--compare-replay]\n")
@@ -188,6 +196,12 @@ func printUsage() {
 	fmt.Println("  pause <job_id> [reason] - 暂停 Job（进入 parked）")
 	fmt.Println("  resume <job_id> [correlation_key] - 恢复 Job（回到 pending）")
 	fmt.Println("  signal <job_id> <correlation_key> - 向 waiting/parked Job 发送 signal")
+	fmt.Println("  approvals list <agent_id> - 列出指定 Agent 当前等待中的审批")
+	fmt.Println("  approvals get <job_id> - 查看单个 Job 的审批详情")
+	fmt.Println("  approvals approve <job_id> [reason] - 批准等待中的审批")
+	fmt.Println("  approvals reject <job_id> [reason] - 拒绝等待中的审批")
+	fmt.Println("  approvals delegate <job_id> <delegate_to> [reason] - 委派审批，任务保持 waiting")
+	fmt.Println("  ledger inspect <job_id> - 查看该 Job 的 tool invocation ledger 状态")
 	fmt.Println("  debug <job_id> [--compare-replay] - Agent 调试器：timeline + evidence + replay verification")
 	fmt.Println("  verify <job_id> - 执行验证：输出 execution_hash、event_chain_root、ledger proof、replay proof")
 	fmt.Println("  verify <evidence.zip> - 离线验证证据包完整性")
@@ -603,6 +617,140 @@ func runSignal(jobID, correlationKey string) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "signal 失败: %v\n", err)
 		os.Exit(1)
+	}
+	fmt.Println(prettyJSON(out))
+}
+
+func runApprovals(args []string) {
+	if len(args) < 2 {
+		fmt.Fprintf(os.Stderr, "Usage: aetheris approvals <list|get|approve|reject|delegate> ...\n")
+		os.Exit(1)
+	}
+	switch args[0] {
+	case "list":
+		if len(args) != 2 {
+			fmt.Fprintf(os.Stderr, "Usage: aetheris approvals list <agent_id>\n")
+			os.Exit(1)
+		}
+		runApprovalsList(args[1])
+	case "get":
+		if len(args) != 2 {
+			fmt.Fprintf(os.Stderr, "Usage: aetheris approvals get <job_id>\n")
+			os.Exit(1)
+		}
+		runApprovalGet(args[1])
+	case "approve":
+		if len(args) < 2 || len(args) > 3 {
+			fmt.Fprintf(os.Stderr, "Usage: aetheris approvals approve <job_id> [reason]\n")
+			os.Exit(1)
+		}
+		reason := ""
+		if len(args) == 3 {
+			reason = args[2]
+		}
+		runApprovalApprove(args[1], reason)
+	case "reject":
+		if len(args) < 2 || len(args) > 3 {
+			fmt.Fprintf(os.Stderr, "Usage: aetheris approvals reject <job_id> [reason]\n")
+			os.Exit(1)
+		}
+		reason := ""
+		if len(args) == 3 {
+			reason = args[2]
+		}
+		runApprovalReject(args[1], reason)
+	case "delegate":
+		if len(args) < 3 || len(args) > 4 {
+			fmt.Fprintf(os.Stderr, "Usage: aetheris approvals delegate <job_id> <delegate_to> [reason]\n")
+			os.Exit(1)
+		}
+		reason := ""
+		if len(args) == 4 {
+			reason = args[3]
+		}
+		runApprovalDelegate(args[1], args[2], reason)
+	default:
+		fmt.Fprintf(os.Stderr, "Usage: aetheris approvals <list|get|approve|reject|delegate> ...\n")
+		os.Exit(1)
+	}
+}
+
+func runApprovalsList(agentID string) {
+	out, err := listAgentApprovals(agentID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "获取审批列表失败: %v\n", err)
+		os.Exit(1)
+	}
+	for _, item := range out {
+		approval, _ := item["approval"].(map[string]interface{})
+		fmt.Printf("- %v | %v | decision=%v | correlation=%v\n",
+			item["job_id"], item["status"], approval["decision"], item["correlation_key"])
+	}
+	if len(out) > 0 {
+		fmt.Println()
+	}
+	fmt.Println(prettyJSON(map[string]interface{}{"approvals": out, "total": len(out)}))
+}
+
+func runApprovalGet(jobID string) {
+	out, err := getJobApproval(jobID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "获取审批详情失败: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println(prettyJSON(out))
+}
+
+func runApprovalApprove(jobID, reason string) {
+	out, err := approveJobApproval(jobID, reason)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "批准审批失败: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println(prettyJSON(out))
+}
+
+func runApprovalReject(jobID, reason string) {
+	out, err := rejectJobApproval(jobID, reason)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "拒绝审批失败: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println(prettyJSON(out))
+}
+
+func runApprovalDelegate(jobID, delegateTo, reason string) {
+	out, err := delegateJobApproval(jobID, delegateTo, reason)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "委派审批失败: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println(prettyJSON(out))
+}
+
+func runLedgerInspect(jobID string) {
+	out, err := getJobLedger(jobID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "获取 ledger 失败: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("=== Ledger: %s ===\n\n", jobID)
+	if summary, ok := out["summary"].(map[string]interface{}); ok {
+		fmt.Printf("Total: %v\n", summary["total"])
+		fmt.Printf("Committed: %v\n", summary["committed"])
+		fmt.Printf("Pending: %v\n", summary["pending"])
+		fmt.Printf("Failed: %v\n\n", summary["failed"])
+	}
+	if invocations, ok := out["tool_invocations"].([]interface{}); ok {
+		for _, raw := range invocations {
+			item, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			fmt.Printf("- %v | %v | committed=%v | key=%v\n",
+				item["tool_name"], item["status"], item["committed"], item["idempotency_key"])
+		}
+		fmt.Println()
 	}
 	fmt.Println(prettyJSON(out))
 }

@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"rag-platform/internal/agent/runtime"
+	"rag-platform/internal/runtime/jobstore"
 )
 
 const (
@@ -228,6 +229,55 @@ func TestLedger_Recover_AfterCommit(t *testing.T) {
 	}
 }
 
+// TestLedger_LeaseFencing_StaleAttemptCannotCommit 证明：
+// 当 Ledger 配置 AttemptValidator 时，失去租约的旧 worker 不能 Commit；
+// stale Commit 不会污染记录，当前 attempt 仍可正常完成提交。
+func TestLedger_LeaseFencing_StaleAttemptCannotCommit(t *testing.T) {
+	ctx := context.Background()
+	eventStore := jobstore.NewMemoryStore()
+	if _, err := eventStore.Append(ctx, job1, 0, jobstore.JobEvent{JobID: job1, Type: jobstore.JobCreated}); err != nil {
+		t.Fatalf("append JobCreated: %v", err)
+	}
+	_, currentAttemptID, err := func() (int, string, error) {
+		ver, attemptID, claimErr := eventStore.ClaimJob(ctx, "worker-1", job1)
+		return ver, attemptID, claimErr
+	}()
+	if err != nil {
+		t.Fatalf("ClaimJob: %v", err)
+	}
+	store := NewToolInvocationStoreMem()
+	ledger := NewInvocationLedger(store, testAttemptValidator{store: eventStore})
+
+	decision, rec, err := ledger.Acquire(ctx, job1, step1, tool1, argsH1, key1, nil)
+	if err != nil || decision != InvocationDecisionAllowExecute || rec == nil {
+		t.Fatalf("Acquire: err=%v decision=%v rec=%v", err, decision, rec)
+	}
+	result := []byte(`{"done":true,"output":"ok"}`)
+
+	staleCtx := WithJobID(jobstore.WithAttemptID(ctx, "stale-attempt"), job1)
+	if err := ledger.Commit(staleCtx, rec.InvocationID, key1, result); err != jobstore.ErrStaleAttempt {
+		t.Fatalf("expected ErrStaleAttempt on stale Commit, got %v", err)
+	}
+	if recovered, exists := ledger.Recover(ctx, job1, key1); exists || recovered != nil {
+		t.Fatalf("stale Commit must not recover result, got (%s, %v)", string(recovered), exists)
+	}
+	recAfterStale, err := store.GetByJobAndIdempotencyKey(ctx, job1, key1)
+	if err != nil {
+		t.Fatalf("GetByJobAndIdempotencyKey after stale commit: %v", err)
+	}
+	if recAfterStale == nil || recAfterStale.Committed {
+		t.Fatalf("stale commit must leave record uncommitted, got %+v", recAfterStale)
+	}
+
+	currentCtx := WithJobID(jobstore.WithAttemptID(ctx, currentAttemptID), job1)
+	if err := ledger.Commit(currentCtx, rec.InvocationID, key1, result); err != nil {
+		t.Fatalf("Commit with current attempt: %v", err)
+	}
+	if recovered, exists := ledger.Recover(ctx, job1, key1); !exists || string(recovered) != string(result) {
+		t.Fatalf("expected committed recover after current attempt commit, got (%s, %v)", string(recovered), exists)
+	}
+}
+
 // TestAdapter_Replay_InjectsResult_NoToolCall 证明：Adapter 在 Ledger + CompletedToolInvocations 注入时只恢复结果，不调用 tool。
 // 对应 design/effect-system.md Replay 协议：Replay 时禁止真实调用 Tool，只读已记录结果；本测试用 mock 验证调用次数为 0。
 func TestAdapter_Replay_InjectsResult_NoToolCall(t *testing.T) {
@@ -347,11 +397,179 @@ func TestAdapter_PendingToolInvocations_NoDoubleExecute(t *testing.T) {
 	})
 }
 
+// TestAdapter_PendingToolInvocations_EffectStoreCatchUp_CommitsAndWritesBarrier 证明：
+// 当事件流只有 started、Effect Store 已持久化结果、但 finished/command_committed/ledger commit 尚未写入时，
+// 恢复路径必须从 Effect Store catch-up，禁止再次执行 tool，并补齐 finished 与 committed 屏障。
+func TestAdapter_PendingToolInvocations_EffectStoreCatchUp_CommitsAndWritesBarrier(t *testing.T) {
+	store := NewToolInvocationStoreMem()
+	ledger := NewInvocationLedgerFromStore(store)
+	effectStore := NewEffectStoreMem()
+	jobID := job1
+	taskID := step1
+	toolName := tool1
+	cfg := map[string]any{"a": 1}
+	idempotencyKey := IdempotencyKey(jobID, taskID, toolName, cfg)
+	argsHash := ArgumentsHash(cfg)
+	pending := map[string]struct{}{idempotencyKey: {}}
+	result := []byte(`{"done":true,"output":"from-effect-store"}`)
+	ctx := context.Background()
+	var callCount int32
+	sink := &recordingToolAndCommandSink{}
+
+	if err := store.SetStarted(ctx, &ToolInvocationRecord{
+		InvocationID:   "inv-pending-effect",
+		JobID:          jobID,
+		StepID:         taskID,
+		ToolName:       toolName,
+		ArgsHash:       argsHash,
+		IdempotencyKey: idempotencyKey,
+		Status:         ToolInvocationStatusStarted,
+	}); err != nil {
+		t.Fatalf("SetStarted: %v", err)
+	}
+	if err := effectStore.PutEffect(ctx, &EffectRecord{
+		JobID:          jobID,
+		CommandID:      taskID,
+		IdempotencyKey: idempotencyKey,
+		Kind:           EffectKindTool,
+		Output:         result,
+		Metadata:       map[string]any{"tool_name": toolName},
+	}); err != nil {
+		t.Fatalf("PutEffect: %v", err)
+	}
+
+	adapter := &ToolNodeAdapter{
+		Tools:            &countToolExec{count: &callCount},
+		InvocationStore:  store,
+		InvocationLedger: ledger,
+		EffectStore:      effectStore,
+		ToolEventSink:    sink,
+		CommandEventSink: sink,
+	}
+	ctx = WithJobID(ctx, jobID)
+	ctx = WithPendingToolInvocations(ctx, pending)
+	payload := &AgentDAGPayload{Results: make(map[string]any)}
+
+	out, err := adapter.runNode(ctx, taskID, toolName, cfg, nil, payload)
+	if err != nil {
+		t.Fatalf("runNode: %v", err)
+	}
+	if atomic.LoadInt32(&callCount) != 0 {
+		t.Fatalf("expected 0 tool calls during catch-up, got %d", callCount)
+	}
+	if out == nil || out.Results[taskID] == nil {
+		t.Fatalf("expected result injected from effect store")
+	}
+	m, _ := out.Results[taskID].(map[string]any)
+	if m["output"] != "from-effect-store" {
+		t.Fatalf("expected output from effect store, got %v", m)
+	}
+	if sink.finishedCount != 1 {
+		t.Fatalf("expected 1 tool_invocation_finished catch-up event, got %d", sink.finishedCount)
+	}
+	if sink.lastFinished == nil || sink.lastFinished.IdempotencyKey != idempotencyKey || sink.lastFinished.Outcome != ToolInvocationOutcomeSuccess {
+		t.Fatalf("unexpected finished payload: %+v", sink.lastFinished)
+	}
+	if sink.committedCount != 1 {
+		t.Fatalf("expected 1 command_committed catch-up event, got %d", sink.committedCount)
+	}
+	if sink.lastCommandID != taskID {
+		t.Fatalf("expected commandID %s, got %s", taskID, sink.lastCommandID)
+	}
+	if string(sink.lastCommandResult) != string(result) {
+		t.Fatalf("expected committed result %s, got %s", string(result), string(sink.lastCommandResult))
+	}
+	if sink.lastInputHash != argsHash {
+		t.Fatalf("expected input hash %s, got %s", argsHash, sink.lastInputHash)
+	}
+	rec, err := store.GetByJobAndIdempotencyKey(ctx, jobID, idempotencyKey)
+	if err != nil {
+		t.Fatalf("GetByJobAndIdempotencyKey: %v", err)
+	}
+	if rec == nil || !rec.Committed || string(rec.Result) != string(result) {
+		t.Fatalf("expected committed invocation record with effect result, got %+v", rec)
+	}
+	recovered, exists := ledger.Recover(ctx, jobID, idempotencyKey)
+	if !exists || string(recovered) != string(result) {
+		t.Fatalf("expected ledger recover %s, got (%s, %v)", string(result), string(recovered), exists)
+	}
+}
+
 type countToolExec struct {
 	count *int32
+}
+
+type testAttemptValidator struct {
+	store jobstore.JobStore
+}
+
+func (v testAttemptValidator) ValidateAttempt(ctx context.Context, jobID string) error {
+	want := jobstore.AttemptIDFromContext(ctx)
+	if want == "" || v.store == nil {
+		return nil
+	}
+	current, err := v.store.GetCurrentAttemptID(ctx, jobID)
+	if err != nil {
+		return err
+	}
+	if current != want {
+		return jobstore.ErrStaleAttempt
+	}
+	return nil
 }
 
 func (c *countToolExec) Execute(ctx context.Context, toolName string, input map[string]any, state interface{}) (ToolResult, error) {
 	atomic.AddInt32(c.count, 1)
 	return ToolResult{Done: true, Output: "called"}, nil
+}
+
+type recordingToolAndCommandSink struct {
+	finishedCount     int
+	committedCount    int
+	lastFinished      *ToolInvocationFinishedPayload
+	lastCommandID     string
+	lastCommandResult []byte
+	lastInputHash     string
+}
+
+func (s *recordingToolAndCommandSink) AppendToolCalled(ctx context.Context, jobID string, nodeID string, toolName string, input []byte) error {
+	return nil
+}
+
+func (s *recordingToolAndCommandSink) AppendToolReturned(ctx context.Context, jobID string, nodeID string, output []byte) error {
+	return nil
+}
+
+func (s *recordingToolAndCommandSink) AppendToolResultSummarized(ctx context.Context, jobID string, nodeID string, toolName string, summary string, errMsg string, idempotent bool) error {
+	return nil
+}
+
+func (s *recordingToolAndCommandSink) AppendToolInvocationStarted(ctx context.Context, jobID string, nodeID string, payload *ToolInvocationStartedPayload) error {
+	return nil
+}
+
+func (s *recordingToolAndCommandSink) AppendToolInvocationFinished(ctx context.Context, jobID string, nodeID string, payload *ToolInvocationFinishedPayload) error {
+	s.finishedCount++
+	if payload == nil {
+		s.lastFinished = nil
+		return nil
+	}
+	cp := *payload
+	if len(payload.Result) > 0 {
+		cp.Result = append([]byte(nil), payload.Result...)
+	}
+	s.lastFinished = &cp
+	return nil
+}
+
+func (s *recordingToolAndCommandSink) AppendCommandEmitted(ctx context.Context, jobID string, nodeID string, commandID string, kind string, input []byte) error {
+	return nil
+}
+
+func (s *recordingToolAndCommandSink) AppendCommandCommitted(ctx context.Context, jobID string, nodeID string, commandID string, result []byte, inputHash string) error {
+	s.committedCount++
+	s.lastCommandID = commandID
+	s.lastCommandResult = append([]byte(nil), result...)
+	s.lastInputHash = inputHash
+	return nil
 }

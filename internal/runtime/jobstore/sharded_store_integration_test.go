@@ -249,6 +249,45 @@ func TestShardedStore_Heartbeat(t *testing.T) {
 	}
 }
 
+func TestShardedStore_HeartbeatPreservesAttemptID(t *testing.T) {
+	ctx := context.Background()
+
+	shards := []JobStore{
+		NewMemoryStore(),
+		NewMemoryStore(),
+		NewMemoryStore(),
+	}
+	store := NewShardedStore(shards)
+
+	jobID := "job-heartbeat-attempt"
+	_, _ = store.Append(ctx, jobID, 0, JobEvent{JobID: jobID, Type: JobCreated})
+
+	_, attemptID, err := store.ClaimJob(ctx, "worker-1", jobID)
+	if err != nil {
+		t.Fatalf("ClaimJob: %v", err)
+	}
+	if attemptID == "" {
+		t.Fatal("expected non-empty attempt ID")
+	}
+
+	if err := store.Heartbeat(ctx, "worker-1", jobID); err != nil {
+		t.Fatalf("Heartbeat: %v", err)
+	}
+
+	currentAttemptID, err := store.GetCurrentAttemptID(ctx, jobID)
+	if err != nil {
+		t.Fatalf("GetCurrentAttemptID: %v", err)
+	}
+	if currentAttemptID != attemptID {
+		t.Fatalf("heartbeat changed attempt ID: got %q want %q", currentAttemptID, attemptID)
+	}
+
+	ctxOK := WithAttemptID(ctx, attemptID)
+	if _, err := store.Append(ctxOK, jobID, 1, JobEvent{JobID: jobID, Type: PlanGenerated}); err != nil {
+		t.Fatalf("Append with preserved attempt ID: %v", err)
+	}
+}
+
 // TestShardedStore_Watch 测试 Watch 跨分片
 func TestShardedStore_Watch(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())

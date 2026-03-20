@@ -45,6 +45,7 @@ import (
 	"rag-platform/internal/agent/tools/mcp"
 	"rag-platform/internal/app"
 	"rag-platform/internal/app/api"
+	"rag-platform/internal/app/approvalexpiry"
 	"rag-platform/internal/ingestqueue"
 	llmmod "rag-platform/internal/model/llm"
 	"rag-platform/internal/runtime/eino"
@@ -69,6 +70,8 @@ type App struct {
 	jobEventStore  jobstore.JobStore // 用于 Snapshot 自动化与 GC goroutine（仅 postgres 模式下非 nil）
 	replayBuilder  replay.ReplayContextBuilder
 	mcpManager     *mcp.Manager
+	jobStore       job.JobStore
+	wakeupQueue    job.WakeupQueue
 }
 
 // NewApp 创建新的 Worker 应用
@@ -310,7 +313,6 @@ func NewApp(cfg *config.Config) (*App, error) {
 					workerLogger.Warn("failed to save agent state", "error", err, "agent_id", j.AgentID)
 				}
 			}
-			_, ver, _ := pgEventStore.ListEvents(ctx, j.ID)
 			if err != nil && errors.Is(err, agentexec.ErrJobWaiting) {
 				// Job 在 Wait 节点挂起，已写 job_waiting 并置为 Waiting；等待 signal 后重新入队，不写终端事件
 				return err
@@ -320,11 +322,8 @@ func NewApp(cfg *config.Config) (*App, error) {
 				if j.RetryCount+1 >= maxAttempts {
 					errStr := err.Error()
 					payload, _ := json.Marshal(map[string]interface{}{"goal": j.Goal, "error": errStr})
-					if _, er := pgEventStore.Append(ctx, j.ID, ver, jobstore.JobEvent{JobID: j.ID, Type: jobstore.JobFailed, Payload: payload}); er != nil {
-						workerLogger.Warn("failed to append job_failed event", "error", er, "job_id", j.ID)
-					}
-					if er := pgJobStore.UpdateStatus(ctx, j.ID, job.StatusFailed); er != nil {
-						workerLogger.Warn("failed to update job status to failed", "error", er, "job_id", j.ID)
+					if er := appendTerminalEventAndUpdateStatus(ctx, pgEventStore, pgJobStore, j.ID, payload, jobstore.JobFailed, job.StatusFailed); er != nil {
+						workerLogger.Warn("failed to persist job_failed terminal state", "error", er, "job_id", j.ID)
 					}
 				} else {
 					if er := pgJobStore.Requeue(ctx, j); er != nil {
@@ -333,11 +332,8 @@ func NewApp(cfg *config.Config) (*App, error) {
 				}
 			} else {
 				payload, _ := json.Marshal(map[string]interface{}{"goal": j.Goal})
-				if _, er := pgEventStore.Append(ctx, j.ID, ver, jobstore.JobEvent{JobID: j.ID, Type: jobstore.JobCompleted, Payload: payload}); er != nil {
-					workerLogger.Warn("failed to append job_completed event", "error", er, "job_id", j.ID)
-				}
-				if er := pgJobStore.UpdateStatus(ctx, j.ID, job.StatusCompleted); er != nil {
-					workerLogger.Warn("failed to update job status to completed", "error", er, "job_id", j.ID)
+				if er := appendTerminalEventAndUpdateStatus(ctx, pgEventStore, pgJobStore, j.ID, payload, jobstore.JobCompleted, job.StatusCompleted); er != nil {
+					workerLogger.Warn("failed to persist job_completed terminal state", "error", er, "job_id", j.ID)
 				}
 			}
 			return err
@@ -378,6 +374,8 @@ func NewApp(cfg *config.Config) (*App, error) {
 		appObj.agentJobRunner = runner
 		appObj.jobEventStore = pgEventStore
 		appObj.replayBuilder = replay.NewReplayContextBuilder(pgEventStore)
+		appObj.jobStore = pgJobStore
+		appObj.wakeupQueue = wakeupQueue
 		logger.Info("Worker Agent Job 模式已启用", "worker_id", DefaultWorkerID(), "dsn", dsn)
 	} else if cfg != nil && cfg.JobStore.Type == "embedded" {
 		embeddedEventsPath := filepath.Join(embeddedBaseDir, "job_events.json")
@@ -439,9 +437,13 @@ func NewApp(cfg *config.Config) (*App, error) {
 			return err
 		}
 		runner := NewAgentJobRunner(DefaultWorkerID(), embeddedEventStore, embeddedJobStore, runJob, 2*time.Second, 30*time.Second, 1, nil, logger)
+		wakeupQueue := job.NewWakeupQueueMem(256)
+		runner.SetWakeupQueue(wakeupQueue)
 		appObj.agentJobRunner = runner
 		appObj.jobEventStore = embeddedEventStore
 		appObj.replayBuilder = replay.NewReplayContextBuilder(embeddedEventStore)
+		appObj.jobStore = embeddedJobStore
+		appObj.wakeupQueue = wakeupQueue
 		logger.Info("Worker Agent Job Embedded 模式已启用", "path", embeddedBaseDir)
 	}
 
@@ -495,6 +497,10 @@ func (a *App) Start() error {
 		go a.runGCLoop()
 	}
 
+	if a.jobStore != nil && a.jobEventStore != nil {
+		go a.runApprovalExpiryLoop()
+	}
+
 	// 启动工作队列消费者：收到入库任务时调用 engine.ExecuteWorkflow(ctx, "ingest_pipeline", payload)
 	if err := a.startWorkerQueue(); err != nil {
 		return fmt.Errorf("启动工作队列failed: %w", err)
@@ -502,6 +508,55 @@ func (a *App) Start() error {
 
 	a.logger.Info("worker 应用启动成功")
 	return nil
+}
+
+func (a *App) runApprovalExpiryLoop() {
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+	a.logger.Info("审批过期自动收敛 goroutine 已启动", "interval", 15*time.Second)
+	for {
+		select {
+		case <-a.shutdown:
+			return
+		case <-ticker.C:
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		expired, err := approvalexpiry.ExpireApprovalWaitsOnce(ctx, a.jobStore, a.jobEventStore, a.wakeupQueue)
+		cancel()
+		if err != nil {
+			a.logger.Warn("审批过期自动收敛 failed", "error", err)
+			continue
+		}
+		if expired > 0 {
+			a.logger.Info("审批过期自动收敛完成", "jobs", expired)
+		}
+	}
+}
+
+func appendTerminalEventAndUpdateStatus(ctx context.Context, eventStore jobstore.JobStore, metaStore job.JobStore, jobID string, payload []byte, eventType jobstore.EventType, status job.JobStatus) error {
+	if err := appendTerminalEvent(ctx, eventStore, jobID, payload, eventType); err != nil {
+		return err
+	}
+	return metaStore.UpdateStatus(ctx, jobID, status)
+}
+
+func appendTerminalEvent(ctx context.Context, eventStore jobstore.JobStore, jobID string, payload []byte, eventType jobstore.EventType) error {
+	_, ver, err := eventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		return err
+	}
+	_, err = eventStore.Append(ctx, jobID, ver, jobstore.JobEvent{JobID: jobID, Type: eventType, Payload: payload})
+	return err
+}
+
+func attemptAwareContext(baseCtx context.Context, attemptCtx context.Context) context.Context {
+	if baseCtx == nil {
+		baseCtx = context.Background()
+	}
+	if attemptID := jobstore.AttemptIDFromContext(attemptCtx); attemptID != "" {
+		return jobstore.WithAttemptID(baseCtx, attemptID)
+	}
+	return baseCtx
 }
 
 // runSnapshotLoop 定时扫描高事件量的 Job 并自动创建快照（每小时运行一次）

@@ -29,6 +29,53 @@ import (
 	"rag-platform/pkg/proof"
 )
 
+type ledgerInspectSummary struct {
+	Total     int `json:"total"`
+	Committed int `json:"committed"`
+	Pending   int `json:"pending"`
+	Failed    int `json:"failed"`
+}
+
+// GetJobLedger 返回 job 的 tool invocation ledger 视图，供排障与审计检查。
+// GET /api/jobs/:id/ledger
+func (h *Handler) GetJobLedger(c context.Context, ctx *app.RequestContext) {
+	jobID := ctx.Param("id")
+	if jobID == "" {
+		ctx.JSON(consts.StatusBadRequest, map[string]string{"error": "job_id is required"})
+		return
+	}
+	if _, ok := h.getJobAndCheckTenant(c, ctx, jobID); !ok {
+		return
+	}
+	if h.jobEventStore == nil {
+		ctx.JSON(consts.StatusServiceUnavailable, map[string]string{"error": "job event store is not configured"})
+		return
+	}
+	ledger, err := (&proofLedgerAdapter{store: h.jobEventStore}).ListToolInvocations(c, jobID)
+	if err != nil {
+		hlog.CtxErrorf(c, "failed to inspect ledger for job %s: %v", jobID, err)
+		ctx.JSON(consts.StatusInternalServerError, map[string]string{"error": "failed to inspect ledger"})
+		return
+	}
+	summary := ledgerInspectSummary{Total: len(ledger)}
+	for _, item := range ledger {
+		if item.Committed {
+			summary.Committed++
+		}
+		switch item.Status {
+		case "started":
+			summary.Pending++
+		case "failure", "failed", "timeout":
+			summary.Failed++
+		}
+	}
+	ctx.JSON(consts.StatusOK, map[string]interface{}{
+		"job_id":           jobID,
+		"summary":          summary,
+		"tool_invocations": ledger,
+	})
+}
+
 // ExportJobForensics 导出 job 的完整证据包（ZIP 格式）
 // POST /api/jobs/:id/export
 func (h *Handler) ExportJobForensics(c context.Context, ctx *app.RequestContext) {

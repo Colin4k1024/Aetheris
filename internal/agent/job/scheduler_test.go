@@ -19,6 +19,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	agentexec "rag-platform/internal/agent/runtime/executor"
 )
 
 func TestScheduler_Success(t *testing.T) {
@@ -121,3 +123,152 @@ func TestScheduler_MaxConcurrency(t *testing.T) {
 		t.Errorf("expected max concurrency 2, saw %d", maxSeen)
 	}
 }
+
+func TestScheduler_JobWaitingDoesNotRetryOrFail(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	store := NewJobStoreMem()
+	id, _ := store.Create(ctx, &Job{AgentID: "a1", Goal: "g"})
+	var runCount int32
+	runJob := func(runCtx context.Context, j *Job) error {
+		atomic.AddInt32(&runCount, 1)
+		if err := store.SetWaiting(runCtx, j.ID, "corr-1", "signal", "need approval"); err != nil {
+			return err
+		}
+		return agentexec.ErrJobWaiting
+	}
+	sched := NewScheduler(store, runJob, SchedulerConfig{
+		MaxConcurrency: 1,
+		RetryMax:       2,
+		Backoff:        10 * time.Millisecond,
+	})
+	sched.Start(ctx)
+	defer sched.Stop()
+
+	for i := 0; i < 30; i++ {
+		time.Sleep(30 * time.Millisecond)
+		j, _ := store.Get(ctx, id)
+		if j != nil && j.Status == StatusWaiting {
+			break
+		}
+	}
+	j, _ := store.Get(ctx, id)
+	if j == nil || j.Status != StatusWaiting {
+		t.Fatalf("expected job waiting, got %+v", j)
+	}
+	if atomic.LoadInt32(&runCount) != 1 {
+		t.Fatalf("waiting job should not retry automatically, runCount=%d", runCount)
+	}
+	// 再等一段时间，确认不会被 scheduler 重试或改成 failed
+	time.Sleep(120 * time.Millisecond)
+	j, _ = store.Get(ctx, id)
+	if j == nil || j.Status != StatusWaiting {
+		t.Fatalf("waiting job should remain waiting, got %+v", j)
+	}
+	if atomic.LoadInt32(&runCount) != 1 {
+		t.Fatalf("waiting job should still have exactly one run, runCount=%d", runCount)
+	}
+}
+
+func TestScheduler_RunJobManagedFailureDoesNotRetryOrDuplicateStatus(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	store := NewJobStoreMem()
+	id, _ := store.Create(ctx, &Job{AgentID: "a1", Goal: "g"})
+	var runCount int32
+	runJob := func(runCtx context.Context, j *Job) error {
+		atomic.AddInt32(&runCount, 1)
+		if err := store.UpdateStatus(runCtx, j.ID, StatusFailed); err != nil {
+			return err
+		}
+		return assertSchedulerError("managed failure")
+	}
+	sched := NewScheduler(store, runJob, SchedulerConfig{
+		MaxConcurrency: 1,
+		RetryMax:       2,
+		Backoff:        10 * time.Millisecond,
+	})
+	sched.Start(ctx)
+	defer sched.Stop()
+
+	for i := 0; i < 30; i++ {
+		time.Sleep(30 * time.Millisecond)
+		j, _ := store.Get(ctx, id)
+		if j != nil && j.Status == StatusFailed {
+			break
+		}
+	}
+	j, _ := store.Get(ctx, id)
+	if j == nil || j.Status != StatusFailed {
+		t.Fatalf("expected job failed, got %+v", j)
+	}
+	if atomic.LoadInt32(&runCount) != 1 {
+		t.Fatalf("managed failure should not retry, runCount=%d", runCount)
+	}
+}
+
+func TestScheduler_TerminalStateSyncError_EventPhaseSkipsRetryAndStatusMutation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	store := NewJobStoreMem()
+	id, _ := store.Create(ctx, &Job{AgentID: "a1", Goal: "g"})
+	var runCount int32
+	runJob := func(runCtx context.Context, j *Job) error {
+		atomic.AddInt32(&runCount, 1)
+		return &TerminalStateSyncError{Status: StatusCompleted, Phase: "event", Err: assertSchedulerError("event append failed")}
+	}
+	sched := NewScheduler(store, runJob, SchedulerConfig{
+		MaxConcurrency: 1,
+		RetryMax:       2,
+		Backoff:        10 * time.Millisecond,
+	})
+	sched.Start(ctx)
+	defer sched.Stop()
+
+	time.Sleep(150 * time.Millisecond)
+	j, _ := store.Get(ctx, id)
+	if j == nil || j.Status != StatusRunning {
+		t.Fatalf("event-phase sync failure should leave status running, got %+v", j)
+	}
+	if atomic.LoadInt32(&runCount) != 1 {
+		t.Fatalf("event-phase sync failure should not retry, runCount=%d", runCount)
+	}
+}
+
+func TestScheduler_TerminalStateSyncError_StatusPhaseRepairsMetadataWithoutRetry(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	store := NewJobStoreMem()
+	id, _ := store.Create(ctx, &Job{AgentID: "a1", Goal: "g"})
+	var runCount int32
+	runJob := func(runCtx context.Context, j *Job) error {
+		atomic.AddInt32(&runCount, 1)
+		return &TerminalStateSyncError{Status: StatusCompleted, Phase: "status", Err: assertSchedulerError("status update failed")}
+	}
+	sched := NewScheduler(store, runJob, SchedulerConfig{
+		MaxConcurrency: 1,
+		RetryMax:       2,
+		Backoff:        10 * time.Millisecond,
+	})
+	sched.Start(ctx)
+	defer sched.Stop()
+
+	for i := 0; i < 30; i++ {
+		time.Sleep(30 * time.Millisecond)
+		j, _ := store.Get(ctx, id)
+		if j != nil && j.Status == StatusCompleted {
+			break
+		}
+	}
+	j, _ := store.Get(ctx, id)
+	if j == nil || j.Status != StatusCompleted {
+		t.Fatalf("status-phase sync failure should be repaired to completed, got %+v", j)
+	}
+	if atomic.LoadInt32(&runCount) != 1 {
+		t.Fatalf("status-phase sync failure should not retry, runCount=%d", runCount)
+	}
+}
+
+type assertSchedulerError string
+
+func (e assertSchedulerError) Error() string { return string(e) }

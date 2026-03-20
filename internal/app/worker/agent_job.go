@@ -297,10 +297,15 @@ func (r *AgentJobRunner) executeJob(ctx context.Context, jobID string, attemptID
 		metrics.JobFailTotal.WithLabelValues("cancelled").Inc()
 		metrics.JobsTotal.WithLabelValues(tenant, "cancelled").Inc()
 		metrics.JobLatencySeconds.WithLabelValues(tenant, "cancelled").Observe(dur)
-		_, ver, _ := r.jobEventStore.ListEvents(ctx, jobID)
 		payload, _ := json.Marshal(map[string]interface{}{"goal": j.Goal})
-		_, _ = r.jobEventStore.Append(runCtx, jobID, ver, jobstore.JobEvent{JobID: jobID, Type: jobstore.JobCancelled, Payload: payload})
-		_ = r.jobStore.UpdateStatus(ctx, jobID, job.StatusCancelled)
+		persistCtx := attemptAwareContext(ctx, runCtx)
+		if err := appendTerminalEventAndUpdateStatus(persistCtx, r.jobEventStore, r.jobStore, jobID, payload, jobstore.JobCancelled, job.StatusCancelled); err != nil {
+			r.logger.Warn("failed to persist job_cancelled terminal state", "job_id", jobID, "error", err)
+		}
+		return
+	}
+	if err != nil && errors.Is(err, agentexec.ErrJobWaiting) {
+		r.logger.Info("Job 进入 waiting 状态", "job_id", jobID)
 		return
 	}
 	if err != nil {
@@ -310,19 +315,7 @@ func (r *AgentJobRunner) executeJob(ctx context.Context, jobID string, attemptID
 		metrics.JobFailTotal.WithLabelValues("failed").Inc()
 		metrics.JobsTotal.WithLabelValues(tenant, "failed").Inc()
 		metrics.JobLatencySeconds.WithLabelValues(tenant, "failed").Observe(dur)
-		// Append job_failed so event stream has terminal event; include result_type when available
-		if r.jobEventStore != nil {
-			_, ver, _ := r.jobEventStore.ListEvents(ctx, jobID)
-			pl := map[string]interface{}{"goal": j.Goal, "error": err.Error()}
-			var sf *agentexec.StepFailure
-			if errors.As(err, &sf) {
-				pl["result_type"] = string(sf.Type)
-				pl["node_id"] = sf.FailedNodeID()
-				pl["reason"] = err.Error()
-			}
-			payload, _ := json.Marshal(pl)
-			_, _ = r.jobEventStore.Append(runCtx, jobID, ver, jobstore.JobEvent{JobID: jobID, Type: jobstore.JobFailed, Payload: payload})
-		}
+		// failed 终态由注入的 runJob 负责决定：它可能已经 requeue、waiting、或追加了 job_failed。
 		return
 	}
 	dur := time.Since(start).Seconds()

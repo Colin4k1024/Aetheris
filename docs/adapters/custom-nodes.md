@@ -17,8 +17,15 @@ Default behavior:
 - `approval` defaults to `wait_kind=signal`, `reason=approval_required`
 - `condition` defaults to `wait_kind=condition`, `reason=wait_condition`
 - `wait` keeps existing behavior from `config.wait_kind`
+- wait-like nodes can set `config.expires_at` and optional `config.expiry_action`
 
 `config.correlation_key` is supported for deterministic keys; otherwise runtime generates `wait-<uuid>`.
+
+`config.expiry_action` is normalized as:
+
+- `expired` or empty: append `wait_completed` with `approval.decision=expired` and resume the job
+- `rejected`: append `wait_completed` with `approval.decision=rejected` and resume the job
+- `cancelled`: append `job_cancelled` and move the job to terminal cancelled state
 
 ## Register a custom node adapter
 
@@ -56,6 +63,8 @@ For API/Worker assembly, see `internal/app/api/agent_dag.go` where built-in adap
             Type: planner.NodeApproval,
             Config: map[string]any{
                 "correlation_key": "approval-refund-123",
+                "expires_at":      "2026-03-21T10:00:00Z",
+                "expiry_action":   "rejected",
                 "park":            true,
             },
         },

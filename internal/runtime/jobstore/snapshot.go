@@ -33,6 +33,7 @@ type SnapshotPayload struct {
 	TaskGraphState           json.RawMessage            `json:"task_graph_state,omitempty"`
 	CursorNode               string                     `json:"cursor_node,omitempty"`
 	PayloadResults           json.RawMessage            `json:"payload_results,omitempty"`
+	PendingWait              json.RawMessage            `json:"pending_wait,omitempty"`
 	CompletedNodeIDs         []string                   `json:"completed_node_ids,omitempty"`
 	PayloadResultsByNode     map[string]json.RawMessage `json:"payload_results_by_node,omitempty"`
 	CompletedCommandIDs      []string                   `json:"completed_command_ids,omitempty"`

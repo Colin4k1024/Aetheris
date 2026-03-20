@@ -46,10 +46,19 @@ func ReclaimOrphanedFromEventStore(ctx context.Context, metadata JobStore, event
 		if j.Status != StatusRunning {
 			continue
 		}
-		if err := metadata.UpdateStatus(ctx, jobID, StatusPending); err != nil {
+		targetStatus := deriveMetadataRecoveryStatus(events)
+		if err := metadata.UpdateStatus(ctx, jobID, targetStatus); err != nil {
 			continue
 		}
 		reclaimed++
 	}
 	return reclaimed, nil
+}
+
+func deriveMetadataRecoveryStatus(events []jobstore.JobEvent) JobStatus {
+	derived := DeriveStatusFromEvents(events)
+	if derived == StatusRunning {
+		return StatusPending
+	}
+	return derived
 }

@@ -193,7 +193,7 @@ func (s *memoryStore) Heartbeat(ctx context.Context, workerID string, jobID stri
 	if !ok || claim.WorkerID != workerID || claim.ExpiresAt.Before(time.Now()) {
 		return ErrClaimNotFound
 	}
-	s.claims[jobID] = claimRecord{WorkerID: workerID, ExpiresAt: time.Now().Add(leaseDuration)}
+	s.claims[jobID] = claimRecord{WorkerID: workerID, ExpiresAt: time.Now().Add(leaseDuration), AttemptID: claim.AttemptID}
 	return nil
 }
 
