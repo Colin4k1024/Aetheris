@@ -17,19 +17,27 @@ package proof
 import (
 	"archive/zip"
 	"bytes"
-	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
+
+	"golang.org/x/crypto/ed25519"
 )
 
 // VerifyEvidenceZip 验证证据包 ZIP
 // If publicKey is provided (non-nil), signature verification will be performed.
-func VerifyEvidenceZip(zipBytes []byte, publicKey ed25519.PublicKey) VerifyResult {
+// The publicKey parameter is optional - pass no argument or nil to skip signature verification.
+func VerifyEvidenceZip(zipBytes []byte, publicKey ...ed25519.PublicKey) VerifyResult {
 	result := VerifyResult{
 		OK:     true,
 		Errors: []string{},
+	}
+
+	// Extract publicKey from variadic argument
+	var pubKey ed25519.PublicKey
+	if len(publicKey) > 0 {
+		pubKey = publicKey[0]
 	}
 
 	// 1. 解压 ZIP
@@ -149,8 +157,8 @@ func VerifyEvidenceZip(zipBytes []byte, publicKey ed25519.PublicKey) VerifyResul
 				result.Errors = append(result.Errors, fmt.Sprintf("proof root_hash mismatch: expected %s, got %s", events[len(events)-1].Hash, signedProof.RootHash))
 			}
 			// 如果存在签名且提供了公钥，则验证签名
-			if signedProof.Signature != "" && publicKey != nil {
-				if err := VerifySignatureFromZipWithKey(files, signedProof.Signature, publicKey); err != nil {
+			if signedProof.Signature != "" && pubKey != nil {
+				if err := VerifySignatureFromZipWithKey(files, signedProof.Signature, pubKey); err != nil {
 					result.OK = false
 					result.SignatureValid = false
 					result.Errors = append(result.Errors, fmt.Sprintf("signature verification failed: %v", err))
