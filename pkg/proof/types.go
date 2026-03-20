@@ -96,8 +96,8 @@ type ExportOptions struct {
 	RuntimeVersion   string
 	SchemaVersion    string
 	IncludeReasoning bool
-	RedactionEnabled bool         // 2.0-M2: 是否启用脱敏
-	RedactionSalt    string       // 2.0-M2: Hash 模式的 salt
+	RedactionEnabled bool          // 2.0-M2: 是否启用脱敏
+	RedactionSalt    string        // 2.0-M2: Hash 模式的 salt
 	SigningConfig    SigningConfig // Ed25519 signing config (optional)
 }
 
@@ -121,9 +121,9 @@ type SigningConfig struct {
 // SignedProof extends ProofSummary with cryptographic signature.
 type SignedProof struct {
 	ProofSummary
-	Signature    string `json:"signature,omitempty"`    // Base64-encoded Ed25519 signature
-	SignedAt     string `json:"signed_at,omitempty"`    // ISO 8601 timestamp
-	SignerKeyID  string `json:"signer_key_id,omitempty"` // Identifier for the signing key
+	Signature   string `json:"signature,omitempty"`     // Base64-encoded Ed25519 signature
+	SignedAt    string `json:"signed_at,omitempty"`     // ISO 8601 timestamp
+	SignerKeyID string `json:"signer_key_id,omitempty"` // Identifier for the signing key
 }
 
 // JobStore 接口（用于导出）
