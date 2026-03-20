@@ -185,27 +185,57 @@ func getClaimString(claims jwt.MapClaims, key string) string {
 	return ""
 }
 
-// InjectAuthContext 将 tenant_id、user_id 注入 context：优先 X-Tenant-ID / X-User-ID header，
-// 其次 JWT claims，最后兜底为 default / anonymous（确保 RBAC 检查不因空值而整体拦截）
+// InjectAuthContext 将 tenant_id、user_id 注入 context：
+// - Tenant ID: JWT claims > X-Tenant-ID header (if matches JWT) > default
+// - User ID: JWT claims > X-User-ID header > anonymous
+// Security: X-Tenant-ID header is only trusted if it matches JWT claims (prevents header injection)
 func (m *Middleware) InjectAuthContext() app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
-		// Tenant ID：header > JWT claims > default
-		if tid := string(c.GetHeader("X-Tenant-ID")); tid != "" {
-			ctx = auth.WithTenantID(ctx, tid)
-		} else if claims := jwt.ExtractClaims(ctx, c); getClaimString(claims, "tenant_id") != "" {
-			ctx = auth.WithTenantID(ctx, getClaimString(claims, "tenant_id"))
-		} else {
-			ctx = auth.WithTenantID(ctx, "default")
+		// Tenant ID from JWT claims (preferred, cryptographically bound)
+		var tenantID string
+		if claims := jwt.ExtractClaims(ctx, c); getClaimString(claims, "tenant_id") != "" {
+			tenantID = getClaimString(claims, "tenant_id")
 		}
 
-		// User ID：X-User-ID header > JWT claims > anonymous（保证 RBAC 有值可校验）
-		if uid := string(c.GetHeader("X-User-ID")); uid != "" {
-			ctx = auth.WithUserID(ctx, uid)
-		} else if claims := jwt.ExtractClaims(ctx, c); getClaimString(claims, "user_id") != "" {
-			ctx = auth.WithUserID(ctx, getClaimString(claims, "user_id"))
-		} else {
-			ctx = auth.WithUserID(ctx, "anonymous")
+		// If X-Tenant-ID header is present and a JWT tenant is set, validate that they match.
+		// The header is never used to select a tenant when JWT has no tenant_id, to avoid
+		// unauthenticated or tenant-less tokens choosing an arbitrary tenant via header.
+		if headerTenantID := string(c.GetHeader("X-Tenant-ID")); headerTenantID != "" {
+			if tenantID != "" && headerTenantID != tenantID {
+				// Header injection / tenant-spoofing attempt detected - reject
+				c.JSON(consts.StatusForbidden, map[string]string{
+					"error": "X-Tenant-ID header does not match JWT tenant_id",
+				})
+				c.Abort()
+				return
+			}
 		}
+
+		// Default tenant if none found
+		if tenantID == "" {
+			tenantID = "default"
+		}
+		ctx = auth.WithTenantID(ctx, tenantID)
+
+		// User ID from JWT claims (preferred)
+		var userID string
+		if claims := jwt.ExtractClaims(ctx, c); getClaimString(claims, "user_id") != "" {
+			userID = getClaimString(claims, "user_id")
+		}
+
+		// X-User-ID header can override if present (less security critical)
+		if headerUserID := string(c.GetHeader("X-User-ID")); headerUserID != "" {
+			if userID == "" {
+				userID = headerUserID
+			}
+		}
+
+		// Default user if none found
+		if userID == "" {
+			userID = "anonymous"
+		}
+		ctx = auth.WithUserID(ctx, userID)
+
 		c.Next(ctx)
 	}
 }
