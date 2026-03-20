@@ -21,13 +21,23 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"golang.org/x/crypto/ed25519"
 )
 
 // VerifyEvidenceZip 验证证据包 ZIP
-func VerifyEvidenceZip(zipBytes []byte) VerifyResult {
+// If publicKey is provided (non-nil), signature verification will be performed.
+// The publicKey parameter is optional - pass no argument or nil to skip signature verification.
+func VerifyEvidenceZip(zipBytes []byte, publicKey ...ed25519.PublicKey) VerifyResult {
 	result := VerifyResult{
 		OK:     true,
 		Errors: []string{},
+	}
+
+	// Extract publicKey from variadic argument
+	var pubKey ed25519.PublicKey
+	if len(publicKey) > 0 {
+		pubKey = publicKey[0]
 	}
 
 	// 1. 解压 ZIP
@@ -135,15 +145,26 @@ func VerifyEvidenceZip(zipBytes []byte) VerifyResult {
 	// 8. 验证 proof summary
 	proofData, ok := files["proof.json"]
 	if ok {
-		var proofSummary ProofSummary
-		if err := json.Unmarshal(proofData, &proofSummary); err != nil {
+		// 先尝试解析为 SignedProof（包含签名）
+		var signedProof SignedProof
+		if err := json.Unmarshal(proofData, &signedProof); err != nil {
 			result.OK = false
 			result.Errors = append(result.Errors, fmt.Sprintf("failed to parse proof: %v", err))
 		} else {
 			// 验证 root_hash == 最后一个事件的 hash
-			if len(events) > 0 && proofSummary.RootHash != events[len(events)-1].Hash {
+			if len(events) > 0 && signedProof.RootHash != events[len(events)-1].Hash {
 				result.OK = false
-				result.Errors = append(result.Errors, fmt.Sprintf("proof root_hash mismatch: expected %s, got %s", events[len(events)-1].Hash, proofSummary.RootHash))
+				result.Errors = append(result.Errors, fmt.Sprintf("proof root_hash mismatch: expected %s, got %s", events[len(events)-1].Hash, signedProof.RootHash))
+			}
+			// 如果存在签名且提供了公钥，则验证签名
+			if signedProof.Signature != "" && pubKey != nil {
+				if err := VerifySignatureFromZipWithKey(files, signedProof.Signature, pubKey); err != nil {
+					result.OK = false
+					result.SignatureValid = false
+					result.Errors = append(result.Errors, fmt.Sprintf("signature verification failed: %v", err))
+				} else {
+					result.SignatureValid = true
+				}
 			}
 		}
 	}
@@ -249,4 +270,36 @@ func parseLedgerNDJSON(data []byte) ([]ToolInvocation, error) {
 		ledger = append(ledger, inv)
 	}
 	return ledger, nil
+}
+
+// VerifySignatureFromZipWithKey verifies Ed25519 signature against evidence package contents from zip files using provided public key.
+func VerifySignatureFromZipWithKey(files map[string][]byte, signature string, publicKey ed25519.PublicKey) error {
+	manifestData, ok := files["manifest.json"]
+	if !ok {
+		return fmt.Errorf("manifest.json not found")
+	}
+	var manifest Manifest
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		return fmt.Errorf("failed to parse manifest: %w", err)
+	}
+
+	eventsData, ok := files["events.ndjson"]
+	if !ok {
+		return fmt.Errorf("events.ndjson not found")
+	}
+	events, err := parseEventsNDJSON(eventsData)
+	if err != nil {
+		return fmt.Errorf("failed to parse events: %w", err)
+	}
+
+	ledgerData, ok := files["ledger.ndjson"]
+	var ledger []ToolInvocation
+	if ok {
+		ledger, err = parseLedgerNDJSON(ledgerData)
+		if err != nil {
+			return fmt.Errorf("failed to parse ledger: %w", err)
+		}
+	}
+
+	return VerifySignature(publicKey, manifest, events, ledger, signature)
 }

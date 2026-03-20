@@ -17,6 +17,8 @@ package proof
 import (
 	"context"
 	"time"
+
+	"golang.org/x/crypto/ed25519"
 )
 
 // EvidencePackage 证据包结构
@@ -94,8 +96,9 @@ type ExportOptions struct {
 	RuntimeVersion   string
 	SchemaVersion    string
 	IncludeReasoning bool
-	RedactionEnabled bool   // 2.0-M2: 是否启用脱敏
-	RedactionSalt    string // 2.0-M2: Hash 模式的 salt
+	RedactionEnabled bool          // 2.0-M2: 是否启用脱敏
+	RedactionSalt    string        // 2.0-M2: Hash 模式的 salt
+	SigningConfig    SigningConfig // Ed25519 signing config (optional)
 }
 
 // VerifyResult 验证结果
@@ -107,6 +110,20 @@ type VerifyResult struct {
 	LedgerValid    bool
 	HashChainValid bool
 	ManifestValid  bool
+	SignatureValid bool
+}
+
+// SigningConfig contains Ed25519 private key for signing evidence packages.
+type SigningConfig struct {
+	PrivateKey ed25519.PrivateKey
+}
+
+// SignedProof extends ProofSummary with cryptographic signature.
+type SignedProof struct {
+	ProofSummary
+	Signature   string `json:"signature,omitempty"`     // Base64-encoded Ed25519 signature
+	SignedAt    string `json:"signed_at,omitempty"`     // ISO 8601 timestamp
+	SignerKeyID string `json:"signer_key_id,omitempty"` // Identifier for the signing key
 }
 
 // JobStore 接口（用于导出）
