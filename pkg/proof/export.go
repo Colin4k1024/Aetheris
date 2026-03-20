@@ -117,9 +117,28 @@ func ExportEvidenceZip(
 		GeneratedBy:     fmt.Sprintf("aetheris %s", opts.RuntimeVersion),
 	}
 
-	proofJSON, err := json.MarshalIndent(proofSummary, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize proof: %w", err)
+	// 如果提供了 SigningConfig，则签名证据包
+	var proofJSON []byte
+	if len(opts.SigningConfig.PrivateKey) > 0 {
+		sig, err := SignEvidence(opts.SigningConfig.PrivateKey, manifest, events, toolInvocations)
+		if err != nil {
+			return nil, fmt.Errorf("failed to sign evidence: %w", err)
+		}
+		signedProof := SignedProof{
+			ProofSummary: proofSummary,
+			Signature:    sig,
+			SignedAt:     SignedAt(),
+			SignerKeyID:  "default",
+		}
+		proofJSON, err = json.MarshalIndent(signedProof, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize signed proof: %w", err)
+		}
+	} else {
+		proofJSON, err = json.MarshalIndent(proofSummary, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize proof: %w", err)
+		}
 	}
 
 	fileHashes["proof.json"] = ComputeFileHash(proofJSON)
