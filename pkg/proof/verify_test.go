@@ -74,7 +74,7 @@ func TestEvidence_Valid(t *testing.T) {
 		t.Fatalf("export failed: %v", err)
 	}
 
-	result := VerifyEvidenceZip(zipBytes)
+	result := VerifyEvidenceZip(zipBytes, nil)
 	if !result.OK {
 		t.Errorf("verification should pass, but got errors: %v", result.Errors)
 	}
@@ -109,7 +109,7 @@ func TestEvidence_TamperEvent(t *testing.T) {
 		return b
 	})
 
-	result := VerifyEvidenceZip(tamperedZip)
+	result := VerifyEvidenceZip(tamperedZip, nil)
 	if result.OK {
 		t.Error("verification should fail after tampering")
 	}
@@ -134,7 +134,7 @@ func TestEvidence_DeleteMiddleEvent(t *testing.T) {
 		return deleteNDJSONLine(b, 5)
 	})
 
-	result := VerifyEvidenceZip(tamperedZip)
+	result := VerifyEvidenceZip(tamperedZip, nil)
 	if result.OK {
 		t.Error("verification should fail after deleting event")
 	}
@@ -167,7 +167,7 @@ func TestEvidence_LedgerMismatch(t *testing.T) {
 		t.Fatalf("export failed: %v", err)
 	}
 
-	result := VerifyEvidenceZip(zipBytes)
+	result := VerifyEvidenceZip(zipBytes, nil)
 	// 验证应该失败（ledger 不一致）
 	if result.LedgerValid {
 		t.Error("ledger validation should fail when event finished but ledger missing")

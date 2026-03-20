@@ -79,7 +79,7 @@ func TestEndToEnd_ExportAndVerify(t *testing.T) {
 	}
 
 	// 3. 验证证据包
-	result := VerifyEvidenceZip(zipBytes)
+	result := VerifyEvidenceZip(zipBytes, nil)
 	if !result.OK {
 		t.Errorf("verification should pass, errors: %v", result.Errors)
 	}
@@ -119,7 +119,7 @@ func TestEndToEnd_TamperDetection(t *testing.T) {
 	}
 
 	// 验证原始证据包（应该通过）
-	result := VerifyEvidenceZip(zipBytes)
+	result := VerifyEvidenceZip(zipBytes, nil)
 	if !result.OK {
 		t.Fatalf("original package should verify, errors: %v", result.Errors)
 	}
@@ -133,7 +133,7 @@ func TestEndToEnd_TamperDetection(t *testing.T) {
 	})
 
 	// 验证篡改后的证据包（应该失败）
-	tamperedResult := VerifyEvidenceZip(tamperedZip)
+	tamperedResult := VerifyEvidenceZip(tamperedZip, nil)
 	if tamperedResult.OK {
 		t.Error("tampered package should fail verification")
 	}
@@ -188,7 +188,7 @@ func TestEndToEnd_ChainIntegrity(t *testing.T) {
 		t.Fatalf("export failed: %v", err)
 	}
 
-	result := VerifyEvidenceZip(zipBytes)
+	result := VerifyEvidenceZip(zipBytes, nil)
 	if !result.OK {
 		t.Errorf("verification failed: %v", result.Errors)
 	}
