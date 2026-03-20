@@ -197,20 +197,17 @@ func (m *Middleware) InjectAuthContext() app.HandlerFunc {
 			tenantID = getClaimString(claims, "tenant_id")
 		}
 
-		// If X-Tenant-ID header is present, validate it matches JWT claims
+		// If X-Tenant-ID header is present and a JWT tenant is set, validate that they match.
+		// The header is never used to select a tenant when JWT has no tenant_id, to avoid
+		// unauthenticated or tenant-less tokens choosing an arbitrary tenant via header.
 		if headerTenantID := string(c.GetHeader("X-Tenant-ID")); headerTenantID != "" {
 			if tenantID != "" && headerTenantID != tenantID {
-				// Header injection attempt detected - reject
+				// Header injection / tenant-spoofing attempt detected - reject
 				c.JSON(consts.StatusForbidden, map[string]string{
 					"error": "X-Tenant-ID header does not match JWT tenant_id",
 				})
 				c.Abort()
 				return
-			}
-			// If no JWT claims, only allow header if JWT is not required (e.g., public endpoints)
-			// For protected endpoints, require JWT; here we allow header only as override when JWT has no tenant
-			if tenantID == "" {
-				tenantID = headerTenantID
 			}
 		}
 
