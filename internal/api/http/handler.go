@@ -49,6 +49,7 @@ import (
 	"github.com/prometheus/common/expfmt"
 
 	"rag-platform/internal/agent"
+	"rag-platform/internal/agent/approval"
 	"rag-platform/internal/agent/instance"
 	"rag-platform/internal/agent/job"
 	"rag-platform/internal/agent/messaging"
@@ -127,6 +128,8 @@ type Handler struct {
 	observabilityReader job.ObservabilityReader
 	// rbac RBAC 权限检查器（可选）
 	rbac auth.RBACChecker
+	// approvalStore 审批存储（可选）；非 nil 时启用审批 API
+	approvalStore approval.ApprovalStore
 }
 
 // NewHandler 创建新的 HTTP 处理器
@@ -228,6 +231,11 @@ func (h *Handler) SetObservabilityReader(r job.ObservabilityReader) {
 // SetRBAC 设置 RBAC 权限检查器
 func (h *Handler) SetRBAC(rbac auth.RBACChecker) {
 	h.rbac = rbac
+}
+
+// SetApprovalStore 设置审批存储；非 nil 时启用审批 API
+func (h *Handler) SetApprovalStore(store approval.ApprovalStore) {
+	h.approvalStore = store
 }
 
 // getJobAndCheckTenant 按 jobID 取 Job 并校验当前请求租户；不通过时写 404 并返回 (nil, false)
@@ -2585,4 +2593,235 @@ func (h *Handler) CheckPermission(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	c.JSON(consts.StatusOK, map[string]bool{"allowed": allowed})
+}
+
+// Approval HTTP Handlers
+
+// CreateApprovalRequest POST /api/approvals 请求体
+type CreateApprovalRequest struct {
+	JobID          string                 `json:"job_id" binding:"required"`
+	NodeID         string                 `json:"node_id" binding:"required"`
+	CorrelationKey string                 `json:"correlation_key" binding:"required"`
+	ApproverType   string                 `json:"approver_type"` // anyone | specific | role
+	ApproverID     string                 `json:"approver_id,omitempty"`
+	Role           string                 `json:"role,omitempty"`
+	Title          string                 `json:"title" binding:"required"`
+	Description    string                 `json:"description"`
+	Payload        map[string]interface{} `json:"payload,omitempty"`
+	ExpiresInHours int                    `json:"expires_in_hours"` // 0 表示不过期
+}
+
+// CreateApproval 创建审批请求
+func (h *Handler) CreateApproval(ctx context.Context, c *app.RequestContext) {
+	if h.approvalStore == nil {
+		c.JSON(consts.StatusServiceUnavailable, map[string]string{"error": "审批功能未启用"})
+		return
+	}
+	var req CreateApprovalRequest
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(consts.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	if req.ApproverType == "" {
+		req.ApproverType = "anyone"
+	}
+	approvalID := fmt.Sprintf("apr-%d", time.Now().UnixNano())
+	var expiresAt *time.Time
+	if req.ExpiresInHours > 0 {
+		t := time.Now().Add(time.Duration(req.ExpiresInHours) * time.Hour)
+		expiresAt = &t
+	}
+	approvalReq := &approval.ApprovalRequest{
+		ID:             approvalID,
+		JobID:          req.JobID,
+		NodeID:         req.NodeID,
+		CorrelationKey: req.CorrelationKey,
+		ApproverType:   approval.ApproverType(req.ApproverType),
+		ApproverID:     req.ApproverID,
+		Role:           req.Role,
+		Title:          req.Title,
+		Description:    req.Description,
+		Payload:        req.Payload,
+		Status:         approval.DecisionPending,
+		ExpiresAt:      expiresAt,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+	if err := h.approvalStore.Create(ctx, approvalReq); err != nil {
+		hlog.CtxErrorf(ctx, "CreateApproval: %v", err)
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "创建审批请求失败"})
+		return
+	}
+	// 写入 job event
+	if h.jobEventStore != nil {
+		events, _, _ := h.jobEventStore.ListEvents(ctx, req.JobID)
+		ver := len(events)
+		ev, err := jobstore.NewApprovalRequestedEvent(req.JobID, approvalID, req.NodeID, req.CorrelationKey, req.ApproverType, req.Title, req.Description, req.Payload, expiresAt)
+		if err == nil {
+			if _, err := h.jobEventStore.Append(ctx, req.JobID, ver, *ev); err != nil {
+				hlog.CtxErrorf(ctx, "CreateApproval Append: %v", err)
+			}
+		}
+	}
+	c.JSON(consts.StatusCreated, map[string]interface{}{
+		"id":      approvalID,
+		"job_id":  req.JobID,
+		"status":  "pending",
+		"message": "审批请求已创建",
+	})
+}
+
+// ListApprovals GET /api/approvals?job_id=&status=&approver_id=
+func (h *Handler) ListApprovals(ctx context.Context, c *app.RequestContext) {
+	if h.approvalStore == nil {
+		c.JSON(consts.StatusServiceUnavailable, map[string]string{"error": "审批功能未启用"})
+		return
+	}
+	jobID := string(c.Query("job_id"))
+	approverID := string(c.Query("approver_id"))
+	var approvals []*approval.ApprovalRequest
+	var err error
+	if jobID != "" {
+		approvals, err = h.approvalStore.GetByJobID(ctx, jobID)
+	} else if approverID != "" {
+		approvals, err = h.approvalStore.GetPendingByApprover(ctx, approverID)
+	} else {
+		approvals, err = h.approvalStore.GetPending(ctx)
+	}
+	if err != nil {
+		hlog.CtxErrorf(ctx, "ListApprovals: %v", err)
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "查询审批请求失败"})
+		return
+	}
+	c.JSON(consts.StatusOK, map[string]interface{}{
+		"approvals": approvals,
+		"count":     len(approvals),
+	})
+}
+
+// GetApproval GET /api/approvals/:id
+func (h *Handler) GetApproval(ctx context.Context, c *app.RequestContext) {
+	if h.approvalStore == nil {
+		c.JSON(consts.StatusServiceUnavailable, map[string]string{"error": "审批功能未启用"})
+		return
+	}
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(consts.StatusBadRequest, map[string]string{"error": "id is required"})
+		return
+	}
+	req, err := h.approvalStore.GetByID(ctx, id)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "GetApproval %s: %v", id, err)
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "查询审批请求失败"})
+		return
+	}
+	if req == nil {
+		c.JSON(consts.StatusNotFound, map[string]string{"error": "审批请求不存在"})
+		return
+	}
+	c.JSON(consts.StatusOK, req)
+}
+
+// ApprovalActionRequest POST /api/approvals/:id/approve 或 /reject 请求体
+type ApprovalActionRequest struct {
+	ApproverID   string `json:"approver_id" binding:"required"`
+	ApproverName string `json:"approver_name"`
+	Comment      string `json:"comment,omitempty"`
+	DelegatedTo  string `json:"delegated_to,omitempty"`
+}
+
+// ApproveApproval POST /api/approvals/:id/approve
+func (h *Handler) ApproveApproval(ctx context.Context, c *app.RequestContext) {
+	h.handleApprovalAction(ctx, c, approval.DecisionApproved)
+}
+
+// RejectApproval POST /api/approvals/:id/reject
+func (h *Handler) RejectApproval(ctx context.Context, c *app.RequestContext) {
+	h.handleApprovalAction(ctx, c, approval.DecisionRejected)
+}
+
+func (h *Handler) handleApprovalAction(ctx context.Context, c *app.RequestContext, decision approval.Decision) {
+	if h.approvalStore == nil {
+		c.JSON(consts.StatusServiceUnavailable, map[string]string{"error": "审批功能未启用"})
+		return
+	}
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(consts.StatusBadRequest, map[string]string{"error": "id is required"})
+		return
+	}
+	var req ApprovalActionRequest
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(consts.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	existing, err := h.approvalStore.GetByID(ctx, id)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "handleApprovalAction get %s: %v", id, err)
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "查询审批请求失败"})
+		return
+	}
+	if existing == nil {
+		c.JSON(consts.StatusNotFound, map[string]string{"error": "审批请求不存在"})
+		return
+	}
+	if existing.Status != approval.DecisionPending {
+		c.JSON(consts.StatusConflict, map[string]string{"error": fmt.Sprintf("审批请求状态已是 %s", existing.Status)})
+		return
+	}
+	resp := &approval.ApprovalResponse{
+		Decision:     decision,
+		ApproverID:   req.ApproverID,
+		ApproverName: req.ApproverName,
+		Comment:      req.Comment,
+		DelegatedTo:  req.DelegatedTo,
+		RespondedAt:  time.Now(),
+	}
+	if err := h.approvalStore.Complete(ctx, id, resp); err != nil {
+		hlog.CtxErrorf(ctx, "handleApprovalAction complete %s: %v", id, err)
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "审批操作失败"})
+		return
+	}
+	// 写入 job event：先 append approval_completed，再 append wait_completed 触发 Job 继续
+	if h.jobEventStore != nil {
+		events, _, _ := h.jobEventStore.ListEvents(ctx, existing.JobID)
+		ver := len(events)
+		completedEv, _ := jobstore.NewApprovalCompletedEvent(existing.JobID, id, existing.NodeID, existing.CorrelationKey, string(decision), req.ApproverID, req.ApproverName, req.Comment, req.DelegatedTo)
+		if completedEv != nil {
+			newVer, err := h.jobEventStore.Append(ctx, existing.JobID, ver, *completedEv)
+			if err != nil {
+				hlog.CtxErrorf(ctx, "handleApprovalAction Append completed: %v", err)
+			} else {
+				ver = newVer
+			}
+		}
+		// 同时写入 wait_completed 让 Job 继续执行
+		waitPayload, _ := json.Marshal(map[string]interface{}{
+			"node_id":         existing.NodeID,
+			"correlation_key": existing.CorrelationKey,
+			"payload":         req.Comment,
+		})
+		waitEv := &jobstore.JobEvent{
+			JobID:   existing.JobID,
+			Type:    jobstore.WaitCompleted,
+			Payload: waitPayload,
+		}
+		if _, err := h.jobEventStore.Append(ctx, existing.JobID, ver, *waitEv); err != nil {
+			hlog.CtxErrorf(ctx, "handleApprovalAction Append wait_completed: %v", err)
+		}
+		if err := h.jobStore.UpdateStatus(ctx, existing.JobID, job.StatusPending); err != nil {
+			hlog.CtxErrorf(ctx, "handleApprovalAction UpdateStatus: %v", err)
+		}
+		if h.wakeupQueue != nil {
+			if err := h.wakeupQueue.NotifyReady(ctx, existing.JobID); err != nil {
+				hlog.CtxErrorf(ctx, "handleApprovalAction NotifyReady: %v", err)
+			}
+		}
+	}
+	c.JSON(consts.StatusOK, map[string]interface{}{
+		"id":       id,
+		"decision": decision,
+		"message":  "审批已完成",
+	})
 }
