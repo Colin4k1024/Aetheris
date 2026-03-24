@@ -2658,7 +2658,9 @@ func (h *Handler) CreateApproval(ctx context.Context, c *app.RequestContext) {
 		ver := len(events)
 		ev, err := jobstore.NewApprovalRequestedEvent(req.JobID, approvalID, req.NodeID, req.CorrelationKey, req.ApproverType, req.Title, req.Description, req.Payload, expiresAt)
 		if err == nil {
-			h.jobEventStore.Append(ctx, req.JobID, ver, *ev)
+		if _, err := h.jobEventStore.Append(ctx, req.JobID, ver, *ev); err != nil {
+			hlog.CtxErrorf(ctx, "CreateApproval Append: %v", err)
+		}
 		}
 	}
 	c.JSON(consts.StatusCreated, map[string]interface{}{
@@ -2787,8 +2789,12 @@ func (h *Handler) handleApprovalAction(ctx context.Context, c *app.RequestContex
 		ver := len(events)
 		completedEv, _ := jobstore.NewApprovalCompletedEvent(existing.JobID, id, existing.NodeID, existing.CorrelationKey, string(decision), req.ApproverID, req.ApproverName, req.Comment, req.DelegatedTo)
 		if completedEv != nil {
-			h.jobEventStore.Append(ctx, existing.JobID, ver, *completedEv)
-			ver++
+			newVer, err := h.jobEventStore.Append(ctx, existing.JobID, ver, *completedEv)
+			if err != nil {
+				hlog.CtxErrorf(ctx, "handleApprovalAction Append completed: %v", err)
+			} else {
+				ver = newVer
+			}
 		}
 		// 同时写入 wait_completed 让 Job 继续执行
 		waitPayload, _ := json.Marshal(map[string]interface{}{
@@ -2801,10 +2807,16 @@ func (h *Handler) handleApprovalAction(ctx context.Context, c *app.RequestContex
 			Type:    jobstore.WaitCompleted,
 			Payload: waitPayload,
 		}
-		h.jobEventStore.Append(ctx, existing.JobID, ver, *waitEv)
-		h.jobStore.UpdateStatus(ctx, existing.JobID, job.StatusPending)
+		if _, err := h.jobEventStore.Append(ctx, existing.JobID, ver, *waitEv); err != nil {
+			hlog.CtxErrorf(ctx, "handleApprovalAction Append wait_completed: %v", err)
+		}
+		if err := h.jobStore.UpdateStatus(ctx, existing.JobID, job.StatusPending); err != nil {
+			hlog.CtxErrorf(ctx, "handleApprovalAction UpdateStatus: %v", err)
+		}
 		if h.wakeupQueue != nil {
-			h.wakeupQueue.NotifyReady(ctx, existing.JobID)
+			if err := h.wakeupQueue.NotifyReady(ctx, existing.JobID); err != nil {
+				hlog.CtxErrorf(ctx, "handleApprovalAction NotifyReady: %v", err)
+			}
 		}
 	}
 	c.JSON(consts.StatusOK, map[string]interface{}{
