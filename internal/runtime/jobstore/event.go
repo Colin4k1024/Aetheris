@@ -475,6 +475,7 @@ func NewApprovalCompletedEvent(jobID, approvalID, nodeID, correlationKey, decisi
 		CreatedAt: time.Now(),
 	}, nil
 }
+
 // LedgerAcquiredPayload ledger_acquired 事件 payload；记录执行权已获取，tool 尚未执行
 type LedgerAcquiredPayload struct {
 	InvocationID   string `json:"invocation_id"`
