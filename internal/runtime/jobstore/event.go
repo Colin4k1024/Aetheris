@@ -108,7 +108,6 @@ const (
 	// Phase 1 HITL Approval Engine: structured approval requests
 	ApprovalRequested EventType = "approval_requested" // 审批请求已创建
 	ApprovalCompleted EventType = "approval_completed" // 审批已完成（approved/rejected）
-
 	// Phase 1 At-Most-Once: atomic commit protocol
 	LedgerAcquired  EventType = "ledger_acquired"  // 执行权已获取，tool 未执行
 	LedgerCommitted EventType = "ledger_committed" // 结果已提交，tool 执行完成
@@ -476,7 +475,6 @@ func NewApprovalCompletedEvent(jobID, approvalID, nodeID, correlationKey, decisi
 		CreatedAt: time.Now(),
 	}, nil
 }
-
 // LedgerAcquiredPayload ledger_acquired 事件 payload；记录执行权已获取，tool 尚未执行
 type LedgerAcquiredPayload struct {
 	InvocationID   string `json:"invocation_id"`
