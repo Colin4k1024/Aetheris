@@ -104,6 +104,10 @@ const (
 	// 2.1: Evidence Export audit events
 	EvidenceExportRequested EventType = "evidence_export_requested" // 证据导出请求
 	EvidenceExportCompleted EventType = "evidence_export_completed" // 证据导出完成
+
+	// Phase 1 HITL Approval Engine: structured approval requests
+	ApprovalRequested EventType = "approval_requested" // 审批请求已创建
+	ApprovalCompleted EventType = "approval_completed" // 审批已完成（approved/rejected）
 )
 
 // JobWaitingPayload job_waiting 事件 payload 契约；只有携带相同 correlation_key 的 signal 才能解除该 block（design/runtime-contract.md）
@@ -382,6 +386,88 @@ func NewCheckpointSavedEvent(jobID, checkpointID, sessionID, cursor string, step
 	return &JobEvent{
 		JobID:     jobID,
 		Type:      CheckpointSaved,
+		Payload:   data,
+		CreatedAt: time.Now(),
+	}, nil
+}
+
+// ApprovalRequestedPayload approval_requested 事件 payload
+type ApprovalRequestedPayload struct {
+	ApprovalID     string                 `json:"approval_id"`     // 审批请求唯一 ID
+	JobID          string                 `json:"job_id"`          // 关联的 Job ID
+	NodeID         string                 `json:"node_id"`         // Wait 节点 ID
+	CorrelationKey string                 `json:"correlation_key"` // 用于与 Signal 匹配的键
+	ApproverType   string                 `json:"approver_type"`   // anyone | specific | role
+	ApproverID     string                 `json:"approver_id,omitempty"`
+	Role           string                 `json:"role,omitempty"`
+	Title          string                 `json:"title"`             // 审批标题
+	Description    string                 `json:"description"`       // 审批描述
+	Payload        map[string]interface{} `json:"payload,omitempty"` // 传递给审批人的上下文
+	ExpiresAt      *time.Time             `json:"expires_at,omitempty"`
+	CreatedAt      time.Time              `json:"created_at"`
+}
+
+// ApprovalCompletedPayload approval_completed 事件 payload
+type ApprovalCompletedPayload struct {
+	ApprovalID     string    `json:"approval_id"`
+	JobID          string    `json:"job_id"`
+	NodeID         string    `json:"node_id"`
+	CorrelationKey string    `json:"correlation_key"`
+	Decision       string    `json:"decision"` // approved | rejected | expired | delegated
+	ApproverID     string    `json:"approver_id,omitempty"`
+	ApproverName   string    `json:"approver_name,omitempty"`
+	Comment        string    `json:"comment,omitempty"`
+	DelegatedTo    string    `json:"delegated_to,omitempty"`
+	CompletedAt    time.Time `json:"completed_at"`
+}
+
+// NewApprovalRequestedEvent 创建 approval_requested 事件
+func NewApprovalRequestedEvent(jobID, approvalID, nodeID, correlationKey, approverType, title, description string, payload map[string]interface{}, expiresAt *time.Time) (*JobEvent, error) {
+	pl := ApprovalRequestedPayload{
+		ApprovalID:     approvalID,
+		JobID:          jobID,
+		NodeID:         nodeID,
+		CorrelationKey: correlationKey,
+		ApproverType:   approverType,
+		Title:          title,
+		Description:    description,
+		Payload:        payload,
+		ExpiresAt:      expiresAt,
+		CreatedAt:      time.Now(),
+	}
+	data, err := json.Marshal(pl)
+	if err != nil {
+		return nil, err
+	}
+	return &JobEvent{
+		JobID:     jobID,
+		Type:      ApprovalRequested,
+		Payload:   data,
+		CreatedAt: time.Now(),
+	}, nil
+}
+
+// NewApprovalCompletedEvent 创建 approval_completed 事件
+func NewApprovalCompletedEvent(jobID, approvalID, nodeID, correlationKey, decision, approverID, approverName, comment, delegatedTo string) (*JobEvent, error) {
+	pl := ApprovalCompletedPayload{
+		ApprovalID:     approvalID,
+		JobID:          jobID,
+		NodeID:         nodeID,
+		CorrelationKey: correlationKey,
+		Decision:       decision,
+		ApproverID:     approverID,
+		ApproverName:   approverName,
+		Comment:        comment,
+		DelegatedTo:    delegatedTo,
+		CompletedAt:    time.Now(),
+	}
+	data, err := json.Marshal(pl)
+	if err != nil {
+		return nil, err
+	}
+	return &JobEvent{
+		JobID:     jobID,
+		Type:      ApprovalCompleted,
 		Payload:   data,
 		CreatedAt: time.Now(),
 	}, nil

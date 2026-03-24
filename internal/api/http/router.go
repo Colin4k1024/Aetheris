@@ -181,6 +181,16 @@ func (r *Router) Build(addr string, opts ...config.Option) *server.Hertz {
 		}
 	}
 
+	// HITL Approval API
+	approvals := api.Group("/approvals")
+	{
+		approvals.POST("", r.authChainWith(auth.PermissionJobCreate, r.handler.CreateApproval)...)
+		approvals.GET("", r.authChainWith(auth.PermissionJobView, r.handler.ListApprovals)...)
+		approvals.GET("/:id", r.authChainWith(auth.PermissionJobView, r.handler.GetApproval)...)
+		approvals.POST("/:id/approve", r.authChainWith(auth.PermissionJobCreate, r.handler.ApproveApproval)...)
+		approvals.POST("/:id/reject", r.authChainWith(auth.PermissionJobCreate, r.handler.RejectApproval)...)
+	}
+
 	// 2.0-M3: Forensics 查询类接口（实验能力，默认不暴露）
 	if r.forensicsExperimental {
 		forensics := api.Group("/forensics")
