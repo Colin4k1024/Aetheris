@@ -108,6 +108,10 @@ const (
 	// Phase 1 HITL Approval Engine: structured approval requests
 	ApprovalRequested EventType = "approval_requested" // 审批请求已创建
 	ApprovalCompleted EventType = "approval_completed" // 审批已完成（approved/rejected）
+
+	// Phase 1 At-Most-Once: atomic commit protocol
+	LedgerAcquired  EventType = "ledger_acquired"  // 执行权已获取，tool 未执行
+	LedgerCommitted EventType = "ledger_committed" // 结果已提交，tool 执行完成
 )
 
 // JobWaitingPayload job_waiting 事件 payload 契约；只有携带相同 correlation_key 的 signal 才能解除该 block（design/runtime-contract.md）
@@ -468,6 +472,66 @@ func NewApprovalCompletedEvent(jobID, approvalID, nodeID, correlationKey, decisi
 	return &JobEvent{
 		JobID:     jobID,
 		Type:      ApprovalCompleted,
+		Payload:   data,
+		CreatedAt: time.Now(),
+	}, nil
+}
+
+// LedgerAcquiredPayload ledger_acquired 事件 payload；记录执行权已获取，tool 尚未执行
+type LedgerAcquiredPayload struct {
+	InvocationID   string `json:"invocation_id"`
+	JobID          string `json:"job_id"`
+	StepID         string `json:"step_id"`
+	ToolName       string `json:"tool_name"`
+	IdempotencyKey string `json:"idempotency_key"`
+}
+
+// LedgerCommittedPayload ledger_committed 事件 payload；记录结果已提交，tool 执行完成
+type LedgerCommittedPayload struct {
+	InvocationID   string `json:"invocation_id"`
+	JobID          string `json:"job_id"`
+	StepID         string `json:"step_id"`
+	ToolName       string `json:"tool_name"`
+	IdempotencyKey string `json:"idempotency_key"`
+}
+
+// NewLedgerAcquiredEvent 创建 ledger_acquired 事件
+func NewLedgerAcquiredEvent(jobID, invocationID, stepID, toolName, idempotencyKey string) (*JobEvent, error) {
+	pl := LedgerAcquiredPayload{
+		InvocationID:   invocationID,
+		JobID:          jobID,
+		StepID:         stepID,
+		ToolName:       toolName,
+		IdempotencyKey: idempotencyKey,
+	}
+	data, err := json.Marshal(pl)
+	if err != nil {
+		return nil, err
+	}
+	return &JobEvent{
+		JobID:     jobID,
+		Type:      LedgerAcquired,
+		Payload:   data,
+		CreatedAt: time.Now(),
+	}, nil
+}
+
+// NewLedgerCommittedEvent 创建 ledger_committed 事件
+func NewLedgerCommittedEvent(jobID, invocationID, stepID, toolName, idempotencyKey string) (*JobEvent, error) {
+	pl := LedgerCommittedPayload{
+		InvocationID:   invocationID,
+		JobID:          jobID,
+		StepID:         stepID,
+		ToolName:       toolName,
+		IdempotencyKey: idempotencyKey,
+	}
+	data, err := json.Marshal(pl)
+	if err != nil {
+		return nil, err
+	}
+	return &JobEvent{
+		JobID:     jobID,
+		Type:      LedgerCommitted,
 		Payload:   data,
 		CreatedAt: time.Now(),
 	}, nil

@@ -18,6 +18,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
+	"rag-platform/internal/runtime/jobstore"
 )
 
 // AttemptValidator 校验当前 writer 是否仍为该 job 的租约持有者；用于 Ledger Commit 等写操作的 Lease fencing（design/scheduler-correctness.md）
@@ -29,6 +31,7 @@ type AttemptValidator interface {
 type ledgerStore struct {
 	store            ToolInvocationStore
 	attemptValidator AttemptValidator
+	eventSink        LedgerEventSink // 可选；非 nil 时在 Acquire 时检测孤岛 ledger_acquired
 }
 
 // NewInvocationLedgerFromStore 从现有 ToolInvocationStore 创建 InvocationLedger（无 attempt 校验）
@@ -39,7 +42,7 @@ func NewInvocationLedgerFromStore(store ToolInvocationStore) InvocationLedger {
 	return &ledgerStore{store: store}
 }
 
-// NewInvocationLedger 创建带可选 AttemptValidator 的 InvocationLedger；Commit 时若 validator 非 nil 则校验当前 attempt 仍为 job 持有者（Lease fencing）
+// NewInvocationLedger 创建带可选 AttemptValidator 的 InvocationLedger；Commit 时若 validator 非 nil 则先校验当前 attempt 仍为 job 持有者（Lease fencing）
 func NewInvocationLedger(store ToolInvocationStore, validator AttemptValidator) InvocationLedger {
 	if store == nil {
 		return nil
@@ -47,7 +50,40 @@ func NewInvocationLedger(store ToolInvocationStore, validator AttemptValidator) 
 	return &ledgerStore{store: store, attemptValidator: validator}
 }
 
-// Acquire 实现 InvocationLedger
+// SetEventSink 设置 LedgerEventSink；用于原子性协议的孤岛事件检测
+func (l *ledgerStore) SetEventSink(sink LedgerEventSink) {
+	l.eventSink = sink
+}
+
+// hasOrphanedAcquired 检测孤岛的 ledger_acquired 事件（无对应的 ledger_committed）；表示 crash window 中的 in-progress 状态
+func (l *ledgerStore) hasOrphanedAcquired(ctx context.Context, jobID, idempotencyKey string) bool {
+	if l.eventSink == nil {
+		return false
+	}
+	events, _, err := l.eventSink.ListEvents(ctx, jobID)
+	if err != nil {
+		return false
+	}
+	var acquiredFound bool
+	for i := len(events) - 1; i >= 0; i-- {
+		e := events[i]
+		if e.Type == jobstore.LedgerCommitted {
+			payload := jobstore.LedgerCommittedPayload{}
+			if err := e.UnmarshalPayload(&payload); err == nil && payload.IdempotencyKey == idempotencyKey {
+				return false // 找到了 committed，孤岛结束
+			}
+		}
+		if e.Type == jobstore.LedgerAcquired {
+			payload := jobstore.LedgerAcquiredPayload{}
+			if err := e.UnmarshalPayload(&payload); err == nil && payload.IdempotencyKey == idempotencyKey {
+				acquiredFound = true
+			}
+		}
+	}
+	return acquiredFound
+}
+
+// Acquire 实现 InvocationLedger；若配置了 LedgerEventSink 则检测孤岛的 ledger_acquired（crash window），有则返回 WaitOtherWorker
 func (l *ledgerStore) Acquire(ctx context.Context, jobID, stepID, toolName, argsHash, idempotencyKey string, replayResult []byte) (InvocationDecision, *ToolInvocationRecord, error) {
 	if len(replayResult) > 0 {
 		return InvocationDecisionReturnRecordedResult, &ToolInvocationRecord{
@@ -63,6 +99,10 @@ func (l *ledgerStore) Acquire(ctx context.Context, jobID, stepID, toolName, args
 		return InvocationDecisionReturnRecordedResult, rec, nil
 	}
 	if rec != nil && !rec.Committed {
+		return InvocationDecisionWaitOtherWorker, nil, nil
+	}
+	// 检测孤岛的 ledger_acquired（crash window）
+	if l.eventSink != nil && l.hasOrphanedAcquired(ctx, jobID, idempotencyKey) {
 		return InvocationDecisionWaitOtherWorker, nil, nil
 	}
 	invocationID := uuid.New().String()
