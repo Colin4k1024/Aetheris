@@ -2658,9 +2658,9 @@ func (h *Handler) CreateApproval(ctx context.Context, c *app.RequestContext) {
 		ver := len(events)
 		ev, err := jobstore.NewApprovalRequestedEvent(req.JobID, approvalID, req.NodeID, req.CorrelationKey, req.ApproverType, req.Title, req.Description, req.Payload, expiresAt)
 		if err == nil {
-		if _, err := h.jobEventStore.Append(ctx, req.JobID, ver, *ev); err != nil {
-			hlog.CtxErrorf(ctx, "CreateApproval Append: %v", err)
-		}
+			if _, err := h.jobEventStore.Append(ctx, req.JobID, ver, *ev); err != nil {
+				hlog.CtxErrorf(ctx, "CreateApproval Append: %v", err)
+			}
 		}
 	}
 	c.JSON(consts.StatusCreated, map[string]interface{}{
