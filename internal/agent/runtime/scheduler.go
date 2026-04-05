@@ -42,16 +42,16 @@ func (s *Scheduler) SetRunFunc(run RunFunc) {
 }
 
 // WakeAgent 唤醒 Agent：若已 Idle/Suspended 则触发执行
+// RTN-05: 使用 Take() 原子性获取执行权，避免 TOCTOU race
 func (s *Scheduler) WakeAgent(ctx context.Context, agentID string) error {
 	agent, err := s.manager.Get(ctx, agentID)
 	if err != nil || agent == nil {
 		return nil
 	}
-	status := agent.GetStatus()
-	if status == StatusRunning || status == StatusWaitingTool {
+	if !agent.Take() {
+		// 状态不为 Idle/Suspended，说明已被占用（Running/WaitingTool/Failed）
 		return nil
 	}
-	agent.SetStatus(StatusRunning)
 	s.mu.Lock()
 	fn := s.run
 	s.mu.Unlock()
@@ -71,14 +71,17 @@ func (s *Scheduler) Suspend(ctx context.Context, agentID string) error {
 	return nil
 }
 
-// Resume 恢复 Agent：置为 Idle 并触发执行
+// Resume 恢复 Agent：先释放现有状态，再获取执行权并触发执行
+// RTN-05: 使用 Release()+Take() 原子性状态转换
 func (s *Scheduler) Resume(ctx context.Context, agentID string) error {
 	agent, err := s.manager.Get(ctx, agentID)
 	if err != nil || agent == nil {
 		return nil
 	}
-	agent.SetStatus(StatusIdle)
-	agent.SetStatus(StatusRunning)
+	agent.Release()
+	if !agent.Take() {
+		return nil
+	}
 	s.mu.Lock()
 	fn := s.run
 	s.mu.Unlock()

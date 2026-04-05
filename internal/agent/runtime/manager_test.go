@@ -67,3 +67,119 @@ func TestManager_Create_WithSession(t *testing.T) {
 		t.Errorf("session AgentID should be set to %q", agent.ID)
 	}
 }
+
+// TestAgent_TakeRelease verifies RTN-05: atomic Take/Release for Agent concurrency
+func TestAgent_TakeRelease(t *testing.T) {
+	ctx := context.Background()
+	m := NewManager()
+	agent, err := m.Create(ctx, "test-agent", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Initial status should be Idle
+	if got := agent.GetStatus(); got != StatusIdle {
+		t.Errorf("initial status: got %v, want StatusIdle", got)
+	}
+
+	// Take should succeed from Idle
+	if !agent.Take() {
+		t.Error("Take from Idle should succeed")
+	}
+	if got := agent.GetStatus(); got != StatusRunning {
+		t.Errorf("after Take: got %v, want StatusRunning", got)
+	}
+
+	// Second Take should fail (already Running)
+	if agent.Take() {
+		t.Error("Take from Running should fail")
+	}
+
+	// Release should put back to Idle
+	agent.Release()
+	if got := agent.GetStatus(); got != StatusIdle {
+		t.Errorf("after Release: got %v, want StatusIdle", got)
+	}
+
+	// Take again after Release should succeed
+	if !agent.Take() {
+		t.Error("Take after Release should succeed")
+	}
+}
+
+// TestAgent_TakeFromSuspended verifies Take works from Suspended state (RTN-05)
+func TestAgent_TakeFromSuspended(t *testing.T) {
+	ctx := context.Background()
+	m := NewManager()
+	agent, err := m.Create(ctx, "test-agent", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Force set to Suspended
+	agent.SetStatus(StatusSuspended)
+	if !agent.Take() {
+		t.Error("Take from Suspended should succeed")
+	}
+	if got := agent.GetStatus(); got != StatusRunning {
+		t.Errorf("after Take: got %v, want StatusRunning", got)
+	}
+	agent.Release()
+}
+
+// TestAgent_ReleaseFromWaiting verifies Release works from WaitingTool state (RTN-05)
+func TestAgent_ReleaseFromWaiting(t *testing.T) {
+	ctx := context.Background()
+	m := NewManager()
+	agent, err := m.Create(ctx, "test-agent", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Take then set to WaitingTool
+	agent.Take()
+	agent.SetStatus(StatusWaitingTool)
+	if got := agent.GetStatus(); got != StatusWaitingTool {
+		t.Errorf("status: got %v, want StatusWaitingTool", got)
+	}
+
+	// Release should work from WaitingTool
+	agent.Release()
+	if got := agent.GetStatus(); got != StatusIdle {
+		t.Errorf("after Release: got %v, want StatusIdle", got)
+	}
+}
+
+// TestScheduler_WakeAgent_TakeRelease verifies RTN-05: Scheduler.WakeAgent uses atomic Take (RTN-05)
+func TestScheduler_WakeAgent_TakeRelease(t *testing.T) {
+	ctx := context.Background()
+	m := NewManager()
+	scheduler := NewScheduler(m, nil) // nil runFunc for testing
+
+	agent, err := m.Create(ctx, "test-agent", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// First WakeAgent should succeed (calls Take internally)
+	err = scheduler.WakeAgent(ctx, agent.ID)
+	if err != nil {
+		t.Errorf("first WakeAgent: %v", err)
+	}
+	if got := agent.GetStatus(); got != StatusRunning {
+		t.Errorf("after first WakeAgent: got %v, want StatusRunning", got)
+	}
+
+	// Second WakeAgent should be no-op (Take fails)
+	err = scheduler.WakeAgent(ctx, agent.ID)
+	if err != nil {
+		t.Errorf("second WakeAgent: %v", err)
+	}
+	// Status should still be Running
+	if got := agent.GetStatus(); got != StatusRunning {
+		t.Errorf("after second WakeAgent: got %v, want StatusRunning", got)
+	}
+
+	// Manually release for cleanup
+	agent.Release()
+}

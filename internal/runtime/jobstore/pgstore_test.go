@@ -116,7 +116,7 @@ func TestPgStore_Claim_Heartbeat(t *testing.T) {
 	jobID := "job-1"
 	_, _ = store.Append(ctx, jobID, 0, JobEvent{JobID: jobID, Type: JobCreated})
 
-	claimedID, ver, _, err := store.Claim(ctx, "worker-1")
+	claimedID, ver, attemptID, err := store.Claim(ctx, "worker-1")
 	if err != nil {
 		t.Fatalf("Claim: %v", err)
 	}
@@ -129,14 +129,68 @@ func TestPgStore_Claim_Heartbeat(t *testing.T) {
 		t.Errorf("expected ErrNoJob when job already claimed, got %v", err)
 	}
 
-	err = store.Heartbeat(ctx, "worker-1", jobID)
+	// Heartbeat with correct attempt_id should succeed
+	err = store.Heartbeat(WithAttemptID(ctx, attemptID), "worker-1", jobID)
 	if err != nil {
 		t.Fatalf("Heartbeat: %v", err)
 	}
 
-	err = store.Heartbeat(ctx, "worker-2", jobID)
-	if err != ErrClaimNotFound {
-		t.Errorf("expected ErrClaimNotFound for wrong worker, got %v", err)
+	// Heartbeat with wrong attempt_id should fail with ErrStaleLease
+	err = store.Heartbeat(WithAttemptID(ctx, "wrong-attempt-id"), "worker-1", jobID)
+	if err != ErrStaleLease {
+		t.Errorf("expected ErrStaleLease for wrong attempt_id, got %v", err)
+	}
+
+	// Heartbeat with correct attempt_id but wrong worker should fail with ErrStaleLease
+	err = store.Heartbeat(WithAttemptID(ctx, attemptID), "worker-2", jobID)
+	if err != ErrStaleLease {
+		t.Errorf("expected ErrStaleLease for wrong worker with correct attempt_id, got %v", err)
+	}
+
+	// Heartbeat without attempt_id (backward compat) with correct worker should succeed
+	err = store.Heartbeat(ctx, "worker-1", jobID)
+	if err != nil {
+		t.Fatalf("Heartbeat without attempt_id: %v", err)
+	}
+}
+
+// TestPgStore_Heartbeat_StaleLease tests the scenario: Worker A's claim expires,
+// Worker B claims successfully, then Worker A's Heartbeat with old attempt_id fails.
+func TestPgStore_Heartbeat_StaleLease(t *testing.T) {
+	ctx := context.Background()
+	store, cleanup := newTestPgStore(t, ctx)
+	defer cleanup()
+	jobID := "job-1"
+	_, _ = store.Append(ctx, jobID, 0, JobEvent{JobID: jobID, Type: JobCreated})
+
+	// Worker-1 claims the job
+	_, _, attemptID1, err := store.Claim(ctx, "worker-1")
+	if err != nil {
+		t.Fatalf("Claim worker-1: %v", err)
+	}
+
+	// Wait for lease to expire (lease duration is 2 seconds in test store)
+	time.Sleep(3 * time.Second)
+
+	// Worker-2 claims the same job after Worker-1's lease expired
+	_, _, attemptID2, err := store.Claim(ctx, "worker-2")
+	if err != nil {
+		t.Fatalf("Claim worker-2 after lease expired: %v", err)
+	}
+	if attemptID2 == attemptID1 {
+		t.Fatal("attempt IDs should be different for different claims")
+	}
+
+	// Worker-1 tries to Heartbeat with its old attempt_id - should fail with ErrStaleLease
+	err = store.Heartbeat(WithAttemptID(ctx, attemptID1), "worker-1", jobID)
+	if err != ErrStaleLease {
+		t.Errorf("expected ErrStaleLease when Heartbeat with stale attempt_id, got %v", err)
+	}
+
+	// Worker-2 Heartbeats with correct attempt_id - should succeed
+	err = store.Heartbeat(WithAttemptID(ctx, attemptID2), "worker-2", jobID)
+	if err != nil {
+		t.Fatalf("Heartbeat worker-2 with correct attempt_id: %v", err)
 	}
 }
 

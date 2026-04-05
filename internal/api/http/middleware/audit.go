@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/google/uuid"
 
 	"rag-platform/pkg/auth"
 )
@@ -43,6 +44,9 @@ type AuditLog struct {
 	ResourceID   string
 	Success      bool
 	DurationMS   int64
+	ClientIP     string
+	UserAgent    string
+	RequestID    string
 	CreatedAt    time.Time
 }
 
@@ -57,6 +61,12 @@ func (a *AuditMiddleware) AuditAccess() app.HandlerFunc {
 		start := time.Now()
 		userID := auth.GetUserID(ctx)
 		tenantID := auth.GetTenantID(ctx)
+
+		// Extract or generate request ID for tracing
+		requestID := string(c.GetHeader("X-Request-ID"))
+		if requestID == "" {
+			requestID = uuid.New().String()
+		}
 
 		c.Next(ctx)
 
@@ -73,6 +83,9 @@ func (a *AuditMiddleware) AuditAccess() app.HandlerFunc {
 				ResourceID:   resourceID,
 				Success:      c.Response.StatusCode() < 400,
 				DurationMS:   time.Since(start).Milliseconds(),
+				ClientIP:     c.ClientIP(),
+				UserAgent:    string(c.Request.Header.UserAgent()),
+				RequestID:    requestID,
 				CreatedAt:    time.Now().UTC(),
 			})
 		}()

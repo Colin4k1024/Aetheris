@@ -708,7 +708,17 @@ func (a *ToolNodeAdapter) runNodeExecute(ctx context.Context, jobID, taskID, too
 	}
 	resultBytes, _ := json.Marshal(nodeResult)
 	externalID := extractExternalIDFromToolResult(result.Output, result.State)
-	// 两步提交 Phase 1：先写 Effect Store；Metadata 写入 tool_name / external_id（design/effect-log-and-provenance.md）
+	// 事件流是权威来源：先写事件流 AppendToolInvocationFinished（design/effect-system.md）
+	if a.ToolEventSink != nil && jobID != "" {
+		_ = a.ToolEventSink.AppendToolInvocationFinished(ctx, jobID, nodeIDForEvent, &ToolInvocationFinishedPayload{
+			InvocationID:   invocationID,
+			IdempotencyKey: idempotencyKey,
+			Outcome:        ToolInvocationOutcomeSuccess,
+			Result:         resultBytes,
+			FinishedAt:     FormatStartedAt(finishedAt),
+		})
+	}
+	// EffectStore 写入（可选）：仅用于审计加速；崩溃发生在"事件流已写但 EffectStore 未写"时，Replay 仍可从事件流恢复（design/effect-log-and-provenance.md）
 	if a.EffectStore != nil && jobID != "" {
 		inputBytes, _ := json.Marshal(cfg)
 		meta := map[string]any{"tool_name": toolName}
@@ -724,16 +734,6 @@ func (a *ToolNodeAdapter) runNodeExecute(ctx context.Context, jobID, taskID, too
 			Output:         resultBytes,
 			Error:          result.Err,
 			Metadata:       meta,
-		})
-	}
-	// Phase 2：写事件流与 Ledger/Store
-	if a.ToolEventSink != nil && jobID != "" {
-		_ = a.ToolEventSink.AppendToolInvocationFinished(ctx, jobID, nodeIDForEvent, &ToolInvocationFinishedPayload{
-			InvocationID:   invocationID,
-			IdempotencyKey: idempotencyKey,
-			Outcome:        ToolInvocationOutcomeSuccess,
-			Result:         resultBytes,
-			FinishedAt:     FormatStartedAt(finishedAt),
 		})
 	}
 	if a.CommandEventSink != nil && jobID != "" {

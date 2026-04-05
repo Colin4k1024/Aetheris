@@ -240,13 +240,28 @@ func (s *pgStore) ClaimJob(ctx context.Context, workerID string, jobID string) (
 
 func (s *pgStore) Heartbeat(ctx context.Context, workerID string, jobID string) error {
 	expires := time.Now().Add(s.leaseDur)
-	cmd, err := s.pool.Exec(ctx,
-		`UPDATE job_claims SET expires_at = $1 WHERE job_id = $2 AND worker_id = $3`,
-		expires, jobID, workerID)
+	attemptID := AttemptIDFromContext(ctx)
+	var cmd pgconn.CommandTag
+	var err error
+	if attemptID != "" {
+		// attempt_id provided via context: validate it matches current lease
+		cmd, err = s.pool.Exec(ctx,
+			`UPDATE job_claims SET expires_at = $1 WHERE job_id = $2 AND worker_id = $3 AND attempt_id = $4`,
+			expires, jobID, workerID, attemptID)
+	} else {
+		// backward compatibility: no attempt_id in context, only validate worker_id
+		cmd, err = s.pool.Exec(ctx,
+			`UPDATE job_claims SET expires_at = $1 WHERE job_id = $2 AND worker_id = $3`,
+			expires, jobID, workerID)
+	}
 	if err != nil {
 		return err
 	}
 	if cmd.RowsAffected() == 0 {
+		// No row updated: either claim not found, expired, or attempt_id mismatch
+		if attemptID != "" {
+			return ErrStaleLease
+		}
 		return ErrClaimNotFound
 	}
 	return nil
@@ -266,9 +281,10 @@ func (s *pgStore) GetCurrentAttemptID(ctx context.Context, jobID string) (string
 }
 
 // ListJobIDsWithExpiredClaim 返回租约已过期的 job_id 列表，供 metadata 侧回收孤儿
+// RTN-09: 过滤掉终态 jobs（Completed=2, Failed=3），终态 job 不应被回收
 func (s *pgStore) ListJobIDsWithExpiredClaim(ctx context.Context) ([]string, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT job_id FROM job_claims WHERE expires_at <= now() ORDER BY job_id`)
+		`SELECT c.job_id FROM job_claims c JOIN jobs j ON c.job_id = j.id WHERE c.expires_at <= now() AND j.status NOT IN (2, 3) ORDER BY c.job_id`)
 	if err != nil {
 		return nil, err
 	}

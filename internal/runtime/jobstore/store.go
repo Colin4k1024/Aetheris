@@ -28,6 +28,8 @@ var (
 	ErrClaimNotFound = errors.New("jobstore: claim not found or expired")
 	// ErrStaleAttempt Append 时 context 中的 attempt_id 与当前租约的 attempt_id 不一致（design/runtime-contract.md §3.2）
 	ErrStaleAttempt = errors.New("jobstore: stale attempt, cannot append")
+	// ErrStaleLease Heartbeat 时 attempt_id 与当前租约不匹配，租约已被其他 worker 占用
+	ErrStaleLease = errors.New("jobstore: stale lease, attempt_id mismatch")
 )
 
 type contextKey string
