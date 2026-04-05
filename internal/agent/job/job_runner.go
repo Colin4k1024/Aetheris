@@ -69,13 +69,12 @@ func (r *JobRunner) Start(ctx context.Context) {
 				time.Sleep(200 * time.Millisecond)
 				continue
 			}
-			runCtx := context.Background()
-			agent, err := r.manager.Get(runCtx, j.AgentID)
+			agent, err := r.manager.Get(ctx, j.AgentID)
 			if err != nil && r.logger != nil {
 				r.logger.Error("failed to get agent", "agentID", j.AgentID, "error", err)
 			}
 			if agent == nil {
-				if err := r.store.UpdateStatus(runCtx, j.ID, StatusFailed); err != nil && r.logger != nil {
+				if err := r.store.UpdateStatus(ctx, j.ID, StatusFailed); err != nil && r.logger != nil {
 					r.logger.Error("failed to update job status", "jobID", j.ID, "error", err)
 				}
 				continue
@@ -84,15 +83,15 @@ func (r *JobRunner) Start(ctx context.Context) {
 			if tenantID == "" {
 				tenantID = "default"
 			}
-			runErr := r.runner.RunForJob(runCtx, agent, &agentexec.JobForRunner{
+			runErr := r.runner.RunForJob(ctx, agent, &agentexec.JobForRunner{
 				ID: j.ID, AgentID: j.AgentID, Goal: j.Goal, Cursor: j.Cursor, TenantID: tenantID,
 			})
 			if runErr != nil {
-				if err := r.store.UpdateStatus(runCtx, j.ID, StatusFailed); err != nil && r.logger != nil {
+				if err := r.store.UpdateStatus(ctx, j.ID, StatusFailed); err != nil && r.logger != nil {
 					r.logger.Error("failed to update job status to failed", "jobID", j.ID, "error", err)
 				}
 			} else {
-				if err := r.store.UpdateStatus(runCtx, j.ID, StatusCompleted); err != nil && r.logger != nil {
+				if err := r.store.UpdateStatus(ctx, j.ID, StatusCompleted); err != nil && r.logger != nil {
 					r.logger.Error("failed to update job status to completed", "jobID", j.ID, "error", err)
 				}
 			}

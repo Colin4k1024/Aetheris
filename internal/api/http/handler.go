@@ -736,7 +736,9 @@ func runADK(ctx context.Context, c *app.RequestContext, runner *adk.Runner, sess
 	sess.AddMessage("user", query)
 	sess.AddMessage("assistant", lastContent)
 	if sessionManager != nil {
-		_ = sessionManager.Save(ctx, sess)
+		if err := sessionManager.Save(ctx, sess); err != nil {
+			hlog.CtxErrorf(ctx, "session save failed: %v", err)
+		}
 	}
 	if stream {
 		c.Header("Content-Type", "text/event-stream")
@@ -813,7 +815,9 @@ func (h *Handler) AgentResumeCheckpoint(ctx context.Context, c *app.RequestConte
 	if req.SessionID != "" && h.sessionManager != nil {
 		if sess, err := h.sessionManager.GetOrCreate(ctx, req.SessionID); err == nil {
 			sess.AddMessage("assistant", lastContent)
-			_ = h.sessionManager.Save(ctx, sess)
+			if err := h.sessionManager.Save(ctx, sess); err != nil {
+				hlog.CtxErrorf(ctx, "session save failed: %v", err)
+			}
 			resp["session_id"] = sess.ID
 		}
 	}
@@ -1142,7 +1146,9 @@ func (h *Handler) AgentMessage(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	if h.agentScheduler != nil {
-		_ = h.agentScheduler.WakeAgent(ctx, id)
+		if err := h.agentScheduler.WakeAgent(ctx, id); err != nil {
+			hlog.CtxErrorf(ctx, "wake agent failed: %v", err)
+		}
 	}
 	c.JSON(consts.StatusAccepted, map[string]interface{}{
 		"status":   "accepted",
@@ -1222,7 +1228,9 @@ func (h *Handler) AgentResume(ctx context.Context, c *app.RequestContext) {
 		})
 		return
 	}
-	_ = h.agentScheduler.Resume(ctx, id)
+	if err := h.agentScheduler.Resume(ctx, id); err != nil {
+		hlog.CtxErrorf(ctx, "resume agent failed: %v", err)
+	}
 	c.JSON(consts.StatusOK, map[string]interface{}{
 		"status":   "ok",
 		"agent_id": id,
@@ -1245,7 +1253,9 @@ func (h *Handler) AgentStop(ctx context.Context, c *app.RequestContext) {
 		})
 		return
 	}
-	_ = h.agentScheduler.Stop(ctx, id)
+	if err := h.agentScheduler.Stop(ctx, id); err != nil {
+		hlog.CtxErrorf(ctx, "stop agent failed: %v", err)
+	}
 	c.JSON(consts.StatusOK, map[string]interface{}{
 		"status":   "ok",
 		"agent_id": id,

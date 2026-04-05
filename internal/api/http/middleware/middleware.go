@@ -112,6 +112,10 @@ func (j *JWTAuth) MiddlewareFunc() app.HandlerFunc {
 // NewJWTAuth 创建 JWT 认证（key 签名密钥）
 // roleProvider 用于在登录时查询用户角色；若为 nil 则使用 ADMIN_ROLE 环境变量指定角色
 func NewJWTAuth(key []byte, timeout, maxRefresh time.Duration, roleProvider RoleProvider) (*JWTAuth, error) {
+	// SECURITY: Empty key allows trivial JWT forgery - reject early
+	if len(key) == 0 {
+		return nil, jwt.ErrMissingSecretKey
+	}
 	identityKey := "id"
 	// 从环境变量读取凭证
 	adminUsername := os.Getenv("ADMIN_USERNAME")
@@ -187,7 +191,11 @@ func NewJWTAuth(key []byte, timeout, maxRefresh time.Duration, roleProvider Role
 			return nil, jwt.ErrFailedAuthentication
 		},
 		Authorizator: func(data interface{}, ctx context.Context, c *app.RequestContext) bool {
-			return data != nil
+			// SECURITY: Require user to have at least one role for authorization
+			if u, ok := data.(*AuthUser); ok && u != nil && len(u.Roles) > 0 {
+				return true
+			}
+			return false
 		},
 		Unauthorized: func(ctx context.Context, c *app.RequestContext, code int, message string) {
 			c.JSON(code, map[string]interface{}{"code": code, "message": message})
