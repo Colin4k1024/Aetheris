@@ -23,10 +23,10 @@
 
 ## 当前任务
 
-**Task**: project-review
-**Status**: completed
+**Task**: fix-review-issues
+**Status**: draft
 **Start Date**: 2026-04-05
-**Phase**: 审查完成，报告已输出
+**Phase**: intake 完成，待 /team-plan
 
 ## 已完成工作
 
@@ -93,4 +93,5 @@
 | 2026-04-05 | Phase 1 安全修复完成 (SEC-01~03, SEC-05~06) | team |
 | 2026-04-05 | Phase 2 Runtime 完成 (RTN-01~06, RTN-08~09) | team |
 | 2026-04-05 | SEC-07~08, TST-01~06 全部完成 | team |
-| 2026-04-05 | 新任务 project-review 启动 | tech-lead |
+| 2026-04-05 | project-review 审查完成 (43 issues) | team |
+| 2026-04-05 | 新任务 fix-review-issues 启动 | tech-lead |
