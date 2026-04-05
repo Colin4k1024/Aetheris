@@ -31,8 +31,10 @@ func Now(ctx context.Context) time.Time {
 	ec.mu.Lock()
 	idx := ec.timeIdx
 	ec.timeIdx++
-	ec.mu.Unlock()
 	effectID := fmt.Sprintf("%s:time:%d", ec.StepID, idx)
+	ec.mu.Unlock()
+
+	// Replay and I/O operations outside lock to avoid blocking
 	if ec.Replay != nil && ec.Replay.RecordedTime != nil {
 		if unixNano, ok := ec.Replay.RecordedTime[effectID]; ok {
 			return time.Unix(0, unixNano)
@@ -54,8 +56,10 @@ func UUID(ctx context.Context) string {
 	ec.mu.Lock()
 	idx := ec.uuidIdx
 	ec.uuidIdx++
-	ec.mu.Unlock()
 	effectID := fmt.Sprintf("%s:uuid:%d", ec.StepID, idx)
+	ec.mu.Unlock()
+
+	// Replay and I/O operations outside lock to avoid blocking
 	if ec.Replay != nil && ec.Replay.RecordedUUID != nil {
 		if s, ok := ec.Replay.RecordedUUID[effectID]; ok {
 			return s

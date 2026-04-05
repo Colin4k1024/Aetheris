@@ -125,13 +125,12 @@ func (e *Engine) GetAgentFactory() *AgentFactory {
 }
 
 // ensureRunner 懒创建并注册 Runner
-func (e *Engine) ensureRunner(agentID string) (*adk.Runner, error) {
+func (e *Engine) ensureRunner(ctx context.Context, agentID string) (*adk.Runner, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if r, ok := e.runners[agentID]; ok {
 		return r, nil
 	}
-	ctx := context.Background()
 	var runner *adk.Runner
 	var err error
 
@@ -267,7 +266,7 @@ func (e *Engine) CreateChatModel(ctx context.Context) (model.ToolCallingChatMode
 }
 
 // GetRunner 获取 Runner 实例（qa_agent / ingest_agent 懒创建）
-func (e *Engine) GetRunner(agentID string) (*adk.Runner, error) {
+func (e *Engine) GetRunner(ctx context.Context, agentID string) (*adk.Runner, error) {
 	e.mu.RLock()
 	runner, exists := e.runners[agentID]
 	e.mu.RUnlock()
@@ -275,7 +274,7 @@ func (e *Engine) GetRunner(agentID string) (*adk.Runner, error) {
 	if exists {
 		return runner, nil
 	}
-	return e.ensureRunner(agentID)
+	return e.ensureRunner(ctx, agentID)
 }
 
 // RegisterRunner 注册自定义 Runner
@@ -294,7 +293,7 @@ func (e *Engine) RegisterRunner(name string, runner *adk.Runner) error {
 
 // Execute 执行任务
 func (e *Engine) Execute(ctx context.Context, agentID string, query string) (chan *adk.AgentEvent, error) {
-	runner, err := e.GetRunner(agentID)
+	runner, err := e.GetRunner(ctx, agentID)
 	if err != nil {
 		return nil, err
 	}

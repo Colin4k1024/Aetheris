@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"time"
 
@@ -511,6 +512,7 @@ func (r *Runner) runParallelLevel(
 	cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, j.ID, lastNodeID, graphBytes, payloadResults, nil)
 	cpID, saveErr := r.checkpointStore.Save(ctx, cp)
 	if saveErr != nil {
+		slog.Error("executor: save checkpoint failed", "jobID", j.ID, "error", saveErr)
 		_ = r.jobStore.UpdateStatus(ctx, j.ID, 3)
 		return fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
 	}

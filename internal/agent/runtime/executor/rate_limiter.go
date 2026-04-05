@@ -90,16 +90,42 @@ func (t *ToolRateLimiter) addToolLimiter(toolName string, config ToolLimitConfig
 
 // Wait 等待获取执行许可（阻塞直到可以执行）
 func (t *ToolRateLimiter) Wait(ctx context.Context, toolName string) error {
+	// Fast path: check with read lock
 	t.mu.RLock()
 	limiter, exists := t.limiters[toolName]
 	t.mu.RUnlock()
 
 	if !exists {
-		// 使用默认配置创建限流器
-		t.addToolLimiter(toolName, *t.defaults)
-		t.mu.RLock()
-		limiter = t.limiters[toolName]
-		t.mu.RUnlock()
+		// Slow path: lazy initialization with write lock
+		// Must inline addToolLimiter logic here to avoid race between RUnlock and Lock
+		t.mu.Lock()
+		// Double-check after acquiring write lock
+		if lim, ok := t.limiters[toolName]; ok {
+			limiter = lim
+			t.mu.Unlock()
+		} else {
+			// Create new limiter with defaults
+			config := *t.defaults
+			if config.Burst == 0 {
+				config.Burst = int(config.QPS)
+			}
+
+			newLimiter := &toolLimiter{
+				config: config,
+			}
+
+			if config.QPS > 0 {
+				newLimiter.rateLimiter = rate.NewLimiter(rate.Limit(config.QPS), config.Burst)
+			}
+
+			if config.MaxConcurrent > 0 {
+				newLimiter.semaphore = make(chan struct{}, config.MaxConcurrent)
+			}
+
+			t.limiters[toolName] = newLimiter
+			limiter = newLimiter
+			t.mu.Unlock()
+		}
 	}
 
 	// QPS 限流
