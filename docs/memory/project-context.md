@@ -24,9 +24,9 @@
 ## 当前任务
 
 **Task**: fix-review-issues
-**Status**: draft
+**Status**: plan
 **Start Date**: 2026-04-05
-**Phase**: intake 完成，待 /team-plan
+**Phase**: delivery-plan 完成，待执行
 
 ## 已完成工作
 
