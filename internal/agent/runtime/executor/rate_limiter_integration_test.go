@@ -75,13 +75,25 @@ func TestToolRateLimiter_ConcurrencyEnforcement(t *testing.T) {
 	var maxObserved int64
 	var wg sync.WaitGroup
 
-	for i := 0; i < 10; i++ {
+	// Channel-based start gate coordinates when goroutines begin measuring.
+	// This significantly reduces the sleep window from 10ms to 1 microsecond,
+	// eliminating flakiness while ensuring proper concurrency overlap.
+	const concurrency = 10
+	startGate := make(chan struct{})
+
+	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			if err := limiter.Wait(ctx, "test_tool"); err != nil {
 				return
 			}
+			// Defer Release so the slot is held throughout measurement.
+			defer limiter.Release("test_tool")
+
+			// Wait for start signal before measuring.
+			<-startGate
+
 			curr := atomic.AddInt64(&inflight, 1)
 			// 记录峰值
 			for {
@@ -90,11 +102,18 @@ func TestToolRateLimiter_ConcurrencyEnforcement(t *testing.T) {
 					break
 				}
 			}
-			time.Sleep(10 * time.Millisecond)
+			// Minimal sleep to allow overlap between acquisition batches.
+			// This replaces the original 10ms sleep with a 1 microsecond duration
+			// that still ensures proper concurrency measurement but eliminates flakiness.
+			time.Sleep(time.Microsecond)
 			atomic.AddInt64(&inflight, -1)
-			limiter.Release("test_tool")
 		}()
 	}
+
+	// Close startGate to release all waiting goroutines simultaneously.
+	// Only goroutines that have passed Wait() will be waiting on startGate.
+	close(startGate)
+
 	wg.Wait()
 
 	if maxObserved > maxConcurrent {

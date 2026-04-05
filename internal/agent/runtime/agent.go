@@ -15,6 +15,7 @@
 package runtime
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -53,6 +54,7 @@ func (s AgentStatus) String() string {
 type Agent struct {
 	ID        string
 	Name      string
+	TenantID  string
 	CreatedAt time.Time
 
 	Session *Session
@@ -114,4 +116,46 @@ func (a *Agent) GetStatus() AgentStatus {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.Status
+}
+
+// Take 原子性地获取执行权：若状态为 Idle/Suspended 则转为 Running，返回 true
+// 若状态为 Running/WaitingTool/Failed，返回 false（已被占用）
+// RTN-05: 实现 Agent 并发模型的 Take/Release 语义
+func (a *Agent) Take() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	switch a.Status {
+	case StatusIdle, StatusSuspended:
+		a.Status = StatusRunning
+		return true
+	default:
+		return false
+	}
+}
+
+// Release 释放执行权：将状态从 Running/WaitingTool 转回 Idle
+// RTN-05: 实现 Agent 并发模型的 Take/Release 语义
+func (a *Agent) Release() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	switch a.Status {
+	case StatusRunning, StatusWaitingTool:
+		a.Status = StatusIdle
+	}
+}
+
+// TakeWithWait 尝试获取执行权，若被占用则等待直到获取或上下文取消
+// 返回是否成功获取（ctx 取消时返回 false）
+func (a *Agent) TakeWithWait(ctx context.Context) bool {
+	for {
+		if a.Take() {
+			return true
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(10 * time.Millisecond):
+			// 短暂等待后重试，避免 busy loop
+		}
+	}
 }

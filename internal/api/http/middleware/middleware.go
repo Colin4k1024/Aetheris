@@ -16,6 +16,7 @@ package middleware
 
 import (
 	"context"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -93,6 +94,11 @@ type JWTAuth struct {
 	Middleware *jwt.HertzJWTMiddleware
 }
 
+// RoleProvider 角色查询接口（用于 JWT 登录时获取用户角色）
+type RoleProvider interface {
+	GetUserRoles(ctx context.Context, tenantID, userID string) ([]string, error)
+}
+
 // LoginHandler 返回登录接口 Handler
 func (j *JWTAuth) LoginHandler() app.HandlerFunc {
 	return j.Middleware.LoginHandler
@@ -103,9 +109,17 @@ func (j *JWTAuth) MiddlewareFunc() app.HandlerFunc {
 	return j.Middleware.MiddlewareFunc()
 }
 
-// NewJWTAuth 创建 JWT 认证（key 签名密钥；Authenticator 示例：admin/admin、test/test 通过）
-func NewJWTAuth(key []byte, timeout, maxRefresh time.Duration) (*JWTAuth, error) {
+// NewJWTAuth 创建 JWT 认证（key 签名密钥）
+// roleProvider 用于在登录时查询用户角色；若为 nil 则使用 ADMIN_ROLE 环境变量指定角色
+func NewJWTAuth(key []byte, timeout, maxRefresh time.Duration, roleProvider RoleProvider) (*JWTAuth, error) {
 	identityKey := "id"
+	// 从环境变量读取凭证
+	adminUsername := os.Getenv("ADMIN_USERNAME")
+	adminPassword := os.Getenv("ADMIN_PASSWORD")
+	adminRole := os.Getenv("ADMIN_ROLE") // 可选，默认 "admin"
+	if adminRole == "" {
+		adminRole = "admin"
+	}
 	authMiddleware, err := jwt.New(&jwt.HertzJWTMiddleware{
 		Realm:       "rag-api",
 		Key:         key,
@@ -114,12 +128,20 @@ func NewJWTAuth(key []byte, timeout, maxRefresh time.Duration) (*JWTAuth, error)
 		IdentityKey: identityKey,
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
 			if u, ok := data.(*AuthUser); ok {
-				claims := jwt.MapClaims{identityKey: u.Username, "tenant_id": u.TenantID, "user_id": u.UserID}
+				claims := jwt.MapClaims{
+					identityKey: u.Username,
+					"tenant_id": u.TenantID,
+					"user_id":   u.UserID,
+					"roles":     u.Roles,
+				}
 				if claims["tenant_id"] == "" {
 					claims["tenant_id"] = "default"
 				}
 				if claims["user_id"] == "" {
 					claims["user_id"] = u.Username
+				}
+				if claims["roles"] == nil {
+					claims["roles"] = []string{}
 				}
 				return claims
 			}
@@ -130,6 +152,7 @@ func NewJWTAuth(key []byte, timeout, maxRefresh time.Duration) (*JWTAuth, error)
 			u := &AuthUser{Username: getClaimString(claims, identityKey)}
 			u.TenantID = getClaimString(claims, "tenant_id")
 			u.UserID = getClaimString(claims, "user_id")
+			u.Roles = getClaimRoles(claims, "roles")
 			if u.TenantID == "" {
 				u.TenantID = "default"
 			}
@@ -146,9 +169,20 @@ func NewJWTAuth(key []byte, timeout, maxRefresh time.Duration) (*JWTAuth, error)
 			if err := c.Bind(&loginVals); err != nil {
 				return nil, jwt.ErrMissingLoginValues
 			}
-			if (loginVals.Username == "admin" && loginVals.Password == "admin") ||
-				(loginVals.Username == "test" && loginVals.Password == "test") {
-				return &AuthUser{Username: loginVals.Username, TenantID: "default", UserID: loginVals.Username}, nil
+			// 凭证必须从环境变量配置
+			if adminUsername == "" || adminPassword == "" {
+				hlog.Warnf("SECURITY: ADMIN_USERNAME or ADMIN_PASSWORD environment variable is not set. Authentication will fail.")
+				return nil, jwt.ErrFailedAuthentication
+			}
+			if loginVals.Username == adminUsername && loginVals.Password == adminPassword {
+				roles := []string{adminRole}
+				// 如果提供了 RoleProvider，从 store 查询用户角色
+				if roleProvider != nil {
+					if userRoles, err := roleProvider.GetUserRoles(ctx, "default", loginVals.Username); err == nil && len(userRoles) > 0 {
+						roles = userRoles
+					}
+				}
+				return &AuthUser{Username: loginVals.Username, TenantID: "default", UserID: loginVals.Username, Roles: roles}, nil
 			}
 			return nil, jwt.ErrFailedAuthentication
 		},
@@ -168,11 +202,12 @@ func NewJWTAuth(key []byte, timeout, maxRefresh time.Duration) (*JWTAuth, error)
 	return &JWTAuth{Middleware: authMiddleware}, nil
 }
 
-// AuthUser 登录用户（示例）；JWT claims 含 tenant_id、user_id 供 RBAC
+// AuthUser 登录用户；JWT claims 含 tenant_id、user_id、roles 供 RBAC
 type AuthUser struct {
 	Username string
 	TenantID string
 	UserID   string
+	Roles    []string
 }
 
 // getClaimString 从 JWT claims 安全取字符串
@@ -183,6 +218,22 @@ func getClaimString(claims jwt.MapClaims, key string) string {
 		}
 	}
 	return ""
+}
+
+// getClaimRoles 从 JWT claims 安全取字符串数组（roles）
+func getClaimRoles(claims jwt.MapClaims, key string) []string {
+	if v, ok := claims[key]; ok {
+		if roles, ok := v.([]interface{}); ok {
+			result := make([]string, 0, len(roles))
+			for _, r := range roles {
+				if s, ok := r.(string); ok {
+					result = append(result, s)
+				}
+			}
+			return result
+		}
+	}
+	return []string{}
 }
 
 // InjectAuthContext 将 tenant_id、user_id 注入 context：

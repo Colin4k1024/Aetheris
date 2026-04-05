@@ -37,7 +37,7 @@ type DocumentInfo struct {
 
 // DocumentService 文档门面：API 层仅依赖此接口，不直接调用 storage
 type DocumentService interface {
-	ListDocuments(ctx context.Context) ([]*DocumentInfo, error)
+	ListDocuments(ctx context.Context, tenantID string) ([]*DocumentInfo, error)
 	GetDocument(ctx context.Context, id string) (*DocumentInfo, error)
 	DeleteDocument(ctx context.Context, id string) error
 }
@@ -52,8 +52,9 @@ func NewDocumentService(store metadata.Store) DocumentService {
 	return &documentService{store: store}
 }
 
-func (s *documentService) ListDocuments(ctx context.Context) ([]*DocumentInfo, error) {
-	docs, err := s.store.List(ctx, nil, &metadata.Pagination{Offset: 0, Limit: 1000})
+func (s *documentService) ListDocuments(ctx context.Context, tenantID string) ([]*DocumentInfo, error) {
+	filter := &metadata.Filter{TenantID: tenantID}
+	docs, err := s.store.List(ctx, filter, &metadata.Pagination{Offset: 0, Limit: 1000})
 	if err != nil {
 		return nil, err
 	}

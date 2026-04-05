@@ -46,6 +46,7 @@ type Document struct {
 	Status      string            `json:"status"`       // 文档状态
 	Chunks      int               `json:"chunks"`       // 文档切片数量
 	VectorCount int               `json:"vector_count"` // 向量数量
+	TenantID    string            `json:"tenant_id"`    // 租户 ID
 	Metadata    map[string]string `json:"metadata"`     // 额外元数据
 	CreatedAt   int64             `json:"created_at"`   // 创建时间
 	UpdatedAt   int64             `json:"updated_at"`   // 更新时间
@@ -53,11 +54,12 @@ type Document struct {
 
 // Filter 过滤条件
 type Filter struct {
-	IDs      []string          `json:"ids"`      // 文档 ID 列表
-	Types    []string          `json:"types"`    // 文档类型列表
-	Status   []string          `json:"status"`   // 文档状态列表
-	Metadata map[string]string `json:"metadata"` // 元数据过滤
-	Search   string            `json:"search"`   // 搜索关键词
+	TenantID string            `json:"tenant_id"` // 租户 ID
+	IDs      []string          `json:"ids"`       // 文档 ID 列表
+	Types    []string          `json:"types"`     // 文档类型列表
+	Status   []string          `json:"status"`    // 文档状态列表
+	Metadata map[string]string `json:"metadata"`  // 元数据过滤
+	Search   string            `json:"search"`    // 搜索关键词
 }
 
 // Pagination 分页参数

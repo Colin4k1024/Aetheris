@@ -28,6 +28,7 @@ import (
 	appcore "rag-platform/internal/app"
 	"rag-platform/internal/pipeline/common"
 	"rag-platform/internal/runtime/eino"
+	"rag-platform/pkg/auth"
 )
 
 // Server gRPC 服务端，持有 Engine 与 DocumentService
@@ -54,7 +55,11 @@ func (s *Server) Register(grpcServer *grpc.Server) {
 
 // ListDocuments 实现 DocumentService.ListDocuments
 func (s *Server) ListDocuments(ctx context.Context, req *pb.ListDocumentsRequest) (*pb.ListDocumentsResponse, error) {
-	docs, err := s.docService.ListDocuments(ctx)
+	tenantID := auth.GetTenantID(ctx)
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	docs, err := s.docService.ListDocuments(ctx, tenantID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "list documents: %v", err)
 	}

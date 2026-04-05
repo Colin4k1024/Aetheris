@@ -99,6 +99,21 @@ func (a *jobStoreForRunnerAdapter) UpdateStatus(ctx context.Context, jobID strin
 	return a.JobStore.UpdateStatus(ctx, jobID, job.JobStatus(status))
 }
 
+// roleStoreAdapter 将 auth.RoleStore 适配为 middleware.RoleProvider（用于 JWT 登录时查询用户角色）
+type roleStoreAdapter struct {
+	store auth.RoleStore
+}
+
+var _ middleware.RoleProvider = (*roleStoreAdapter)(nil)
+
+func (a *roleStoreAdapter) GetUserRoles(ctx context.Context, tenantID, userID string) ([]string, error) {
+	role, err := a.store.GetUserRole(ctx, tenantID, userID)
+	if err != nil {
+		return nil, err
+	}
+	return []string{string(role)}, nil
+}
+
 // grpcRun 持有 gRPC Server 与 Listener，用于 GracefulStop 时关闭
 type grpcRun struct {
 	srv *grpc.Server
@@ -667,19 +682,8 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 		router.SetForensicsExperimental(bootstrap.Config.API.Forensics.Experimental)
 	}
 
-	if bootstrap.Config != nil && bootstrap.Config.API.Middleware.Auth && bootstrap.Config.API.Middleware.JWTKey != "" {
-		timeout := parseDuration(bootstrap.Config.API.Middleware.JWTTimeout, time.Hour)
-		maxRefresh := parseDuration(bootstrap.Config.API.Middleware.JWTMaxRefresh, time.Hour)
-		jwtAuth, err := middleware.NewJWTAuth([]byte(bootstrap.Config.API.Middleware.JWTKey), timeout, maxRefresh)
-		if err != nil {
-			bootstrap.Logger.Warn("JWT 初始化failed，将跳过认证", "error", err)
-		} else {
-			router.SetJWT(jwtAuth)
-			bootstrap.Logger.Info("JWT 认证已启用")
-		}
-	}
-
 	// RBAC：RoleStore + AuthZ 中间件（与 JWT 配合使用 tenant_id/user_id）
+	// 注意：RoleStore 必须在 JWT 之前创建，因为 JWT 登录时需要查询用户角色
 	var roleStore auth.RoleStore = auth.NewMemoryRoleStore()
 	if bootstrap.Config != nil && bootstrap.Config.JobStore.Type == "postgres" && bootstrap.Config.JobStore.DSN != "" {
 		if rolePoolCfg, err := pgxpool.ParseConfig(bootstrap.Config.JobStore.DSN); err == nil {
@@ -691,14 +695,30 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 			}
 		}
 	}
-	// 预置开发账号角色，避免启用 JWT+RBAC 后本地环境无法创建 Agent。
-	_ = roleStore.SetUserRole(context.Background(), "default", "admin", auth.RoleAdmin)
-	_ = roleStore.SetUserRole(context.Background(), "default", "test", auth.RoleUser)
-	// auth 未开启时 user_id 兜底为 "anonymous"，预置 Admin 角色以保持 API 可用（生产环境请开启 JWT）
+
+	// roleStore 适配器：将 auth.RoleStore 适配为 middleware.RoleProvider
+	roleProvider := &roleStoreAdapter{store: roleStore}
+
+	if bootstrap.Config != nil && bootstrap.Config.API.Middleware.Auth && bootstrap.Config.API.Middleware.JWTKey != "" {
+		timeout := parseDuration(bootstrap.Config.API.Middleware.JWTTimeout, time.Hour)
+		maxRefresh := parseDuration(bootstrap.Config.API.Middleware.JWTMaxRefresh, time.Hour)
+		jwtAuth, err := middleware.NewJWTAuth([]byte(bootstrap.Config.API.Middleware.JWTKey), timeout, maxRefresh, roleProvider)
+		if err != nil {
+			bootstrap.Logger.Warn("JWT 初始化failed，将跳过认证", "error", err)
+		} else {
+			router.SetJWT(jwtAuth)
+			bootstrap.Logger.Info("JWT 认证已启用")
+		}
+		// 启动时检查：auth 启用时必须配置 ADMIN_USERNAME 和 ADMIN_PASSWORD
+		if os.Getenv("ADMIN_USERNAME") == "" || os.Getenv("ADMIN_PASSWORD") == "" {
+			bootstrap.Logger.Warn("SECURITY: AUTH IS ENABLED but ADMIN_USERNAME or ADMIN_PASSWORD environment variables are not set. Login will fail until these are configured.")
+		}
+	}
+	// auth 未开启时 user_id 兜底为 "anonymous"，降级为 RoleUser（不再预置 admin 角色）
 	authEnabled := bootstrap.Config != nil && bootstrap.Config.API.Middleware.Auth
 	if !authEnabled {
-		bootstrap.Logger.Warn("SECURITY: Authentication is disabled. Anonymous users have admin privileges. Enable JWT in production.")
-		_ = roleStore.SetUserRole(context.Background(), "default", "anonymous", auth.RoleAdmin)
+		bootstrap.Logger.Warn("SECURITY: Authentication is disabled. Anonymous users have user privileges. Enable JWT in production.")
+		_ = roleStore.SetUserRole(context.Background(), "default", "anonymous", auth.RoleUser)
 	}
 	rbacChecker := auth.NewSimpleRBACChecker(roleStore)
 	router.SetAuthZ(middleware.NewAuthZMiddleware(rbacChecker))

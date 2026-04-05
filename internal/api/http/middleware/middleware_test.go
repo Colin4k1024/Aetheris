@@ -84,6 +84,48 @@ func TestGetClaimString_NonStringValue(t *testing.T) {
 	}
 }
 
+func TestGetClaimRoles(t *testing.T) {
+	claims := jwt.MapClaims{
+		"id":    "user1",
+		"roles": []interface{}{"admin", "user", "operator"},
+	}
+
+	result := getClaimRoles(claims, "roles")
+	if len(result) != 3 {
+		t.Errorf("expected 3 roles, got %d", len(result))
+	}
+	if result[0] != "admin" || result[1] != "user" || result[2] != "operator" {
+		t.Errorf("expected [admin, user, operator], got %v", result)
+	}
+}
+
+func TestGetClaimRoles_NilClaims(t *testing.T) {
+	result := getClaimRoles(nil, "roles")
+	if len(result) != 0 {
+		t.Errorf("expected nil or empty slice, got %v", result)
+	}
+}
+
+func TestGetClaimRoles_NonArrayValue(t *testing.T) {
+	claims := jwt.MapClaims{
+		"roles": "admin", // string instead of array
+	}
+	result := getClaimRoles(claims, "roles")
+	if len(result) != 0 {
+		t.Errorf("expected nil or empty slice for non-array value, got %v", result)
+	}
+}
+
+func TestGetClaimRoles_Nonexistent(t *testing.T) {
+	claims := jwt.MapClaims{
+		"id": "user1",
+	}
+	result := getClaimRoles(claims, "roles")
+	if len(result) != 0 {
+		t.Errorf("expected nil or empty slice, got %v", result)
+	}
+}
+
 func TestTenantRateLimiter_New(t *testing.T) {
 	limiter := NewTenantRateLimiter(50)
 	if limiter == nil {
@@ -122,6 +164,7 @@ func TestAuthUser(t *testing.T) {
 		Username: "admin",
 		TenantID: "tenant1",
 		UserID:   "user1",
+		Roles:    []string{"admin", "user"},
 	}
 
 	if user.Username != "admin" {
@@ -133,6 +176,9 @@ func TestAuthUser(t *testing.T) {
 	if user.UserID != "user1" {
 		t.Errorf("expected user1, got %s", user.UserID)
 	}
+	if len(user.Roles) != 2 || user.Roles[0] != "admin" || user.Roles[1] != "user" {
+		t.Errorf("expected roles [admin, user], got %v", user.Roles)
+	}
 }
 
 func TestNewJWTAuth(t *testing.T) {
@@ -140,7 +186,7 @@ func TestNewJWTAuth(t *testing.T) {
 	timeout := time.Hour
 	maxRefresh := time.Hour * 24
 
-	jwtAuth, err := NewJWTAuth(key, timeout, maxRefresh)
+	jwtAuth, err := NewJWTAuth(key, timeout, maxRefresh, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -153,7 +199,7 @@ func TestNewJWTAuth(t *testing.T) {
 }
 
 func TestNewJWTAuth_EmptyKey(t *testing.T) {
-	_, err := NewJWTAuth([]byte(""), time.Hour, time.Hour)
+	_, err := NewJWTAuth([]byte(""), time.Hour, time.Hour, nil)
 	if err != nil {
 		t.Logf("empty key error: %v", err)
 	}

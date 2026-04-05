@@ -23,9 +23,9 @@ func (s *PostgresAuditStore) LogAccess(ctx context.Context, log AuditLog) error 
 		return nil
 	}
 	_, err := s.pool.Exec(ctx,
-		`INSERT INTO access_audit_log (tenant_id, user_id, action, resource_type, resource_id, success, duration_ms, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		log.TenantID, log.UserID, log.Action, log.ResourceType, log.ResourceID, log.Success, log.DurationMS, log.CreatedAt,
+		`INSERT INTO access_audit_log (tenant_id, user_id, action, resource_type, resource_id, success, duration_ms, client_ip, user_agent, request_id, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		log.TenantID, log.UserID, log.Action, log.ResourceType, log.ResourceID, log.Success, log.DurationMS, log.ClientIP, log.UserAgent, log.RequestID, log.CreatedAt,
 	)
 	return err
 }
