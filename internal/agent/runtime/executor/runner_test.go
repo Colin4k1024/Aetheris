@@ -347,3 +347,194 @@ func TestRunForJob_PlanOnly_ExecutesLLM(t *testing.T) {
 		t.Fatalf("UpdateStatus = %d, want %d", status, statusCompleted)
 	}
 }
+
+// mockToolForDAGE2E is a test mock for tool execution that tracks call count and input
+type mockToolForDAGE2E struct {
+	mu          sync.Mutex
+	executeCnt  int
+	toolNames   []string
+	inputPrompt string
+	result      ToolResult
+}
+
+// Execute implements ToolExec interface
+func (m *mockToolForDAGE2E) Execute(ctx context.Context, toolName string, input map[string]any, state interface{}) (ToolResult, error) {
+	m.mu.Lock()
+	m.executeCnt++
+	m.toolNames = append(m.toolNames, toolName)
+	// Capture input for verification - tool receives goal as input
+	if g, ok := input["goal"].(string); ok {
+		m.inputPrompt = g
+	}
+	result := m.result
+	m.mu.Unlock()
+	return result, nil
+}
+
+func (m *mockToolForDAGE2E) Calls() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.executeCnt
+}
+
+func (m *mockToolForDAGE2E) ToolNames() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.toolNames
+}
+
+func (m *mockToolForDAGE2E) Input() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.inputPrompt
+}
+
+// TestDAGE2E_LLMToolChain verifies the complete flow from PlanGenerated to JobCompleted
+// for a DAG with an LLM node followed by a Tool node.
+func TestDAGE2E_LLMToolChain(t *testing.T) {
+	ctx := context.Background()
+	jobID := "job-dag-e2e"
+
+	// Create a 2-node DAG: LLM -> Tool
+	// The LLM produces output, then the Tool uses that output as input
+	taskGraph := &planner.TaskGraph{
+		Nodes: []planner.TaskNode{
+			{ID: "llm1", Type: planner.NodeLLM, Config: map[string]any{"goal": "tell me a fact"}},
+			{ID: "tool1", Type: planner.NodeTool, ToolName: "search", Config: map[string]any{"query": "world facts"}},
+		},
+		Edges: []planner.TaskEdge{
+			{From: "llm1", To: "tool1"},
+		},
+	}
+
+	graphBytes, err := taskGraph.Marshal()
+	if err != nil {
+		t.Fatalf("marshal graph: %v", err)
+	}
+
+	// Set up event store with PlanGenerated event
+	eventStore := jobstore.NewMemoryStore()
+	planPayload, _ := json.Marshal(map[string]interface{}{
+		"task_graph": json.RawMessage(graphBytes),
+		"goal":       "test goal for dag e2e",
+	})
+	if _, err := eventStore.Append(ctx, jobID, 0, jobstore.JobEvent{JobID: jobID, Type: jobstore.PlanGenerated, Payload: planPayload}); err != nil {
+		t.Fatalf("append plan_generated: %v", err)
+	}
+
+	// Create mock LLM and tool
+	mockLLM := &countingLLM{}
+	mockTool := &mockToolForDAGE2E{
+		result: ToolResult{Done: true, Output: `{"result": "fact found"}`},
+	}
+
+	// Set up compiler with adapters
+	compiler := NewCompiler(map[string]NodeAdapter{
+		planner.NodeLLM:  &LLMNodeAdapter{LLM: mockLLM},
+		planner.NodeTool: &ToolNodeAdapter{Tools: mockTool},
+	})
+
+	// Set up runner with checkpoint and job stores
+	fakeJobStore := &fakeJobStoreForRunner{}
+	cpStore := runtime.NewCheckpointStoreMem()
+	runner := NewRunner(compiler)
+	runner.SetCheckpointStores(cpStore, fakeJobStore)
+	runner.SetReplayContextBuilder(replay.NewReplayContextBuilder(eventStore))
+
+	// Execute the DAG via RunForJob
+	agent := &runtime.Agent{ID: "a1"}
+	j := &JobForRunner{ID: jobID, AgentID: "a1", Goal: "test goal for dag e2e"}
+
+	err = runner.RunForJob(ctx, agent, j)
+	if err != nil {
+		t.Fatalf("RunForJob: %v", err)
+	}
+
+	// Verify LLM was called
+	if mockLLM.Calls() == 0 {
+		t.Fatalf("expected LLM to be called at least once")
+	}
+
+	// Verify Tool was called
+	if mockTool.Calls() == 0 {
+		t.Fatalf("expected Tool to be called at least once")
+	}
+
+	// Verify final job status is Completed (status = 2)
+	_, status := fakeJobStore.getLast()
+	const statusCompleted = 2
+	if status != statusCompleted {
+		t.Errorf("UpdateStatus status = %d, want %d (Completed)", status, statusCompleted)
+	}
+}
+
+// TestDAGE2E_ThreeNodeChain verifies a 3-node DAG: LLM -> Tool1 -> Tool2
+func TestDAGE2E_ThreeNodeChain(t *testing.T) {
+	ctx := context.Background()
+	jobID := "job-dag-3node"
+
+	// Create a 3-node DAG: LLM -> Tool1 -> Tool2
+	taskGraph := &planner.TaskGraph{
+		Nodes: []planner.TaskNode{
+			{ID: "llm1", Type: planner.NodeLLM, Config: map[string]any{"goal": "generate a topic"}},
+			{ID: "tool1", Type: planner.NodeTool, ToolName: "search", Config: map[string]any{"query": "initial search"}},
+			{ID: "tool2", Type: planner.NodeTool, ToolName: "store", Config: map[string]any{"key": "result"}},
+		},
+		Edges: []planner.TaskEdge{
+			{From: "llm1", To: "tool1"},
+			{From: "tool1", To: "tool2"},
+		},
+	}
+
+	graphBytes, err := taskGraph.Marshal()
+	if err != nil {
+		t.Fatalf("marshal graph: %v", err)
+	}
+
+	eventStore := jobstore.NewMemoryStore()
+	planPayload, _ := json.Marshal(map[string]interface{}{
+		"task_graph": json.RawMessage(graphBytes),
+		"goal":       "test 3-node dag",
+	})
+	if _, err := eventStore.Append(ctx, jobID, 0, jobstore.JobEvent{JobID: jobID, Type: jobstore.PlanGenerated, Payload: planPayload}); err != nil {
+		t.Fatalf("append plan_generated: %v", err)
+	}
+
+	mockLLM := &countingLLM{}
+	// Single mock tool that tracks all calls
+	mockTool := &mockToolForDAGE2E{
+		result: ToolResult{Done: true, Output: `{"result": "ok"}`},
+	}
+
+	compiler := NewCompiler(map[string]NodeAdapter{
+		planner.NodeLLM:  &LLMNodeAdapter{LLM: mockLLM},
+		planner.NodeTool: &ToolNodeAdapter{Tools: mockTool},
+	})
+
+	fakeJobStore := &fakeJobStoreForRunner{}
+	cpStore := runtime.NewCheckpointStoreMem()
+	runner := NewRunner(compiler)
+	runner.SetCheckpointStores(cpStore, fakeJobStore)
+	runner.SetReplayContextBuilder(replay.NewReplayContextBuilder(eventStore))
+
+	err = runner.RunForJob(ctx, &runtime.Agent{ID: "a1"}, &JobForRunner{ID: jobID, AgentID: "a1", Goal: "test 3-node dag"})
+	if err != nil {
+		t.Fatalf("RunForJob: %v", err)
+	}
+
+	// Verify all nodes were called
+	if mockLLM.Calls() == 0 {
+		t.Fatalf("expected LLM to be called")
+	}
+	// Both tool nodes should have been called
+	if mockTool.Calls() < 2 {
+		t.Fatalf("expected at least 2 tool calls, got %d", mockTool.Calls())
+	}
+
+	// Verify final status
+	_, status := fakeJobStore.getLast()
+	const statusCompleted = 2
+	if status != statusCompleted {
+		t.Errorf("UpdateStatus status = %d, want %d", status, statusCompleted)
+	}
+}

@@ -391,7 +391,11 @@ func (h *Handler) UploadStatus(ctx context.Context, c *app.RequestContext) {
 
 // ListDocuments 列出文档
 func (h *Handler) ListDocuments(ctx context.Context, c *app.RequestContext) {
-	documents, err := h.docService.ListDocuments(ctx)
+	tenantID := auth.GetTenantID(ctx)
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	documents, err := h.docService.ListDocuments(ctx, tenantID)
 	if err != nil {
 		hlog.CtxErrorf(ctx, "获取文档列表failed: %v", err)
 		c.JSON(consts.StatusInternalServerError, map[string]string{
@@ -1367,8 +1371,16 @@ func (h *Handler) ListAgents(ctx context.Context, c *app.RequestContext) {
 		})
 		return
 	}
+	tenantID := auth.GetTenantID(ctx)
+	if tenantID == "" {
+		tenantID = "default"
+	}
 	agents := make([]map[string]interface{}, 0, len(list))
 	for _, a := range list {
+		// Filter by tenant ID via session
+		if a.Session != nil && a.Session.GetTenantID() != tenantID {
+			continue
+		}
 		agents = append(agents, map[string]interface{}{
 			"id":         a.ID,
 			"name":       a.Name,

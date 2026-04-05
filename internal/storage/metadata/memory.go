@@ -101,6 +101,11 @@ func (s *MemoryStore) List(ctx context.Context, filter *Filter, pagination *Pagi
 	// 应用过滤条件
 	for _, doc := range s.docs {
 		if filter != nil {
+			// 过滤租户 ID
+			if filter.TenantID != "" && doc.TenantID != filter.TenantID {
+				continue
+			}
+
 			// 过滤 ID
 			if len(filter.IDs) > 0 {
 				found := false
@@ -192,6 +197,11 @@ func (s *MemoryStore) Count(ctx context.Context, filter *Filter) (int64, error) 
 	// 应用过滤条件
 	for _, doc := range s.docs {
 		if filter != nil {
+			// 过滤租户 ID
+			if filter.TenantID != "" && doc.TenantID != filter.TenantID {
+				continue
+			}
+
 			// 过滤 ID
 			if len(filter.IDs) > 0 {
 				found := false

@@ -279,11 +279,15 @@ CREATE TABLE IF NOT EXISTS access_audit_log (
     resource_id   TEXT NOT NULL,
     success       BOOLEAN NOT NULL,
     duration_ms   INT,
+    client_ip     TEXT,
+    user_agent    TEXT,
+    request_id    TEXT,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_access_audit_tenant ON access_audit_log (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_access_audit_user ON access_audit_log (user_id);
 CREATE INDEX IF NOT EXISTS idx_access_audit_created ON access_audit_log (created_at);
+CREATE INDEX IF NOT EXISTS idx_access_audit_request_id ON access_audit_log (request_id);
 
 -- Job tombstones (2.0-M2): 删除后的审计记录
 CREATE TABLE IF NOT EXISTS job_tombstones (
