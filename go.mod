@@ -1,4 +1,4 @@
-module rag-platform
+module github.com/Colin4k1024/Aetheris
 
 go 1.26.1
 
