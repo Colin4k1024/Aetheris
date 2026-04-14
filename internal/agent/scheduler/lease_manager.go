@@ -19,7 +19,7 @@ import (
 	"context"
 	"time"
 
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // LeaseManager 对「租约持有、续租、过期」的接口抽象；可包装 jobstore 的 Claim/Heartbeat/ListJobIDsWithExpiredClaim。

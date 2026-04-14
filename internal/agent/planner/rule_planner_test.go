@@ -18,7 +18,7 @@ import (
 	"context"
 	"testing"
 
-	"rag-platform/internal/agent/memory"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/memory"
 )
 
 func TestRulePlanner_PlanGoal_DefaultSingleNode(t *testing.T) {

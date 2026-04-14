@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"rag-platform/pkg/config"
-	"rag-platform/pkg/log"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/log"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/adk"

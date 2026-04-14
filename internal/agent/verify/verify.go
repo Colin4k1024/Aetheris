@@ -22,8 +22,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"rag-platform/internal/agent/replay"
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/replay"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // Result Verification Mode 输出，供 API/CLI 返回。

@@ -22,13 +22,13 @@ import (
 	"sync"
 	"time"
 
-	"rag-platform/internal/agent/instance"
-	"rag-platform/internal/agent/job"
-	"rag-platform/internal/agent/messaging"
-	agentexec "rag-platform/internal/agent/runtime/executor"
-	"rag-platform/internal/runtime/jobstore"
-	"rag-platform/pkg/log"
-	"rag-platform/pkg/metrics"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/instance"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/job"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/messaging"
+	agentexec "github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/log"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/metrics"
 )
 
 // AgentJobRunner 从事件存储 Claim Job，从元数据存储取 Job，执行 Runner 并写回事件与状态；支持并发上限（Backpressure）与按能力派发

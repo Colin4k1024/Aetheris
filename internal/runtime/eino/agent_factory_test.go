@@ -17,7 +17,7 @@ package eino
 import (
 	"testing"
 
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 func TestNewAgentFactory(t *testing.T) {

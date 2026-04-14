@@ -22,7 +22,7 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/agent/runtime/executor"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
 )
 
 // mockChatModel 用于测试的 Mock ChatModel

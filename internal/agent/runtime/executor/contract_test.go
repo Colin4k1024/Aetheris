@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"rag-platform/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
 )
 
 // stepUsingContractHelpers is a step that uses only runtime.Clock(ctx) and runtime.RandIntn(ctx, n).

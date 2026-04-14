@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"rag-platform/pkg/proof"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/proof"
 )
 
 // JobSource 提供可查询的 Job 元数据。

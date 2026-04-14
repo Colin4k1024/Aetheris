@@ -18,8 +18,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"rag-platform/internal/runtime/session"
-	"rag-platform/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
 )
 
 // Wrap 将无 Session 的 tool.Tool 包装为 Session 感知的 tools.Tool（Execute 时忽略 session）

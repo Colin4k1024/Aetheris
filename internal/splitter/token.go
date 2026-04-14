@@ -17,8 +17,8 @@ package splitter
 import (
 	"strings"
 
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 	"github.com/google/uuid"
-	"rag-platform/internal/pipeline/common"
 )
 
 // TokenSplitter Token 切片器

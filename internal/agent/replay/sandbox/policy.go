@@ -17,8 +17,8 @@
 package sandbox
 
 import (
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/replay"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/replay"
 )
 
 // OperationKind 表示 Replay 时该操作的允许行为

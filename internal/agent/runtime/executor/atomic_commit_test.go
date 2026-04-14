@@ -19,7 +19,7 @@ import (
 	"sync"
 	"testing"
 
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // fakeLedgerEventSink 内存实现的 LedgerEventSink

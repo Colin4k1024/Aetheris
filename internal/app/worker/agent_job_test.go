@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"rag-platform/internal/agent/job"
-	"rag-platform/internal/runtime/jobstore"
-	"rag-platform/pkg/log"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/job"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/log"
 )
 
 func TestExecuteJob_ReturnsAfterRunJob(t *testing.T) {

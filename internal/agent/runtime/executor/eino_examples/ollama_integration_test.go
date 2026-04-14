@@ -21,7 +21,7 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/agent/runtime/executor"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
 )
 
 // TestOllamaReactAgent_Invoke 使用真实 Ollama LLM 测试 ReAct Agent

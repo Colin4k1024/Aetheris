@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	"rag-platform/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 )
 
 // DocumentParser 文档解析器

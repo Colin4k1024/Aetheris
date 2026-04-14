@@ -17,8 +17,8 @@ package sandbox
 import (
 	"testing"
 
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/replay"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/replay"
 )
 
 func TestOperationKindConstants(t *testing.T) {

@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 func TestDeriveStatusFromEvents(t *testing.T) {

@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"time"
 
-	"rag-platform/internal/agent/executor"
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/model/llm"
-	"rag-platform/internal/runtime/session"
-	"rag-platform/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/executor"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
 )
 
 // RunResult Agent 单次 Run 的结果

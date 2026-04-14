@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"sync"
 
-	"rag-platform/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
 )
 
 // Registry 工具注册表：注册、发现、供 LLM 使用的 Schema 列表

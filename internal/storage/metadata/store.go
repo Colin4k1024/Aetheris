@@ -17,7 +17,7 @@ package metadata
 import (
 	"fmt"
 
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 // NewStore 根据配置创建元数据存储（当前仅支持 memory）

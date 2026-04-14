@@ -18,7 +18,7 @@ import (
 	"context"
 	"testing"
 
-	"rag-platform/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
 )
 
 type testMockTool struct{}

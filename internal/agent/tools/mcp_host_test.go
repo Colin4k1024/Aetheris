@@ -18,7 +18,7 @@ import (
 	"context"
 	"testing"
 
-	"rag-platform/internal/runtime/session"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
 )
 
 type mockMCPInvoker struct {

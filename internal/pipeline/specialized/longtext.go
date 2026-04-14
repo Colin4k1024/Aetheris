@@ -23,8 +23,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"rag-platform/internal/pipeline/common"
-	"rag-platform/internal/pipeline/ingest"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/ingest"
 )
 
 const (

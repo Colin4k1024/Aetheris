@@ -19,8 +19,8 @@ import (
 	"strings"
 	"time"
 
-	"rag-platform/internal/model/llm"
-	"rag-platform/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 )
 
 // Generator 生成器

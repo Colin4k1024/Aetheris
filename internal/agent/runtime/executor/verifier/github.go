@@ -23,7 +23,7 @@ import (
 
 	"github.com/go-resty/resty/v2"
 
-	"rag-platform/internal/agent/runtime/executor"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
 )
 
 // GitHubVerifier 对 resource_type=github_issue 等做 Confirmation Replay：请求 external_ref 或构造 API URL 校验资源仍存在

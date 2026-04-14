@@ -9,7 +9,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/common/ut"
 
-	"rag-platform/internal/api/http/middleware"
+	"github.com/Colin4k1024/Aetheris/v2/internal/api/http/middleware"
 )
 
 func buildRouterForTest(forensicsExperimental bool) *server.Hertz {

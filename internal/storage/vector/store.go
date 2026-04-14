@@ -17,7 +17,7 @@ package vector
 import (
 	"fmt"
 
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 // NewStore 根据配置创建向量存储。type 为空或 "memory" 时返回内存实现；

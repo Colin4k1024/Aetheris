@@ -17,7 +17,7 @@ package eino
 import (
 	"context"
 
-	"rag-platform/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 )
 
 // Node 通用 Node 封装：将 Pipeline 阶段适配为可挂到 eino Graph 的节点（设计：Pipeline 是节点集合，顺序由 eino 决定）

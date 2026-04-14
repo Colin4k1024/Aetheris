@@ -17,10 +17,10 @@ package worker
 import (
 	"context"
 
-	"rag-platform/internal/agent/memory"
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/runtime"
-	"rag-platform/internal/agent/tools"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/memory"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/tools"
 )
 
 // planGoalProvider 与 api.planGoaler 一致：供 runtime.PlannerProvider 适配

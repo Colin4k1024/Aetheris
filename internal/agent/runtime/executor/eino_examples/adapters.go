@@ -25,8 +25,8 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/runtime/executor"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
 )
 
 // ============ ChatModel 接口定义 ============

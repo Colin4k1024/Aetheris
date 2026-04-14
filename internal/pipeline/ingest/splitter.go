@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/splitter"
 	"github.com/google/uuid"
-	"rag-platform/internal/pipeline/common"
-	"rag-platform/internal/splitter"
 )
 
 // DocumentSplitter 文档切片器；可委托 internal/splitter.Engine 统一切片（设计：所有切片逻辑收敛为 Splitter Engine）

@@ -17,9 +17,9 @@ package planner
 import (
 	"context"
 
-	"rag-platform/internal/agent/memory"
-	"rag-platform/internal/model/llm"
-	"rag-platform/internal/runtime/session"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/memory"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
 )
 
 // RulePlanner 规则规划器：不调用 LLM，返回固定或简单规则生成的 TaskGraph，用于稳定调试 Executor

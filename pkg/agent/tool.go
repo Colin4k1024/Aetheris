@@ -17,8 +17,8 @@ package agent
 import (
 	"context"
 
-	"rag-platform/internal/agent/tools"
-	"rag-platform/internal/runtime/session"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/tools"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
 )
 
 // ToolFunc 简单工具函数：无 Session 感知，供开发者注册

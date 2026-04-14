@@ -24,10 +24,10 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/google/uuid"
 
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/runtime"
-	"rag-platform/pkg/metrics"
-	"rag-platform/pkg/tracing"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/metrics"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/tracing"
 )
 
 // NodeRunner 单节点执行函数（用于 Steppable 执行与 node-level checkpoint）

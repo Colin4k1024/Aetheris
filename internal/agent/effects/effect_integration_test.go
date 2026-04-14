@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // TestJobStoreEffectLogIntegration_FullLifecycle 测试 EffectLog 完整生命周期

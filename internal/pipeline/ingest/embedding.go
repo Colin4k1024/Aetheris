@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"sync"
 
-	"rag-platform/internal/model/embedding"
-	"rag-platform/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/embedding"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 )
 
 // DocumentEmbedding 文档向量化器

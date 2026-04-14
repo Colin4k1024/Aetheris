@@ -22,7 +22,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/google/uuid"
 
-	"rag-platform/pkg/auth"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/auth"
 )
 
 // AuditMiddleware 访问审计中间件（2.0-M2）

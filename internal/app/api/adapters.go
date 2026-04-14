@@ -22,10 +22,10 @@ import (
 
 	einoretriever "github.com/cloudwego/eino/components/retriever"
 
-	"rag-platform/internal/pipeline/common"
-	"rag-platform/internal/pipeline/ingest"
-	"rag-platform/internal/pipeline/query"
-	"rag-platform/internal/runtime/eino"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/ingest"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/query"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
 )
 
 // Embedder 用于查询向量化的接口（与 model/embedding.Embedder 一致）

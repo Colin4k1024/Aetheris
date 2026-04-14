@@ -20,8 +20,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
-	"rag-platform/internal/agent/runtime/executor"
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // PlanGeneratedSinkImpl 将 Plan 结果写入事件流，供 Trace/Replay 使用

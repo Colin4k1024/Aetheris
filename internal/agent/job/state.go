@@ -15,7 +15,7 @@
 package job
 
 import (
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // DeriveStatusFromEvents 从事件流推导 Job 当前状态；事件流为权威来源（design/job-state-machine.md）。

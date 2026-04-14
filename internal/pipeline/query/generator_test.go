@@ -18,8 +18,8 @@ import (
 	"context"
 	"testing"
 
-	"rag-platform/internal/model/llm"
-	"rag-platform/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 )
 
 // mockLLMClient is a mock implementation of llm.Client

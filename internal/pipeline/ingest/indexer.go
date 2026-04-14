@@ -23,9 +23,9 @@ import (
 	einoindexer "github.com/cloudwego/eino/components/indexer"
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/pipeline/common"
-	"rag-platform/internal/storage/metadata"
-	"rag-platform/internal/storage/vector"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/storage/metadata"
+	"github.com/Colin4k1024/Aetheris/v2/internal/storage/vector"
 )
 
 // DocumentIndexer 文档索引器（支持直接使用 vector.Store 或 Eino indexer.Indexer）

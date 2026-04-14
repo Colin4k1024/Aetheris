@@ -27,8 +27,8 @@ import (
 	"github.com/cloudwego/eino/flow/agent/react"
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/agent/runtime/executor"
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 // ============ Agent 接口定义 ============

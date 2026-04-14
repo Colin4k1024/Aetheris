@@ -19,8 +19,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // StateChangeRecord 单条外部资源变更（从 state_changed 事件解析），供 Confirmation Replay 校验

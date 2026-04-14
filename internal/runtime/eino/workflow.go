@@ -24,7 +24,7 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"go.opentelemetry.io/otel/attribute"
 
-	"rag-platform/pkg/tracing"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/tracing"
 )
 
 // WorkflowConfig 工作流配置

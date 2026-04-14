@@ -23,7 +23,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"rag-platform/pkg/metrics"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/metrics"
 )
 
 const leaseDuration = 30 * time.Second

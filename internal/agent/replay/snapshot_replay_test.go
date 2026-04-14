@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // TestSnapshotReplay_SerializeDeserializeRoundtrip 验证 ReplayContext 经 Serialize/Deserialize 后数据完整性。

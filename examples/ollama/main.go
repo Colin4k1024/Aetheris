@@ -22,8 +22,8 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	eino_examples "rag-platform/internal/agent/runtime/executor/eino_examples"
-	"rag-platform/internal/model/llm"
+	eino_examples "github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor/eino_examples"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
 )
 
 // OllamaChatModel 将 ll eino_examples.Chatm.Client 转换为Model

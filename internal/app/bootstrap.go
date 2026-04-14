@@ -17,10 +17,10 @@ package app
 import (
 	"fmt"
 
-	"rag-platform/internal/storage/metadata"
-	"rag-platform/internal/storage/vector"
-	"rag-platform/pkg/config"
-	"rag-platform/pkg/log"
+	"github.com/Colin4k1024/Aetheris/v2/internal/storage/metadata"
+	"github.com/Colin4k1024/Aetheris/v2/internal/storage/vector"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/log"
 )
 
 // Bootstrap 统一初始化：供 api 与 worker 复用，避免在 cmd 内写业务与 pipeline

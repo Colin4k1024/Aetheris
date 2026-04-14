@@ -17,7 +17,7 @@ package executor
 import (
 	"testing"
 
-	"rag-platform/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
 )
 
 func TestIsWaitLikeNodeType(t *testing.T) {

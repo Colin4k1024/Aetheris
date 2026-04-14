@@ -182,7 +182,7 @@ func WritePluginTemplate(dir, name, author string) error {
 
 import (
 	"context"
-	"rag-platform/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
 )
 
 // ExampleTool 示例工具

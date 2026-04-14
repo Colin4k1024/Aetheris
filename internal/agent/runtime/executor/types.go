@@ -19,8 +19,8 @@ import (
 	"errors"
 	"fmt"
 
-	"rag-platform/internal/agent/runtime"
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // ErrJobWaiting 表示 Job 在 Wait 节点挂起，等待 signal/continue 后由其他 Worker 认领继续（design/job-state-machine.md）

@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"rag-platform/internal/storage/embedded"
+	"github.com/Colin4k1024/Aetheris/v2/internal/storage/embedded"
 )
 
 type embeddedState struct {

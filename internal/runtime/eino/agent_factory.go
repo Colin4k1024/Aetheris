@@ -24,7 +24,7 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
 
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 // AgentBuildConfig 单个 Agent 的构建配置（用于 AgentFactory）

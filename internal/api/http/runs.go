@@ -9,8 +9,8 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"rag-platform/internal/runtime/eino"
-	"rag-platform/pkg/metrics"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/metrics"
 )
 
 type createRunRequest struct {

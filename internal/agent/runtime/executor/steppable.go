@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"sort"
 
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
 )
 
 // SteppableStep 单步：节点 ID、类型 + 执行函数（按拓扑序）；NodeType 用于 Runner 区分 success vs side_effect_committed

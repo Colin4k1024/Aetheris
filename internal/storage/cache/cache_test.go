@@ -17,7 +17,7 @@ package cache
 import (
 	"testing"
 
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 func TestNewCache_Memory(t *testing.T) {

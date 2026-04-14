@@ -17,7 +17,7 @@ package memory
 import (
 	"sync"
 
-	"rag-platform/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
 )
 
 const defaultMaxMessages = 50

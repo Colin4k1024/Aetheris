@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"sync"
 
-	"rag-platform/internal/model/embedding"
-	"rag-platform/internal/model/llm"
-	"rag-platform/internal/model/vision"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/embedding"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/vision"
 )
 
 // Registry 模型注册表，支持按名称/类型解析 LLM、Embedding、Vision，便于运行时切换

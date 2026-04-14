@@ -19,7 +19,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // AttemptValidator 校验当前 writer 是否仍为该 job 的租约持有者；用于 Ledger Commit 等写操作的 Lease fencing（design/scheduler-correctness.md）

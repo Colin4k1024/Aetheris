@@ -27,7 +27,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"rag-platform/pkg/metrics"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/metrics"
 )
 
 const defaultLeaseDuration = 30 * time.Second

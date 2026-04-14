@@ -17,7 +17,7 @@ package builtin
 import (
 	"context"
 
-	"rag-platform/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
 )
 
 // PromptGenerator 生成文本的接口（可由 eino.Generator 或 llm.Client 适配）

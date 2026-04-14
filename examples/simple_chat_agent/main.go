@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"os"
 
-	"rag-platform/pkg/agent"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/agent"
 )
 
 func main() {

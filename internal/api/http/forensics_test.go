@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"rag-platform/internal/runtime/jobstore"
-	"rag-platform/pkg/proof"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/proof"
 )
 
 func TestBuildForensicsPackage_ProofCompatible(t *testing.T) {

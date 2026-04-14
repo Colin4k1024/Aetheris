@@ -22,7 +22,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"rag-platform/pkg/compliance"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/compliance"
 )
 
 // ComplianceTemplates 获取合规模板列表（3.0-M4）

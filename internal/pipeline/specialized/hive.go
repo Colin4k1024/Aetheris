@@ -15,7 +15,7 @@
 package specialized
 
 import (
-	"rag-platform/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 )
 
 // HIVEPipeline 处理 HIVE 数据源的专用 Pipeline（占位，便于后续与 eino 挂接）

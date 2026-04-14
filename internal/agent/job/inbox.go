@@ -18,8 +18,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"rag-platform/internal/agent/messaging"
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/messaging"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // CreateJobFromInbox 从 Agent 收件箱取第一条未消费消息，创建 Job 并 MarkConsumed；供 Worker inbox 轮询实现「message arrival → scheduler → run」（design/plan.md Phase A）

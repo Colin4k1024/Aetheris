@@ -17,7 +17,7 @@ package replay
 import (
 	"context"
 
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // History 事件流迭代器：按序消费 Job 事件，供 Runner 以「事件驱动」方式决定下一步（plan 3.1 B）

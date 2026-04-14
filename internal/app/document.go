@@ -17,7 +17,7 @@ package app
 import (
 	"context"
 
-	"rag-platform/internal/storage/metadata"
+	"github.com/Colin4k1024/Aetheris/v2/internal/storage/metadata"
 )
 
 // DocumentInfo 文档信息 DTO，供 API 层使用，不依赖 storage 具体类型

@@ -15,8 +15,8 @@
 package tools
 
 import (
-	"rag-platform/internal/runtime/eino"
-	"rag-platform/internal/tool/builtin"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool/builtin"
 )
 
 // RegisterBuiltin 将 tool/builtin 包装为 Session 感知工具并注册到 agent/tools.Registry
