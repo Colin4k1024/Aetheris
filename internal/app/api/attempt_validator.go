@@ -17,8 +17,8 @@ package api
 import (
 	"context"
 
-	agentexec "rag-platform/internal/agent/runtime/executor"
-	"rag-platform/internal/runtime/jobstore"
+	agentexec "github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // attemptValidator 使用 event store 的当前租约校验 context 中的 attempt_id，供 Ledger Commit 等写操作 Lease fencing（design/scheduler-correctness.md）

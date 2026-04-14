@@ -22,10 +22,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/replay"
-	"rag-platform/internal/agent/runtime"
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/replay"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // fakeJobStoreForRunner 记录 UpdateStatus 调用，用于断言 RunForJob 无 PlanGenerated 时置 Job Failed（design/runtime-contract.md §5）

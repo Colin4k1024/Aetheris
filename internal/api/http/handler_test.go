@@ -25,11 +25,11 @@ import (
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/common/ut"
 
-	"rag-platform/internal/agent/job"
-	"rag-platform/internal/agent/signal"
-	"rag-platform/internal/api/http/middleware"
-	"rag-platform/internal/runtime/jobstore"
-	"rag-platform/pkg/auth"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/job"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/signal"
+	"github.com/Colin4k1024/Aetheris/v2/internal/api/http/middleware"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/auth"
 )
 
 func TestHealthCheck(t *testing.T) {

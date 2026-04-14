@@ -17,7 +17,7 @@ package tools
 import (
 	"context"
 
-	"rag-platform/internal/runtime/session"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
 )
 
 // ToolResult 工具执行结果；支持未完成时挂起、再次进入时携带 State

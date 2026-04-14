@@ -17,7 +17,7 @@ package einoext
 import (
 	"testing"
 
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 func TestRedisOptionsFromVectorConfig_Defaults(t *testing.T) {

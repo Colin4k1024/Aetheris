@@ -22,11 +22,11 @@ import (
 	"strconv"
 	"time"
 
-	"rag-platform/internal/agent/replay"
-	runtimeeffects "rag-platform/internal/agent/runtime/effects"
-	agentexec "rag-platform/internal/agent/runtime/executor"
-	"rag-platform/internal/runtime/eino"
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/replay"
+	runtimeeffects "github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/effects"
+	agentexec "github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // Ensure node_sink implements the extended NodeEventSink with resultType/reason.

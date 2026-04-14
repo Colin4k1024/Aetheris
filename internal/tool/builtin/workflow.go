@@ -18,8 +18,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"rag-platform/internal/runtime/eino"
-	"rag-platform/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
 )
 
 // WorkflowTool 实现 workflow.run：按名称执行已注册工作流

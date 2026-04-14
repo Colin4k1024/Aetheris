@@ -18,8 +18,8 @@ import (
 	"context"
 	"time"
 
-	agenteffects "rag-platform/internal/agent/runtime/effects"
-	"rag-platform/pkg/agent/sdk"
+	agenteffects "github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/effects"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/agent/sdk"
 )
 
 // runtimeContextAdapter 实现 sdk.RuntimeContext，委托 effects 包并固定 jobID/stepID（2.0 Step Contract）

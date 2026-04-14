@@ -19,10 +19,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"rag-platform/internal/tool"
-	"rag-platform/internal/tool/gatekeeper"
-	"rag-platform/internal/tool/registry"
-	"rag-platform/internal/tool/types"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool/gatekeeper"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool/registry"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool/types"
 )
 
 // MCPProtocolVersion MCP 协议版本

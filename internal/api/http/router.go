@@ -15,8 +15,8 @@
 package http
 
 import (
-	"rag-platform/internal/api/http/middleware"
-	"rag-platform/pkg/auth"
+	"github.com/Colin4k1024/Aetheris/v2/internal/api/http/middleware"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/auth"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"

@@ -25,9 +25,9 @@ import (
 	"syscall"
 	"time"
 
-	"rag-platform/internal/app"
-	"rag-platform/internal/app/api"
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/internal/app"
+	"github.com/Colin4k1024/Aetheris/v2/internal/app/api"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 var devMode = flag.Bool("dev", false, "Enable development mode (in-memory stores, no auth)")

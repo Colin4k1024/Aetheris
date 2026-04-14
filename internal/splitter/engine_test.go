@@ -17,7 +17,7 @@ package splitter
 import (
 	"testing"
 
-	"rag-platform/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 )
 
 type testSplitter struct {

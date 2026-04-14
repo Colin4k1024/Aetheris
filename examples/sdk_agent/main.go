@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"log"
 
-	"rag-platform/pkg/agent/sdk"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/agent/sdk"
 )
 
 // MockRuntime 内存实现的 AgentRuntime，仅用于示例：Submit 立即返回 jobID，WaitCompleted 立即返回 completed + 固定回答

@@ -23,8 +23,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 	"github.com/google/uuid"
-	"rag-platform/internal/pipeline/common"
 )
 
 // DocumentLoader 文档加载器

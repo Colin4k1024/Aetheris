@@ -18,7 +18,7 @@ import (
 	"errors"
 	"time"
 
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // JobStatus 任务状态；与 design/job-state-machine.md 一致，可由事件流推导（DeriveStatusFromEvents）

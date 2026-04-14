@@ -22,7 +22,7 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/runtime/session"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
 )
 
 // RuntimeTool 运行时工具接口（避免直接依赖 agent/tools 造成循环引用）

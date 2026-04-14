@@ -19,7 +19,7 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 )
 
 // CommonDocumentToSchema 将 common.Document 转为单个 schema.Document（用于 Loader 输出）

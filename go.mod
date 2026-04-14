@@ -1,4 +1,4 @@
-module github.com/Colin4k1024/Aetheris
+module github.com/Colin4k1024/Aetheris/v2
 
 go 1.26.1
 

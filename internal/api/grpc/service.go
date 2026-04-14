@@ -24,11 +24,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"rag-platform/internal/api/grpc/pb"
-	appcore "rag-platform/internal/app"
-	"rag-platform/internal/pipeline/common"
-	"rag-platform/internal/runtime/eino"
-	"rag-platform/pkg/auth"
+	"github.com/Colin4k1024/Aetheris/v2/internal/api/grpc/pb"
+	appcore "github.com/Colin4k1024/Aetheris/v2/internal/app"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/auth"
 )
 
 // Server gRPC 服务端，持有 Engine 与 DocumentService

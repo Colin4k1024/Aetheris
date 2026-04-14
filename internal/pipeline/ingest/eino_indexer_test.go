@@ -20,7 +20,7 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/storage/vector"
+	"github.com/Colin4k1024/Aetheris/v2/internal/storage/vector"
 )
 
 func TestMemoryIndexer_Store(t *testing.T) {

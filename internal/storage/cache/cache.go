@@ -17,7 +17,7 @@ package cache
 import (
 	"fmt"
 
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 // NewCache 根据配置创建缓存（设计 struct.md 3.6 cache.go 统一入口）

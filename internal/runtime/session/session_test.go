@@ -17,7 +17,7 @@ package session
 import (
 	"testing"
 
-	"rag-platform/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
 )
 
 func TestNew(t *testing.T) {

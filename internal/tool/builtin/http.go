@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"rag-platform/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
 )
 
 // DefaultTimeout 是默认 HTTP 请求超时

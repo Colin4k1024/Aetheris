@@ -22,9 +22,9 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/agent/tools"
-	"rag-platform/internal/runtime/eino"
-	"rag-platform/internal/runtime/session"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/tools"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
 )
 
 const (

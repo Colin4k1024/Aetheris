@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"rag-platform/internal/storage/vector"
+	"github.com/Colin4k1024/Aetheris/v2/internal/storage/vector"
 )
 
 // Embedder interface for generating embeddings

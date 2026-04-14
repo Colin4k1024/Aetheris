@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"strings"
 
-	"rag-platform/internal/model/embedding"
-	"rag-platform/internal/model/llm"
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/embedding"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 // NewLLMClientFromConfig 根据 config.Model 的 defaults.llm 创建 LLM 客户端（如 "openai.gpt_35_turbo"）

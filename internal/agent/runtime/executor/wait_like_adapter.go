@@ -19,8 +19,8 @@ import (
 
 	"github.com/cloudwego/eino/compose"
 
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
 )
 
 // ApprovalNodeAdapter 审批节点适配器；运行时挂起逻辑由 Runner 统一处理（与 wait 一致）。

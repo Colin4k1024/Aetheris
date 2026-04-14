@@ -20,7 +20,7 @@ import (
 	"log/slog"
 	"time"
 
-	"rag-platform/pkg/effects"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/effects"
 )
 
 // EffectAdapter wraps an LLM Client with the effects system.

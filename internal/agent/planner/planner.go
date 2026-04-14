@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"strings"
 
-	"rag-platform/internal/agent/memory"
-	"rag-platform/internal/model/llm"
-	"rag-platform/internal/runtime/session"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/memory"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
 )
 
 // PlanStep 计划中的单步：调用的工具及入参

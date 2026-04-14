@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	"rag-platform/pkg/metrics"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/metrics"
 )
 
 // RateLimitedClient 包装任意 LLM Client，在真实调用前后执行限流控制。

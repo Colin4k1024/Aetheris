@@ -21,7 +21,7 @@ import (
 	einoembed "github.com/cloudwego/eino/components/embedding"
 	einoretriever "github.com/cloudwego/eino/components/retriever"
 
-	"rag-platform/internal/storage/vector"
+	"github.com/Colin4k1024/Aetheris/v2/internal/storage/vector"
 )
 
 // mockEinoEmbedder 测试用：固定返回 4 维向量

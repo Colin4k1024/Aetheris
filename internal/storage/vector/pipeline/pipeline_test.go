@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"rag-platform/internal/storage/vector"
+	"github.com/Colin4k1024/Aetheris/v2/internal/storage/vector"
 )
 
 // mockEmbedder is a mock embedder for testing

@@ -15,7 +15,7 @@
 package specialized
 
 import (
-	"rag-platform/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 )
 
 // JSONLPipeline 处理 JSONL 格式的专用 Pipeline（占位，便于后续与 eino 挂接）

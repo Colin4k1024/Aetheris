@@ -19,11 +19,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/tools"
-	"rag-platform/internal/runtime/session"
-	"rag-platform/internal/tool"
-	"rag-platform/internal/tool/registry"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/tools"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool/registry"
 )
 
 // Executor 按计划步骤执行工具调用（Session 感知）

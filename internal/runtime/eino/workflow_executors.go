@@ -20,13 +20,13 @@ import (
 	"mime/multipart"
 	"time"
 
-	"rag-platform/internal/model/embedding"
-	"rag-platform/internal/pipeline/common"
-	"rag-platform/internal/pipeline/ingest"
-	"rag-platform/internal/pipeline/query"
-	"rag-platform/pkg/log"
-	"rag-platform/pkg/metrics"
-	"rag-platform/pkg/tracing"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/embedding"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/ingest"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/query"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/log"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/metrics"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/tracing"
 )
 
 // ingestWorkflowExecutor 执行 ingest 工作流：loader → parser → splitter → [embedding] → [indexer]

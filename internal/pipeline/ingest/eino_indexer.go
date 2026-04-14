@@ -22,7 +22,7 @@ import (
 	einoindexer "github.com/cloudwego/eino/components/indexer"
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/storage/vector"
+	"github.com/Colin4k1024/Aetheris/v2/internal/storage/vector"
 )
 
 // MemoryIndexer 基于 vector.Store 实现的 Eino indexer.Indexer（memory 后端）

@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // LedgerEventSink 写入 Ledger 原子性事件：ledger_acquired（执行权获取）和 ledger_committed（结果提交）

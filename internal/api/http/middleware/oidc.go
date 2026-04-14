@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"rag-platform/pkg/security/sso"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/security/sso"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/hlog"

@@ -20,8 +20,8 @@ import (
 	"sync"
 	"time"
 
-	"rag-platform/internal/agent/runtime"
-	agentexec "rag-platform/internal/agent/runtime/executor"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
+	agentexec "github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
 )
 
 // JobRunner 后台拉取 Pending Job 并调用 executor.Runner 执行

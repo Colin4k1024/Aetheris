@@ -19,8 +19,8 @@ import (
 	"strings"
 	"testing"
 
-	"rag-platform/internal/agent/memory"
-	"rag-platform/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/memory"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
 )
 
 // mockLLMClient 记录 ChatWithContext 收到的第一条 system 消息，并返回预定义 TaskGraph JSON

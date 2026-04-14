@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"os"
 
-	"rag-platform/internal/runtime/eino"
-	"rag-platform/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
 )
 
 // IngestTool 实现 knowledge.add_document：调用 ingest_pipeline

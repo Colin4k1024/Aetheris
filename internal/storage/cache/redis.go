@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Colin4k1024/Aetheris/v2/pkg/metrics"
 	"github.com/redis/go-redis/v9"
-	"rag-platform/pkg/metrics"
 )
 
 // RedisStore Redis 缓存存储实现

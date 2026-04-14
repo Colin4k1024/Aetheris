@@ -19,8 +19,8 @@ import (
 
 	"github.com/cloudwego/eino/compose"
 
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
 )
 
 // WaitNodeAdapter 将 wait 型 TaskNode 转为 DAG 节点；实际挂起与恢复由 Runner 在 runLoop 中处理（写 JobWaiting、返回 ErrJobWaiting）

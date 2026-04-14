@@ -41,7 +41,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"rag-platform/internal/runtime/eino"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
 )
 
 func main() {

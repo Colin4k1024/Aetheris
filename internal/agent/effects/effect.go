@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // EffectKind 效应类型（逻辑分类）；存储时映射为 jobstore.EventType，见 design/effect-system.md

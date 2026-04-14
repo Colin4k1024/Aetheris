@@ -20,10 +20,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Colin4k1024/Aetheris/v2/pkg/security/signer"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
-	"rag-platform/pkg/security/signer"
 )
 
 // SignerMiddleware API 请求签名验证中间件

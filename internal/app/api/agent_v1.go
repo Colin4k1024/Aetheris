@@ -18,10 +18,10 @@ import (
 	"context"
 	"fmt"
 
-	"rag-platform/internal/agent/memory"
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/runtime"
-	"rag-platform/internal/agent/tools"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/memory"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/tools"
 )
 
 // planGoaler 仅需 PlanGoal，供 Agent 执行 DAG 使用；*planner.LLMPlanner 与 *planner.RulePlanner 均实现此接口

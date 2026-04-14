@@ -24,8 +24,8 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/model/llm"
-	"rag-platform/pkg/metrics"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/metrics"
 )
 
 // OllamaChatModel 将 llm.Client 转换为 eino_examples.ChatModel 接口

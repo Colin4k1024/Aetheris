@@ -18,7 +18,7 @@ import (
 	"context"
 	"sync"
 
-	"rag-platform/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
 )
 
 // WorkingSession 基于 runtime.Session 的 Working Memory：当前上下文（Messages / Variables）

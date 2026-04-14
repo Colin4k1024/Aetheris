@@ -21,14 +21,14 @@ import (
 	einomodel "github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/runtime"
-	agentexec "rag-platform/internal/agent/runtime/executor"
-	"rag-platform/internal/agent/tools"
-	"rag-platform/internal/model/llm"
-	"rag-platform/internal/runtime/eino"
-	runtimesession "rag-platform/internal/runtime/session"
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
+	agentexec "github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/tools"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
+	runtimesession "github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 // llmGenAdapter 将 llm.Client 适配为 executor.LLMGen

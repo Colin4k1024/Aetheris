@@ -23,8 +23,8 @@ import (
 	"syscall"
 	"time"
 
-	"rag-platform/internal/app/worker"
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/internal/app/worker"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 func main() {

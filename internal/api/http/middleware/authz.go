@@ -20,7 +20,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"rag-platform/pkg/auth"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/auth"
 )
 
 // AuthZMiddleware 授权中间件（2.0-M2 RBAC）

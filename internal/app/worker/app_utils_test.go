@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 func TestValidateProductionRuntimeConfig_Worker(t *testing.T) {

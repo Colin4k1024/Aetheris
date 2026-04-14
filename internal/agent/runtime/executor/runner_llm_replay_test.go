@@ -22,10 +22,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/replay"
-	"rag-platform/internal/agent/runtime"
-	"rag-platform/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/replay"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 )
 
 // mockLLMWithCallCount LLM mock，记录 Generate 调用次数（用于断言 Replay 不调用 LLM）

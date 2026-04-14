@@ -28,9 +28,9 @@ import (
 	"strings"
 	"time"
 
-	"rag-platform/pkg/config"
-	"rag-platform/pkg/proof"
-	"rag-platform/pkg/signature"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/proof"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/signature"
 )
 
 //go:embed templates/agent-minimal

@@ -22,7 +22,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"rag-platform/pkg/metrics"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/metrics"
 )
 
 // LLMLimitConfig LLM Provider 限流配置

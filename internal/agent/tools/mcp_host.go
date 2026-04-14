@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"rag-platform/internal/agent/tools/mcp"
-	"rag-platform/internal/runtime/session"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/tools/mcp"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
 )
 
 // MCPInvoker bridges runtime tool calls to MCP servers.

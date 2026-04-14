@@ -21,7 +21,7 @@ import (
 	einodoc "github.com/cloudwego/eino/components/document"
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 )
 
 // SplitterTransformer 实现 Eino document.Transformer，包装 Parser + Splitter，对 []*schema.Document 做解析与切片

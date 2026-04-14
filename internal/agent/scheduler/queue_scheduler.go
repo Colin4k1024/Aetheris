@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"rag-platform/internal/agent/job"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/job"
 )
 
 // FairnessPolicy 公平性策略配置

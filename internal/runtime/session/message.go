@@ -17,7 +17,7 @@ package session
 import (
 	"time"
 
-	"rag-platform/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
 )
 
 // Message 对话消息（与 llm.Message 语义对齐，带时间戳）

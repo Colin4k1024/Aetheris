@@ -17,8 +17,8 @@ package ingest
 import (
 	"testing"
 
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 	"github.com/cloudwego/eino/schema"
-	"rag-platform/internal/pipeline/common"
 )
 
 func TestCommonDocumentToSchema(t *testing.T) {

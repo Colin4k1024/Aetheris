@@ -21,12 +21,12 @@ import (
 	"sync"
 	"time"
 
-	coreagent "rag-platform/internal/agent"
-	"rag-platform/internal/agent/executor"
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/tools"
-	"rag-platform/internal/model/llm"
-	"rag-platform/internal/runtime/session"
+	coreagent "github.com/Colin4k1024/Aetheris/v2/internal/agent"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/executor"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/tools"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
 )
 
 // RunResult 单次 Run 的简化结果（最终回答、步数、耗时）

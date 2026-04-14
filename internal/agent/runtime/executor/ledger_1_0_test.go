@@ -20,7 +20,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"rag-platform/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
 )
 
 const (

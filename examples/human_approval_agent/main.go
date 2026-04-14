@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"log"
 
-	"rag-platform/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
 )
 
 // HumanApprovalAgent demonstrates human-in-the-loop workflow

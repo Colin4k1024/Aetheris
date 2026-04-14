@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
-	"rag-platform/internal/agent/job"
-	"rag-platform/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/job"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
 )
 
 // fakeRunFunc tracks how many times each scheduler's run function was called.

@@ -23,8 +23,8 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/stretchr/testify/assert"
 
-	"rag-platform/internal/agent/planner"
-	"rag-platform/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
 )
 
 // fakeJobStoreWithCursor tracks cursor and status for recovery testing

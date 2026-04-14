@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	agentexec "rag-platform/internal/agent/runtime/executor"
-	"rag-platform/pkg/metrics"
+	agentexec "github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/metrics"
 )
 
 // RunJobFunc 执行单条 Job 的回调（由应用层注入，如 Runner.RunForJob）

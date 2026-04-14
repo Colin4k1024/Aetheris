@@ -22,8 +22,8 @@ import (
 	"sync"
 	"time"
 
-	"rag-platform/internal/tool"
-	"rag-platform/internal/tool/types"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool/types"
 )
 
 // Gatekeeper 本地护栏：参数验证、网络安全检查

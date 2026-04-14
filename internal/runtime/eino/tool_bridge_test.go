@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"rag-platform/internal/runtime/session"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
 )
 
 // mockRuntimeTool 用于测试的 Mock Tool

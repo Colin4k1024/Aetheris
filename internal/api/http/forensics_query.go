@@ -29,13 +29,13 @@ import (
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"github.com/google/uuid"
 
-	"rag-platform/internal/agent/job"
-	"rag-platform/internal/runtime/jobstore"
-	"rag-platform/pkg/ai_forensics"
-	"rag-platform/pkg/auth"
-	"rag-platform/pkg/evidence"
-	"rag-platform/pkg/forensics"
-	"rag-platform/pkg/proof"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/job"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/ai_forensics"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/auth"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/evidence"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/forensics"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/proof"
 )
 
 var (

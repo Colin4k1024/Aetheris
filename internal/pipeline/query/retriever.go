@@ -20,8 +20,8 @@ import (
 	"strconv"
 	"time"
 
-	"rag-platform/internal/pipeline/common"
-	"rag-platform/internal/storage/vector"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/storage/vector"
 )
 
 // Retriever 检索器（使用 vector.Store.Search 适配，不依赖 Retrieve 接口）

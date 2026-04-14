@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"rag-platform/pkg/proof"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/proof"
 )
 
 type testJobStore struct {

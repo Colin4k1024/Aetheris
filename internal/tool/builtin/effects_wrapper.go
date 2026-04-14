@@ -20,8 +20,8 @@ import (
 	"net/http"
 	"time"
 
-	"rag-platform/internal/tool"
-	"rag-platform/pkg/effects"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/effects"
 )
 
 // EffectsToolAdapter wraps any tool.Tool with effects isolation.

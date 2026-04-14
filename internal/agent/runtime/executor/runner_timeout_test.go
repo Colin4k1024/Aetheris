@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"rag-platform/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
 )
 
 type timeoutNodeSink struct {

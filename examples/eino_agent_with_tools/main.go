@@ -41,9 +41,9 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
 
-	"rag-platform/internal/agent/runtime/executor"
-	eino_examples "rag-platform/internal/agent/runtime/executor/eino_examples"
-	"rag-platform/internal/model/llm"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
+	eino_examples "github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor/eino_examples"
+	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
 )
 
 // ToolInput 工具输入参数

@@ -4,7 +4,7 @@
 package compliance
 
 import (
-	"rag-platform/pkg/redaction"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/redaction"
 )
 
 // ComplianceTemplate 合规模板

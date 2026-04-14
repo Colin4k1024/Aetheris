@@ -15,9 +15,9 @@
 package builtin
 
 import (
-	"rag-platform/internal/runtime/eino"
-	"rag-platform/internal/tool"
-	"rag-platform/internal/tool/registry"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool/registry"
 )
 
 // RegisterBuiltin 将内置工具注册到 ToolRegistry（需传入已装配的 engine 与 generator）

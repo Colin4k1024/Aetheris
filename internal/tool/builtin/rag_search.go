@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"time"
 
-	"rag-platform/internal/pipeline/common"
-	"rag-platform/internal/runtime/eino"
-	"rag-platform/internal/tool"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
+	"github.com/Colin4k1024/Aetheris/v2/internal/tool"
 )
 
 // RAGSearchTool 实现 knowledge.search：调用 query_pipeline

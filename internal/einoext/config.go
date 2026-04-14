@@ -19,7 +19,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 // RedisOptionsFromVectorConfig 从 VectorConfig 构造 redis.Options（type=redis 时使用）

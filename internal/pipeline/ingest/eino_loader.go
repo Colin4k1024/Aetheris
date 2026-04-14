@@ -22,7 +22,7 @@ import (
 	einodoc "github.com/cloudwego/eino/components/document"
 	"github.com/cloudwego/eino/schema"
 
-	"rag-platform/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
 )
 
 // URIDocumentLoader 实现 Eino document.Loader，包装 ingest.DocumentLoader，支持 Source.URI（文件路径或 file://）

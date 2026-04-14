@@ -18,7 +18,7 @@ import (
 	"context"
 	"testing"
 
-	"rag-platform/pkg/effects"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/effects"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

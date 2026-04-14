@@ -18,8 +18,8 @@ import (
 	"context"
 	"testing"
 
-	"rag-platform/internal/pipeline/common"
-	"rag-platform/internal/storage/vector"
+	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
+	"github.com/Colin4k1024/Aetheris/v2/internal/storage/vector"
 )
 
 // mockVectorStore is a mock implementation of vector.Store
