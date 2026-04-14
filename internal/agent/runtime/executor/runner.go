@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"time"
 
@@ -511,6 +512,7 @@ func (r *Runner) runParallelLevel(
 	cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, j.ID, lastNodeID, graphBytes, payloadResults, nil)
 	cpID, saveErr := r.checkpointStore.Save(ctx, cp)
 	if saveErr != nil {
+		slog.Error("executor: save checkpoint failed", "jobID", j.ID, "error", saveErr)
 		_ = r.jobStore.UpdateStatus(ctx, j.ID, 3)
 		return fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
 	}
@@ -689,6 +691,7 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 				cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, jobID, step.NodeID, graphBytes, payloadResults, nil)
 				cpID, saveErr := r.checkpointStore.Save(ctx, cp)
 				if saveErr != nil {
+					slog.Error("executor: save checkpoint failed", "jobID", j.ID, "error", saveErr)
 					_ = r.jobStore.UpdateStatus(ctx, jobID, statusFailed)
 					return false, fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
 				}
@@ -729,6 +732,7 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 				cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, jobID, step.NodeID, graphBytes, payloadResults, nil)
 				cpID, saveErr := r.checkpointStore.Save(ctx, cp)
 				if saveErr != nil {
+					slog.Error("executor: save checkpoint failed", "jobID", j.ID, "error", saveErr)
 					_ = r.jobStore.UpdateStatus(ctx, jobID, statusFailed)
 					return false, fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
 				}
@@ -894,6 +898,7 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 	cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, jobID, step.NodeID, graphBytes, payloadResults, nil)
 	cpID, saveErr := r.checkpointStore.Save(ctx, cp)
 	if saveErr != nil {
+		slog.Error("executor: save checkpoint failed", "jobID", j.ID, "error", saveErr)
 		_ = r.jobStore.UpdateStatus(ctx, jobID, statusFailed)
 		return false, fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
 	}
@@ -1151,6 +1156,7 @@ runLoop:
 					cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, j.ID, step.NodeID, graphBytes, payloadResults, nil)
 					cpID, saveErr := r.checkpointStore.Save(ctx, cp)
 					if saveErr != nil {
+						slog.Error("executor: save checkpoint failed", "jobID", j.ID, "error", saveErr)
 						_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
 						return fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
 					}
@@ -1196,6 +1202,7 @@ runLoop:
 					cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, j.ID, step.NodeID, graphBytes, payloadResults, nil)
 					cpID, saveErr := r.checkpointStore.Save(ctx, cp)
 					if saveErr != nil {
+						slog.Error("executor: save checkpoint failed", "jobID", j.ID, "error", saveErr)
 						_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
 						return fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
 					}
@@ -1506,6 +1513,7 @@ runLoop:
 		cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, j.ID, step.NodeID, graphBytes, payloadResults, nil)
 		cpID, saveErr := r.checkpointStore.Save(ctx, cp)
 		if saveErr != nil {
+			slog.Error("executor: save checkpoint failed", "jobID", j.ID, "error", saveErr)
 			_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
 			return fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
 		}

@@ -17,6 +17,7 @@ package llm
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"rag-platform/pkg/effects"
@@ -66,9 +67,9 @@ func (a *EffectAdapter) GenerateWithContext(ctx context.Context, prompt string, 
 		},
 	}
 
-	fmt.Printf("DEBUG: EffectAdapter calling ExecuteLLM with client=%p\n", a.client)
+	slog.DebugContext(ctx, "EffectAdapter calling ExecuteLLM", "client", fmt.Sprintf("%p", a.client))
 	response, err := effects.ExecuteLLM(ctx, a.effects, req, func(ctx context.Context, r effects.LLMRequest) (effects.LLMResponse, error) {
-		fmt.Printf("DEBUG: EffectAdapter caller called, client=%p\n", a.client)
+		slog.DebugContext(ctx, "EffectAdapter caller called", "client", fmt.Sprintf("%p", a.client))
 		// Convert effect request to legacy options
 		legacyOpts := GenerateOptions{
 			Temperature:      getFloat64(r.Params.Temperature),
@@ -88,20 +89,20 @@ func (a *EffectAdapter) GenerateWithContext(ctx context.Context, prompt string, 
 		var content string
 		var err error
 
-		fmt.Printf("DEBUG: messages len=%d, r.Messages len=%d\n", len(messages), len(r.Messages))
+		slog.DebugContext(ctx, "EffectAdapter messages conversion", "messages_len", len(messages), "r_messages_len", len(r.Messages))
 
 		if len(messages) == 0 {
 			// Use Generate for single prompt
-			fmt.Printf("DEBUG: EffectAdapter calling client.GenerateWithContext, this=%p\n", a.client)
+			slog.DebugContext(ctx, "EffectAdapter calling client.GenerateWithContext", "client", fmt.Sprintf("%p", a.client))
 			content, err = a.client.GenerateWithContext(ctx, r.Messages[0].Content, legacyOpts)
-			fmt.Printf("DEBUG: EffectAdapter client.GenerateWithContext returned, content=%q\n", content)
+			slog.DebugContext(ctx, "EffectAdapter client.GenerateWithContext returned", "content", content)
 		} else {
 			// Use Chat for multi-message
-			fmt.Printf("DEBUG: EffectAdapter calling client.ChatWithContext\n")
+			slog.DebugContext(ctx, "EffectAdapter calling client.ChatWithContext")
 			content, err = a.client.ChatWithContext(ctx, messages, legacyOpts)
 		}
 
-		fmt.Printf("DEBUG: EffectAdapter caller done, content=%q, err=%v\n", content, err)
+		slog.DebugContext(ctx, "EffectAdapter caller done", "content", content, "err", err)
 		if err != nil {
 			return effects.LLMResponse{}, err
 		}
@@ -113,7 +114,7 @@ func (a *EffectAdapter) GenerateWithContext(ctx context.Context, prompt string, 
 		}, nil
 	})
 
-	fmt.Printf("DEBUG: EffectAdapter ExecuteLLM returned, response=%q, err=%v\n", response.Content, err)
+	slog.DebugContext(ctx, "EffectAdapter ExecuteLLM returned", "response", response.Content, "err", err)
 	if err != nil {
 		return "", err
 	}
