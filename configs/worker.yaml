@@ -91,3 +91,35 @@ mcp:
   #   type: stdio
   #   command: npx
   #   args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+
+# Hermes-Agent 集成配置 (Phase 1: MCP Bridge + Phase 2: ACP Dispatch)
+# 参考: https://github.com/NousResearch/hermes-agent
+#
+# Phase 1 (MCP Bridge): 将 Hermes 暴露的 MCP 工具（terminal, file, search_files 等）
+#   直接注册为 Aetheris 工具，Eino 工作流和 Agent 可直接调用。
+#
+# Phase 2 (ACP Dispatch): 注册 hermes_dispatch 工具，工作流可将编码/终端/消息任务
+#   委托给 Hermes 执行，每次派发携带 job_id 用于 Event Store 关联与审计。
+#
+# 启动 Hermes MCP Server: hermes mcp serve --port 8765
+hermes:
+  enabled: false
+
+  # --- Phase 1: MCP Bridge ---
+  # Option A: SSE 传输（Hermes 作为独立服务运行）
+  # mcp_endpoint: "http://localhost:8765/sse"
+  # mcp_timeout: "60s"
+  # mcp_headers:
+  #   Authorization: "Bearer ${HERMES_API_KEY}"
+
+  # Option B: stdio 传输（Hermes 作为子进程启动）
+  # mcp_command: "hermes"
+  # mcp_args: ["mcp", "serve"]
+
+  # MCP 服务器在工具注册表中的名称（默认: hermes）
+  # server_name: "hermes"
+
+  # --- Phase 2: ACP Dispatch ---
+  # Hermes ACP HTTP 端点（设置后自动注册 hermes_dispatch 工具）
+  # acp_endpoint: "http://localhost:8765"
+  # acp_timeout: "120s"

@@ -758,15 +758,16 @@ func embeddedDataDir(cfg *config.Config) string {
 }
 
 // initMCPManager creates and connects the MCP Manager from config, registers discovered tools.
+// When cfg.Hermes.Enabled is true, Hermes is automatically added as an MCP server (Phase 1: MCP Bridge).
 func initMCPManager(cfg *config.Config, reg *tools.Registry, logger *log.Logger) *mcp.Manager {
 	mcpMgr := mcp.NewManager(slog.Default())
-	if cfg != nil && len(cfg.MCP.Servers) > 0 {
-		mcpCfg := mcp.ManagerConfig{
-			Servers:     make(map[string]mcp.ServerConfig, len(cfg.MCP.Servers)),
-			InitTimeout: cfg.MCP.InitTimeout,
-		}
+
+	serverCfgs := make(map[string]mcp.ServerConfig)
+	initTimeout := ""
+	if cfg != nil {
+		initTimeout = cfg.MCP.InitTimeout
 		for name, sc := range cfg.MCP.Servers {
-			mcpCfg.Servers[name] = mcp.ServerConfig{
+			serverCfgs[name] = mcp.ServerConfig{
 				Type:    sc.Type,
 				Command: sc.Command,
 				Args:    sc.Args,
@@ -777,16 +778,74 @@ func initMCPManager(cfg *config.Config, reg *tools.Registry, logger *log.Logger)
 				Timeout: sc.Timeout,
 			}
 		}
+		// Phase 1: MCP Bridge — auto-register Hermes as an MCP server when configured.
+		if cfg.Hermes.Enabled {
+			serverName := cfg.Hermes.ServerName
+			if serverName == "" {
+				serverName = "hermes"
+			}
+			if cfg.Hermes.MCPEndpoint != "" {
+				serverCfgs[serverName] = mcp.ServerConfig{
+					Type:    "sse",
+					URL:     cfg.Hermes.MCPEndpoint,
+					Headers: cfg.Hermes.MCPHeaders,
+					Timeout: cfg.Hermes.MCPTimeout,
+				}
+				logger.Info("Hermes MCP Bridge (SSE) 已配置", "server", serverName, "endpoint", cfg.Hermes.MCPEndpoint)
+			} else if cfg.Hermes.MCPCommand != "" {
+				serverCfgs[serverName] = mcp.ServerConfig{
+					Type:    "stdio",
+					Command: cfg.Hermes.MCPCommand,
+					Args:    cfg.Hermes.MCPArgs,
+					Timeout: cfg.Hermes.MCPTimeout,
+				}
+				logger.Info("Hermes MCP Bridge (stdio) 已配置", "server", serverName, "command", cfg.Hermes.MCPCommand)
+			}
+		}
+	}
+
+	if len(serverCfgs) > 0 {
+		mcpCfg := mcp.ManagerConfig{
+			Servers:     serverCfgs,
+			InitTimeout: initTimeout,
+		}
 		if err := mcpMgr.ConnectAll(context.Background(), mcpCfg); err != nil {
 			logger.Warn("mcp connect error (non-fatal)", "error", err)
 		}
 	}
+
 	mcpHost := tools.NewMCPHost(mcpMgr)
 	count := mcpHost.RegisterFromManager(reg, mcpMgr)
 	if count > 0 {
 		logger.Info("MCP 工具已注册", "count", count, "servers", len(mcpMgr.ServerNames()))
 	}
+
+	// Phase 2: ACP Dispatch — register hermes_dispatch tool when ACP endpoint is configured.
+	if cfg != nil && cfg.Hermes.Enabled && cfg.Hermes.ACPEndpoint != "" {
+		initHermesDispatch(cfg, reg, logger)
+	}
+
 	return mcpMgr
+}
+
+// initHermesDispatch registers the hermes_dispatch tool for Phase 2 ACP integration.
+func initHermesDispatch(cfg *config.Config, reg *tools.Registry, logger *log.Logger) {
+	var timeout time.Duration
+	if cfg.Hermes.ACPTimeout != "" {
+		if d, err := time.ParseDuration(cfg.Hermes.ACPTimeout); err == nil && d > 0 {
+			timeout = d
+		}
+	}
+	dispatchTool, err := tools.NewHermesDispatchTool(tools.HermesDispatchConfig{
+		Endpoint: cfg.Hermes.ACPEndpoint,
+		Timeout:  timeout,
+	})
+	if err != nil {
+		logger.Warn("Hermes ACP dispatch tool 初始化失败 (non-fatal)", "error", err)
+		return
+	}
+	reg.Register(dispatchTool)
+	logger.Info("Hermes ACP Dispatch Tool 已注册", "endpoint", cfg.Hermes.ACPEndpoint)
 }
 
 func (a *App) runIngestQueueLoop(queue ingestqueue.IngestQueue, workerID string, pollInterval time.Duration) {
