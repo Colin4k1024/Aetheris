@@ -1,0 +1,109 @@
+# SLSA3 Provenance Workflow
+# Generates SLSA3 (Supply-chain Levels for Software Artifacts) level 3 provenance
+# for release artifacts following the official SLSA specification.
+#
+# This workflow triggers on GitHub release events and generates a signed
+# provenance attestation for the released binaries.
+#
+# See: https://slsa.dev/software-attestation/
+name: SLSA3 Provenance
+
+on:
+  release:
+    types: [created]
+
+# GITHUB_REF_NAME is available in release contexts and contains the tag name (e.g., "v1.0.0")
+# GITHUB_SHA is the commit SHA that was tagged
+
+permissions:
+  contents: read
+  id-token: write  # Required for OIDC token-based provenance
+  actions: read   # Required for reading workflow run details
+
+jobs:
+  slsa-provenance:
+    name: Generate SLSA3 Provenance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history for provenance
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.1"
+          cache-dependency-path: go.sum
+
+      - name: Build artifacts
+        run: |
+          mkdir -p dist
+          make build
+          # Move binaries to dist/ for easier provenance generation
+          mv bin/* dist/
+
+      - name: List artifacts
+        id: list
+        run: |
+          echo "Artifacts to generate provenance for:"
+          echo "---"
+          for f in dist/*; do
+            echo "  - $(basename $f): $(file $f) ($(stat -f%z $f 2>/dev/null || stat -c%s $f) bytes)"
+          done
+          echo "---"
+          echo "subjects=$(find dist -type f -exec basename {} \; | tr '\n' ',')" >> $GITHUB_OUTPUT
+          echo "subjects_path=$(pwd)/dist" >> $GITHUB_OUTPUT
+
+      - name: Generate SLSA3 provenance
+        id: provenance
+        uses: slsa-framework/slsa-github-generator/annotations@v2.0.0
+        with:
+          subjects: ${{ steps.list.outputs.subjects_path }}/*
+          output-file: slsa-attestations.intoto.jsonl
+          # The predicate type for SLSA Provenance v1.0
+          predicate-type: https://slsa.dev/provenance/v1
+          # Pass release info to the generator
+          release-tag: ${{ github.ref_name }}
+
+      - name: Upload provenance to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ env.upload_url }}
+          asset_path: ./slsa-attestations.intoto.jsonl
+          asset_name: slsa-attestations.intoto.jsonl
+          asset_content_type: application/json
+
+      - name: Verify provenance file exists
+        run: |
+          if [ -f "slsa-attestations.intoto.jsonl" ]; then
+            echo "✓ Provenance attestation created successfully"
+            echo "  File size: $(wc -c < slsa-attestations.intoto.jsonl) bytes"
+            echo "  First line preview:"
+            head -c 500 slsa-attestations.intoto.jsonl | cat -v
+          else
+            echo "ERROR: Provenance file was not created"
+            exit 1
+          fi
+
+      - name: Display provenance summary
+        run: |
+          echo ""
+          echo "=== SLSA3 Provenance Summary ==="
+          echo "Release: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Workflow: ${{ github.workflow }}"
+          echo ""
+          echo "Generated artifacts:"
+          for f in dist/*; do
+            echo "  - $(basename $f)"
+          done
+          echo ""
+          echo "Provenance attestation: slsa-attestations.intoto.jsonl"
+          echo ""
+          echo "For more information on verifying SLSA provenance, see:"
+          echo "  https://slsa.dev/verifying-artifacts"
