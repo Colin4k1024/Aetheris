@@ -48,25 +48,25 @@ import (
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"github.com/prometheus/common/expfmt"
 
-	"github.com/Colin4k1024/Aetheris/v2/internal/agent"
-	"github.com/Colin4k1024/Aetheris/v2/internal/agent/approval"
-	"github.com/Colin4k1024/Aetheris/v2/internal/agent/instance"
-	"github.com/Colin4k1024/Aetheris/v2/internal/agent/job"
-	"github.com/Colin4k1024/Aetheris/v2/internal/agent/messaging"
-	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
-	"github.com/Colin4k1024/Aetheris/v2/internal/agent/replay"
-	agentruntime "github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
-	"github.com/Colin4k1024/Aetheris/v2/internal/agent/signal"
-	"github.com/Colin4k1024/Aetheris/v2/internal/agent/tools"
-	"github.com/Colin4k1024/Aetheris/v2/internal/agent/verify"
-	appcore "github.com/Colin4k1024/Aetheris/v2/internal/app"
-	"github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
-	"github.com/Colin4k1024/Aetheris/v2/internal/pipeline/common"
-	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
-	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
-	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
-	"github.com/Colin4k1024/Aetheris/v2/pkg/auth"
-	"github.com/Colin4k1024/Aetheris/v2/pkg/metrics"
+	"rag-platform/internal/agent"
+	"rag-platform/internal/agent/approval"
+	"rag-platform/internal/agent/instance"
+	"rag-platform/internal/agent/job"
+	"rag-platform/internal/agent/messaging"
+	"rag-platform/internal/agent/planner"
+	"rag-platform/internal/agent/replay"
+	agentruntime "rag-platform/internal/agent/runtime"
+	"rag-platform/internal/agent/signal"
+	"rag-platform/internal/agent/tools"
+	"rag-platform/internal/agent/verify"
+	appcore "rag-platform/internal/app"
+	"rag-platform/internal/model/llm"
+	"rag-platform/internal/pipeline/common"
+	"rag-platform/internal/runtime/eino"
+	"rag-platform/internal/runtime/jobstore"
+	"rag-platform/internal/runtime/session"
+	"rag-platform/pkg/auth"
+	"rag-platform/pkg/metrics"
 )
 
 // AgentRunner 可选的 Agent 入口（供 POST /api/agent/run 使用）；优先使用 RunWithSession
@@ -391,11 +391,7 @@ func (h *Handler) UploadStatus(ctx context.Context, c *app.RequestContext) {
 
 // ListDocuments 列出文档
 func (h *Handler) ListDocuments(ctx context.Context, c *app.RequestContext) {
-	tenantID := auth.GetTenantID(ctx)
-	if tenantID == "" {
-		tenantID = "default"
-	}
-	documents, err := h.docService.ListDocuments(ctx, tenantID)
+	documents, err := h.docService.ListDocuments(ctx)
 	if err != nil {
 		hlog.CtxErrorf(ctx, "获取文档列表failed: %v", err)
 		c.JSON(consts.StatusInternalServerError, map[string]string{
@@ -736,9 +732,7 @@ func runADK(ctx context.Context, c *app.RequestContext, runner *adk.Runner, sess
 	sess.AddMessage("user", query)
 	sess.AddMessage("assistant", lastContent)
 	if sessionManager != nil {
-		if err := sessionManager.Save(ctx, sess); err != nil {
-			hlog.CtxErrorf(ctx, "session save failed: %v", err)
-		}
+		_ = sessionManager.Save(ctx, sess)
 	}
 	if stream {
 		c.Header("Content-Type", "text/event-stream")
@@ -815,9 +809,7 @@ func (h *Handler) AgentResumeCheckpoint(ctx context.Context, c *app.RequestConte
 	if req.SessionID != "" && h.sessionManager != nil {
 		if sess, err := h.sessionManager.GetOrCreate(ctx, req.SessionID); err == nil {
 			sess.AddMessage("assistant", lastContent)
-			if err := h.sessionManager.Save(ctx, sess); err != nil {
-				hlog.CtxErrorf(ctx, "session save failed: %v", err)
-			}
+			_ = h.sessionManager.Save(ctx, sess)
 			resp["session_id"] = sess.ID
 		}
 	}
@@ -1146,9 +1138,7 @@ func (h *Handler) AgentMessage(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	if h.agentScheduler != nil {
-		if err := h.agentScheduler.WakeAgent(ctx, id); err != nil {
-			hlog.CtxErrorf(ctx, "wake agent failed: %v", err)
-		}
+		_ = h.agentScheduler.WakeAgent(ctx, id)
 	}
 	c.JSON(consts.StatusAccepted, map[string]interface{}{
 		"status":   "accepted",
@@ -1228,9 +1218,7 @@ func (h *Handler) AgentResume(ctx context.Context, c *app.RequestContext) {
 		})
 		return
 	}
-	if err := h.agentScheduler.Resume(ctx, id); err != nil {
-		hlog.CtxErrorf(ctx, "resume agent failed: %v", err)
-	}
+	_ = h.agentScheduler.Resume(ctx, id)
 	c.JSON(consts.StatusOK, map[string]interface{}{
 		"status":   "ok",
 		"agent_id": id,
@@ -1253,9 +1241,7 @@ func (h *Handler) AgentStop(ctx context.Context, c *app.RequestContext) {
 		})
 		return
 	}
-	if err := h.agentScheduler.Stop(ctx, id); err != nil {
-		hlog.CtxErrorf(ctx, "stop agent failed: %v", err)
-	}
+	_ = h.agentScheduler.Stop(ctx, id)
 	c.JSON(consts.StatusOK, map[string]interface{}{
 		"status":   "ok",
 		"agent_id": id,
@@ -1381,16 +1367,8 @@ func (h *Handler) ListAgents(ctx context.Context, c *app.RequestContext) {
 		})
 		return
 	}
-	tenantID := auth.GetTenantID(ctx)
-	if tenantID == "" {
-		tenantID = "default"
-	}
 	agents := make([]map[string]interface{}, 0, len(list))
 	for _, a := range list {
-		// Filter by tenant ID via session
-		if a.Session != nil && a.Session.GetTenantID() != tenantID {
-			continue
-		}
 		agents = append(agents, map[string]interface{}{
 			"id":         a.ID,
 			"name":       a.Name,
@@ -2680,9 +2658,7 @@ func (h *Handler) CreateApproval(ctx context.Context, c *app.RequestContext) {
 		ver := len(events)
 		ev, err := jobstore.NewApprovalRequestedEvent(req.JobID, approvalID, req.NodeID, req.CorrelationKey, req.ApproverType, req.Title, req.Description, req.Payload, expiresAt)
 		if err == nil {
-			if _, err := h.jobEventStore.Append(ctx, req.JobID, ver, *ev); err != nil {
-				hlog.CtxErrorf(ctx, "CreateApproval Append: %v", err)
-			}
+			h.jobEventStore.Append(ctx, req.JobID, ver, *ev)
 		}
 	}
 	c.JSON(consts.StatusCreated, map[string]interface{}{
@@ -2811,12 +2787,8 @@ func (h *Handler) handleApprovalAction(ctx context.Context, c *app.RequestContex
 		ver := len(events)
 		completedEv, _ := jobstore.NewApprovalCompletedEvent(existing.JobID, id, existing.NodeID, existing.CorrelationKey, string(decision), req.ApproverID, req.ApproverName, req.Comment, req.DelegatedTo)
 		if completedEv != nil {
-			newVer, err := h.jobEventStore.Append(ctx, existing.JobID, ver, *completedEv)
-			if err != nil {
-				hlog.CtxErrorf(ctx, "handleApprovalAction Append completed: %v", err)
-			} else {
-				ver = newVer
-			}
+			h.jobEventStore.Append(ctx, existing.JobID, ver, *completedEv)
+			ver++
 		}
 		// 同时写入 wait_completed 让 Job 继续执行
 		waitPayload, _ := json.Marshal(map[string]interface{}{
@@ -2829,16 +2801,10 @@ func (h *Handler) handleApprovalAction(ctx context.Context, c *app.RequestContex
 			Type:    jobstore.WaitCompleted,
 			Payload: waitPayload,
 		}
-		if _, err := h.jobEventStore.Append(ctx, existing.JobID, ver, *waitEv); err != nil {
-			hlog.CtxErrorf(ctx, "handleApprovalAction Append wait_completed: %v", err)
-		}
-		if err := h.jobStore.UpdateStatus(ctx, existing.JobID, job.StatusPending); err != nil {
-			hlog.CtxErrorf(ctx, "handleApprovalAction UpdateStatus: %v", err)
-		}
+		h.jobEventStore.Append(ctx, existing.JobID, ver, *waitEv)
+		h.jobStore.UpdateStatus(ctx, existing.JobID, job.StatusPending)
 		if h.wakeupQueue != nil {
-			if err := h.wakeupQueue.NotifyReady(ctx, existing.JobID); err != nil {
-				hlog.CtxErrorf(ctx, "handleApprovalAction NotifyReady: %v", err)
-			}
+			h.wakeupQueue.NotifyReady(ctx, existing.JobID)
 		}
 	}
 	c.JSON(consts.StatusOK, map[string]interface{}{
