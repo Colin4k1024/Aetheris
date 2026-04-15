@@ -1,0 +1,68 @@
+# Customer Service Agent Configuration
+# This template provides a multi-turn customer service agent with human approval fallback
+
+agents:
+  # Main customer service agent - handles customer inquiries
+  customer_service:
+    type: "react"
+    description: "AI Customer Service Agent - handles customer inquiries, order status, and basic support"
+    llm: "default"
+    max_iterations: 15
+    tools:
+      - "web_search"
+      - "calculator"
+    system_prompt: |
+      You are a professional and friendly AI customer service representative.
+      Your responsibilities include:
+      - Answering customer questions about products and services
+      - Providing order status updates
+      - Helping with basic troubleshooting
+      - Processing refund requests (requires human approval)
+      - Escalating complex issues to human agents
+
+      Guidelines:
+      - Always be polite and professional
+      - Verify customer identity before sharing sensitive information
+      - For refunds over $100 or account changes, request human approval
+      - Provide clear and accurate information
+      - If unsure, escalate to human agent
+
+  # Human approval agent - handles sensitive operations
+  approval_agent:
+    type: "chain"
+    chain_type: "conversation"
+    description: "Human Approval Agent - processes approval requests for sensitive operations"
+    llm: "default"
+    system_prompt: |
+      You are a human approval agent. Review and approve/reject requests.
+      Wait for human input before proceeding with sensitive operations.
+
+# Default LLM configuration
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  api_key: "${OPENAI_API_KEY}"
+
+# Tool configuration
+tools:
+  enabled:
+    - "web_search"
+    - "calculator"
+    - "file_reader"
+    - "http_request"
+
+  web_search:
+    api_key: "${SEARCH_API_KEY}"
+    engine: "duckduckgo"
+
+  calculator:
+    precision: 10
+
+  file_reader:
+    allowed_paths:
+      - "./data"
+      - "/tmp"
+
+  http_request:
+    timeout: 30
+    max_retries: 3

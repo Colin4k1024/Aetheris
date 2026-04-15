@@ -1,0 +1,97 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "CoRag",
+  "fileTypes": ["corag"],
+  "firstLineMatch": "^#\\s*CoRag",
+  "patterns": [
+    {
+      "name": "comment",
+      "match": "#.*$"
+    },
+    {
+      "name": "keyword.control.corag",
+      "match": "\\b(if|else|for|while|return|break|continue|switch|case|default)\\b"
+    },
+    {
+      "name": "keyword.operator.corag",
+      "match": "=|!=|<|>|>=|<=|\\+|-|\\*|/|%|&&|\\|\\||!"
+    },
+    {
+      "name": "constant.language.corag",
+      "match": "\\b(true|false|nil|null|undefined)\\b"
+    },
+    {
+      "name": "constant.numeric.corag",
+      "match": "\\b\\d+(\\.\\d+)?\\b"
+    },
+    {
+      "name": "string.quoted.double.corag",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.corag",
+          "match": "\\\\."
+        }
+      ]
+    },
+    {
+      "name": "string.quoted.single.corag",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.corag",
+          "match": "\\\\."
+        }
+      ]
+    },
+    {
+      "name": "variable.other.corag",
+      "match": "\\$\\{[^}]+\\}"
+    },
+    {
+      "name": "entity.name.function.corag",
+      "match": "\\b(workflow|node|edge|trigger|llm|tool|wait|output)\\b"
+    },
+    {
+      "name": "entity.name.type.corag",
+      "match": "\\b(string|int|float|bool|map|array|object)\\b"
+    },
+    {
+      "name": "support.function.corag",
+      "match": "\\b(version|description|type|name|input|output|timeout|from|to|condition)\\b"
+    },
+    {
+      "name": "entity.name.tag.corag",
+      "match": "^\\s*[a-zA-Z_][a-zA-Z0-9_-]*\\s*\\{"
+    },
+    {
+      "name": "punctuation.brackets.corag",
+      "match": "[{}]"
+    },
+    {
+      "name": "punctuation.brackets.square.corag",
+      "match": "[\\[\\]]"
+    },
+    {
+      "name": "punctuation.brackets.round.corag",
+      "match": "[\\(\\)]"
+    },
+    {
+      "name": "punctuation.separator.corag",
+      "match": ":|,"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "patterns": {
+        "keyword.control.corag": {
+          "match": "\\b(if|else|for|while|return|break|continue|switch|case|default)\\b",
+          "name": "keyword.control.corag"
+        }
+      }
+    }
+  },
+  "scopeName": "source.corag"
+}

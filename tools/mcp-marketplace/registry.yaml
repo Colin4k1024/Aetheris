@@ -1,0 +1,196 @@
+# MCP Tools Registry
+# Aetheris CoRag MCP 工具市场注册表
+# 
+# 用法:
+#   1. 复制工具到 internal/tool/mcp/ 目录
+#   2. 在 registry 中注册工具
+#   3. 通过 MCP 服务器暴露给代理
+
+version: "1.0"
+marketplace_version: "1.0.0"
+
+# 工具注册表
+tools:
+  # ============================================
+  # GitHub 集成工具
+  # ============================================
+  - name: mcp-github
+    path: tools/mcp-marketplace/tools/mcp-github
+    status: template  # template | ready | deprecated
+    category: integration
+    tags:
+      - github
+      - api
+      - issues
+      - pull-requests
+    description: |
+      GitHub API MCP 工具，提供对 GitHub 仓库、Issues、Pull Requests 的访问能力。
+    manifest: manifest.yaml
+    author:
+      name: Aetheris Team
+      contact: aetheris@example.com
+    version: "1.0.0"
+    dependencies:
+      - github/google/go-github/v45
+    configuration:
+      - name: GITHUB_TOKEN
+        type: string
+        required: true
+        description: GitHub Personal Access Token
+      - name: GITHUB_BASE_URL
+        type: string
+        required: false
+        default: "https://api.github.com"
+        description: GitHub API Base URL
+
+  # ============================================
+  # 文件系统工具
+  # ============================================
+  - name: mcp-filesystem
+    path: tools/mcp-marketplace/tools/mcp-filesystem
+    status: template
+    category: storage
+    tags:
+      - filesystem
+      - io
+      - storage
+    description: |
+      本地文件系统操作工具，支持文件读写、目录列表、文件搜索等操作。
+      包含路径安全验证，防止目录遍历攻击。
+    manifest: manifest.yaml
+    author:
+      name: Aetheris Team
+      contact: aetheris@example.com
+    version: "1.0.0"
+    dependencies: []
+    configuration:
+      - name: FS_ROOT_DIR
+        type: string
+        required: true
+        default: "/data"
+        description: 文件系统根目录
+      - name: FS_ALLOWED_PATHS
+        type: array
+        required: false
+        description: 允许访问的路径列表
+      - name: FS_MAX_FILE_SIZE
+        type: integer
+        required: false
+        default: 10485760
+        description: 最大文件大小（字节）
+
+  # ============================================
+  # 网页搜索工具
+  # ============================================
+  - name: mcp-web-search
+    path: tools/mcp-marketplace/tools/mcp-web-search
+    status: template
+    category: search
+    tags:
+      - web
+      - search
+      - scraping
+      - http
+    description: |
+      网页搜索和内容提取工具，支持多搜索引擎和网页内容抓取。
+    manifest: manifest.yaml
+    author:
+      name: Aetheris Team
+      contact: aetheris@example.com
+    version: "1.0.0"
+    dependencies:
+      - github.com/PuerkitoBio/goquery
+    configuration:
+      - name: SEARCH_API_KEY
+        type: string
+        required: true
+        description: 搜索 API Key
+      - name: SEARCH_ENGINE
+        type: string
+        required: false
+        default: "google"
+        description: 搜索引擎 (google, bing, duckduckgo)
+      - name: SEARCH_TIMEOUT
+        type: integer
+        required: false
+        default: 30
+        description: 超时时间（秒）
+
+  # ============================================
+  # 数据库工具
+  # ============================================
+  - name: mcp-database
+    path: tools/mcp-marketplace/tools/mcp-database
+    status: template
+    category: database
+    tags:
+      - database
+      - sql
+      - postgres
+      - mysql
+      - query
+    description: |
+      数据库查询工具，支持 PostgreSQL、MySQL 等主流数据库。
+      提供参数化查询，防止 SQL 注入。
+    manifest: manifest.yaml
+    author:
+      name: Aetheris Team
+      contact: aetheris@example.com
+    version: "1.0.0"
+    dependencies:
+      - github.com/jackc/pgx/v5
+      - github.com/go-sql-driver/mysql
+    configuration:
+      - name: DB_DSN
+        type: string
+        required: true
+        description: 数据库连接字符串
+      - name: DB_DRIVER
+        type: string
+        required: true
+        default: "postgres"
+        description: 数据库驱动 (postgres, mysql)
+      - name: DB_TIMEOUT
+        type: integer
+        required: false
+        default: 30
+        description: 查询超时时间（秒）
+      - name: DB_MAX_ROWS
+        type: integer
+        required: false
+        default: 1000
+        description: 最大返回行数
+
+# 工具分类
+categories:
+  - name: integration
+    description: 第三方服务集成
+    examples:
+      - mcp-github
+  - name: storage
+    description: 存储和数据处理
+    examples:
+      - mcp-filesystem
+  - name: search
+    description: 搜索和检索
+    examples:
+      - mcp-web-search
+  - name: database
+    description: 数据库操作
+    examples:
+      - mcp-database
+
+# 安装说明
+installation:
+  registry_update: |
+    # 方式1: 从注册表安装
+    corag tools install mcp-github
+    
+    # 方式2: 手动复制到项目
+    cp -r tools/mcp-marketplace/tools/mcp-github internal/tool/mcp/
+  
+  dependencies: |
+    # 安装 Go 依赖
+    go get github.com/google/go-github/v45
+    go get github.com/PuerkitoBio/goquery
+    go get github.com/jackc/pgx/v5

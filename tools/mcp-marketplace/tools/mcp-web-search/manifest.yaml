@@ -1,0 +1,48 @@
+name: mcp-web-search
+version: 1.0.0
+description: Web search and content extraction tool supporting multiple search engines
+author: Aetheris Team
+category: search
+
+tools:
+  - name: mcp-web-search
+    description: Web search tool with multi-engine support
+    parameters:
+      - name: action
+        type: string
+        required: true
+        description: Action to perform
+        enum:
+          - search
+          - get_content
+      - name: query
+        type: string
+        required: false
+        description: Search query
+      - name: url
+        type: string
+        required: false
+        description: URL to fetch content from
+      - name: limit
+        type: integer
+        required: false
+        description: Maximum number of results
+
+dependencies:
+  - github.com/PuerkitoBio/goquery
+
+configuration:
+  - name: SEARCH_API_KEY
+    type: string
+    required: true
+    description: Search API key
+  - name: SEARCH_ENGINE
+    type: string
+    required: false
+    default: duckduckgo
+    description: Search engine (google, bing, duckduckgo)
+  - name: SEARCH_TIMEOUT
+    type: integer
+    required: false
+    default: 30
+    description: Request timeout in seconds

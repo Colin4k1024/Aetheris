@@ -1,0 +1,151 @@
+{
+  "name": "corag-aetheris",
+  "displayName": "CoRag/Aetheris",
+  "description": "VSCode extension for CoRag/Aetheris intelligent agent runtime development",
+  "version": "0.1.0",
+  "publisher": "corag",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Snippets",
+    "Programming Languages",
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:go",
+    "onLanguage:yaml",
+    "onCommand:corag.newAgent",
+    "onCommand:corag.viewTraces",
+    "onCommand:corag.scaffoldWorkflow"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "corag",
+        "aliases": ["CoRag Workflow", "corag"],
+        "extensions": [".corag"],
+        "firstLine": "^#\\s*CoRag"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "corag",
+        "scopeName": "source.corag",
+        "path": "./syntaxes/corag.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "go",
+        "path": "./snippets/go.json"
+      },
+      {
+        "language": "yaml",
+        "path": "./snippets/agents.yaml.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "corag.newAgent",
+        "title": "CoRag: New Agent",
+        "category": "CoRag",
+        "description": "Scaffold a new CoRag agent file"
+      },
+      {
+        "command": "corag.viewTraces",
+        "title": "CoRag: View Traces",
+        "category": "CoRag",
+        "description": "Open trace viewer for CoRag execution events"
+      },
+      {
+        "command": "corag.scaffoldWorkflow",
+        "title": "CoRag: Scaffold Workflow",
+        "category": "CoRag",
+        "description": "Scaffold a new CoRag workflow file"
+      },
+      {
+        "command": "corag.validateConfig",
+        "title": "CoRag: Validate Config",
+        "category": "CoRag",
+        "description": "Validate agents.yaml configuration"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "corag.newAgent",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "corag.viewTraces",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
+        "when": "editorTextFocus"
+      }
+    ],
+    "problemMatchers": [
+      {
+        "name": "corag-agent-config",
+        "owner": "corag",
+        "fileLocation": "relative",
+        "pattern": {
+          "regexp": "^#\\s*(error|warning):\\s*(.*)$",
+          "severity": 1,
+          "message": 2
+        }
+      }
+    ],
+    "configuration": {
+      "title": "CoRag/Aetheris",
+      "properties": {
+        "corag.tracePath": {
+          "type": "string",
+          "default": "./traces",
+          "description": "Path to CoRag trace files"
+        },
+        "corag.configPath": {
+          "type": "string",
+          "default": "./configs/agents.yaml",
+          "description": "Path to CoRag agents configuration"
+        },
+        "corag.enableValidation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time configuration validation"
+        },
+        "corag.telemetryEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable telemetry for trace collection"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-electron": "^2.3.0",
+    "typescript": "^5.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Colin4k1024/Aetheris.git"
+  },
+  "keywords": [
+    "corag",
+    "aetheris",
+    "agent",
+    "workflow",
+    "go",
+    "eino"
+  ]
+}

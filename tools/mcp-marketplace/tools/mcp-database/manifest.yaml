@@ -1,0 +1,60 @@
+name: mcp-database
+version: 1.0.0
+description: Database query tool supporting PostgreSQL and MySQL
+author: Aetheris Team
+category: database
+
+tools:
+  - name: mcp-database
+    description: Database tool with parameterized queries and SQL injection prevention
+    parameters:
+      - name: action
+        type: string
+        required: true
+        description: Action to perform
+        enum:
+          - query
+          - execute
+          - list_tables
+          - describe_table
+      - name: sql
+        type: string
+        required: false
+        description: SQL query
+      - name: table
+        type: string
+        required: false
+        description: Table name for describe_table
+      - name: limit
+        type: integer
+        required: false
+        description: Maximum rows to return
+      - name: params
+        type: array
+        required: false
+        description: Query parameters
+
+dependencies:
+  - github.com/jackc/pgx/v5
+  - github.com/go-sql-driver/mysql
+
+configuration:
+  - name: DB_DSN
+    type: string
+    required: true
+    description: Database connection string
+  - name: DB_DRIVER
+    type: string
+    required: false
+    default: postgres
+    description: Database driver (postgres, mysql)
+  - name: DB_TIMEOUT
+    type: integer
+    required: false
+    default: 30
+    description: Query timeout in seconds
+  - name: DB_MAX_ROWS
+    type: integer
+    required: false
+    default: 1000
+    description: Maximum returned rows

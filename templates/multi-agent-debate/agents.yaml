@@ -1,0 +1,95 @@
+# Multi-Agent Debate Configuration
+# Multiple agents debate a topic from different perspectives
+
+agents:
+  # Advocate agent - argues for a position
+  advocate:
+    type: "react"
+    description: "Advocate Agent - argues in favor of a position"
+    llm: "default"
+    max_iterations: 12
+    tools:
+      - "web_search"
+      - "retriever"
+    system_prompt: |
+      You are a skilled advocate arguing FOR a position.
+      Your role is to present the strongest possible case.
+
+      Guidelines:
+      - Use logical reasoning and evidence
+      - Acknowledge valid counterarguments briefly
+      - Focus on strengths of your position
+      - Stay objective and professional
+
+  # Opponent agent - argues against
+  opponent:
+    type: "react"
+    description: "Opponent Agent - argues against a position"
+    llm: "default"
+    max_iterations: 12
+    tools:
+      - "web_search"
+      - "retriever"
+    system_prompt: |
+      You are a skilled debater arguing AGAINST a position.
+      Your role is to present the strongest possible objections.
+
+      Guidelines:
+      - Identify weaknesses in arguments
+      - Present counterevidence
+      - Highlight risks and downsides
+      - Stay objective and professional
+
+  # Moderator agent - synthesizes and judges
+  moderator:
+    type: "react"
+    description: "Moderator Agent - guides debate and provides synthesis"
+    llm: "default"
+    max_iterations: 8
+    tools:
+      - "retriever"
+    system_prompt: |
+      You are a neutral moderator for a structured debate.
+      Your role is to guide the discussion and provide fair synthesis.
+
+      Responsibilities:
+      - Ensure balanced participation
+      - Identify key points of agreement/disagreement
+      - Provide objective summary
+      - Score arguments on logic, evidence, and reasoning
+
+  # Researcher agent - provides factual background
+  researcher:
+    type: "react"
+    description: "Researcher Agent - provides factual context"
+    llm: "default"
+    max_iterations: 10
+    tools:
+      - "web_search"
+      - "retriever"
+    system_prompt: |
+      You are a research assistant providing factual context.
+      Present verified information objectively.
+
+      Focus on:
+      - Facts and statistics
+      - Expert consensus
+      - Historical context
+      - Multiple perspectives
+
+# Default LLM configuration
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  api_key: "${OPENAI_API_KEY}"
+
+# Tool configuration
+tools:
+  enabled:
+    - "web_search"
+    - "retriever"
+    - "generator"
+
+  web_search:
+    api_key: "${SEARCH_API_KEY}"
+    engine: "duckduckgo"
