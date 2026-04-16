@@ -344,8 +344,11 @@ func (bot *CustomerServiceBot) handleComplaint(entities map[string]string) strin
 // handleGeneralQuestion handles general questions using the LLM
 func (bot *CustomerServiceBot) handleGeneralQuestion(ctx context.Context, userInput, convID string) string {
 	if bot.chatModel != nil {
-		// Get conversation history
-		history, _ := bot.store.GetConversationHistory(convID)
+		// Get conversation history (only if store is available)
+		var history []map[string]string
+		if bot.store != nil {
+			history, _ = bot.store.GetConversationHistory(convID)
+		}
 
 		// Get LLM response
 		response, err := bot.chatModel.Chat(ctx, history, userInput)
@@ -384,7 +387,10 @@ func (bot *CustomerServiceBot) RunInteractiveSession(ctx context.Context) error 
 	// Create a new conversation
 	var convID string
 	if bot.store != nil {
-		conv := bot.store.CreateConversation("default-user")
+		conv, err := bot.store.CreateConversation("default-user")
+		if err != nil {
+			return fmt.Errorf("failed to create conversation: %w", err)
+		}
 		convID = conv.ID
 		fmt.Printf("Conversation ID: %s\n", convID)
 	} else {

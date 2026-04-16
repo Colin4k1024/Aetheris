@@ -102,8 +102,12 @@ func runDemo(ctx context.Context, bot *CustomerServiceBot) {
 	// Create a demo conversation
 	var convID string
 	if bot.store != nil {
-		conv := bot.store.CreateConversation("demo-user")
-		convID = conv.ID
+		conv, err := bot.store.CreateConversation("demo-user")
+		if err != nil {
+			fmt.Printf("Warning: failed to create conversation: %v\n", err)
+		} else {
+			convID = conv.ID
+		}
 	}
 
 	// Demo inputs - simpler first to test multi-turn

@@ -59,9 +59,7 @@ func NewGitHubTool(config *GitHubConfig) *GitHubTool {
 	var tc *http.Client
 	if config.Token != "" {
 		tc = &http.Client{
-			Transport: &github.UnauthenticatedRateLimitedTransport{
-				Triee: config.Token,
-			},
+			Transport: &bearerTransport{token: config.Token},
 		}
 	}
 
@@ -74,6 +72,22 @@ func NewGitHubTool(config *GitHubConfig) *GitHubTool {
 		client: client,
 		config: config,
 	}
+}
+
+// bearerTransport is an http.RoundTripper that adds a Bearer token to requests.
+type bearerTransport struct {
+	token     string
+	transport http.RoundTripper
+}
+
+func (t *bearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	r := req.Clone(req.Context())
+	r.Header.Set("Authorization", "Bearer "+t.token)
+	transport := t.transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+	return transport.RoundTrip(r)
 }
 
 // Name 返回工具名称
@@ -199,8 +213,8 @@ func (t *GitHubTool) searchRepos(ctx context.Context, input map[string]any) (str
 		return "", fmt.Errorf("search failed: %w", err)
 	}
 
-	result := make([]map[string]any, 0, len(repos))
-	for _, repo := range repos {
+	result := make([]map[string]any, 0, len(repos.Repositories))
+	for _, repo := range repos.Repositories {
 		result = append(result, map[string]any{
 			"name":        repo.GetName(),
 			"full_name":   repo.GetFullName(),
@@ -229,7 +243,7 @@ func (t *GitHubTool) getIssue(ctx context.Context, input map[string]any) (string
 		return "", fmt.Errorf("owner, repo, and issue_number are required")
 	}
 
-	issue, _, err := t.client.Issues.Get(ctx, owner, repo, issueNumber)
+	issue, _, err := t.client.Issues.Get(ctx, owner, repo, int(issueNumber))
 	if err != nil {
 		return "", fmt.Errorf("get issue failed: %w", err)
 	}
