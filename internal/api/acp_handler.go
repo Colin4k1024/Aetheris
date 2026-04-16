@@ -17,6 +17,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
@@ -55,10 +56,25 @@ type ACPStatusResponse struct {
 	IsCanceled bool   `json:"is_canceled"`
 }
 
+// ACPToolCall represents a tool call event for the audit trail.
+// Used for storing tool call events in the Event Store with idempotency support.
+type ACPToolCall struct {
+	RunID           string                 `json:"run_id"`
+	StepID          string                 `json:"step_id"`
+	ToolName        string                 `json:"tool_name"`
+	RequestPayload  map[string]interface{} `json:"request_payload,omitempty"`
+	ResponsePayload map[string]interface{} `json:"response_payload,omitempty"`
+	IdempotencyKey  string                 `json:"idempotency_key,omitempty"`
+	Error           string                 `json:"error,omitempty"`
+	StartedAt       int64                  `json:"started_at,omitempty"`
+	EndedAt         int64                  `json:"ended_at,omitempty"`
+}
+
 // ACPSEventStore is an interface for storing ACP events.
 // This allows the ACP handlers to work with any event store implementation.
 type ACPSEventStore interface {
 	Append(ctx context.Context, jobID string, prevSeq int64, event jobstore.JobEvent) (int64, error)
+	StoreACPToolCall(ctx context.Context, call *ACPToolCall) error
 }
 
 // acpEventStore is the global event store for ACP events.
@@ -189,6 +205,26 @@ func HandleACPEvents(ctx context.Context, c *app.RequestContext) {
 		if _, err := acpEventStore.Append(ctx, req.JobID, 0, *event); err != nil {
 			hlog.CtxWarnf(ctx, "Failed to write ACP event to store: %v", err)
 			// Don't fail the request - Hermes is fire-and-forget with these
+		}
+
+		// Also store tool call events in the dedicated table for audit
+		if (req.Type == "tool.call" || req.Type == "tool.result") && req.CallID != "" {
+			toolCall := &ACPToolCall{
+				RunID:  req.JobID,
+				StepID: req.SessionID, // Use session_id as step_id in this context
+			}
+			if req.Type == "tool.call" {
+				toolCall.ToolName = req.ToolName
+				toolCall.RequestPayload = req.Arguments
+				// Generate idempotency key for tool.call
+				toolCall.IdempotencyKey = fmt.Sprintf("%s:%s", req.CallID, req.JobID)
+			} else {
+				toolCall.ToolName = req.ToolName
+				toolCall.ResponsePayload = map[string]any{"result": req.Result, "error": req.Error}
+			}
+			if err := acpEventStore.StoreACPToolCall(ctx, toolCall); err != nil {
+				hlog.CtxWarnf(ctx, "Failed to store ACP tool call: %v", err)
+			}
 		}
 	}
 

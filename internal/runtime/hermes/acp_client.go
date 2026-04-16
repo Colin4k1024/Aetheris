@@ -109,12 +109,13 @@ func (c *ACPClient) DispatchJob(ctx context.Context, job *JobDispatch) (sessionI
 }
 
 // SendToolResult sends a tool result event to Aetheris callback.
-func (c *ACPClient) SendToolResult(ctx context.Context, callID string, result string) error {
+func (c *ACPClient) SendToolResult(ctx context.Context, callID string, result string, idempotencyKey string) error {
 	event := map[string]any{
-		"type":      EventTypeToolResult,
-		"call_id":   callID,
-		"result":    result,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"type":            EventTypeToolResult,
+		"call_id":         callID,
+		"result":          result,
+		"idempotency_key": idempotencyKey,
+		"timestamp":       time.Now().UTC().Format(time.RFC3339),
 	}
 
 	payload, err := json.Marshal(event)
