@@ -1,0 +1,83 @@
+name: Monthly Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g., v2.5.1) or leave empty for auto'
+        required: false
+        type: string
+  schedule:
+    # Run on the 1st of every month at 00:00 UTC
+    - cron: '0 0 1 * *'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  monthly-release:
+    name: Create Monthly Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.1"
+          cache-dependency-path: go.sum
+
+      - name: Run tests
+        run: make test
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "tag=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Get latest tag and increment patch
+            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            echo "tag=${LAST_TAG}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release PR
+        id: pr
+        run: |
+          BRANCH="release/$(date +%Y-%m)"
+          git checkout -b $BRANCH
+          
+          # Update CHANGELOG if exists
+          if [ -f CHANGELOG.md ]; then
+            git commit --allow-empty -m "chore(release): prepare ${{ steps.version.outputs.tag }}"
+          fi
+          
+          git push origin $BRANCH
+          
+          gh pr create \
+            --base main \
+            --head $BRANCH \
+            --title "Release: ${{ steps.version.outputs.tag }}" \
+            --body "Monthly release PR for ${{ steps.version.outputs.tag }}" \
+            || echo "PR may already exist"
+          
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Auto-merge PR
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          gh pr merge --squash --delete-branch ${{ steps.pr.outputs.branch }}
+
+      - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          gh release create ${{ steps.version.outputs.tag }} \
+            --title "${{ steps.version.outputs.tag }}" \
+            --notes "Monthly release" \
+            --latest

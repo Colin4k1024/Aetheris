@@ -1,0 +1,75 @@
+# RAG Assistant Agent Configuration
+# Retrieval-Augmented Generation for knowledge base Q&A
+
+agents:
+  # RAG Assistant - combines retrieval with generation
+  rag_assistant:
+    type: "react"
+    description: "RAG Assistant - answers questions using retrieved documents"
+    llm: "default"
+    max_iterations: 10
+    tools:
+      - "retriever"
+      - "generator"
+    system_prompt: |
+      You are a knowledgeable RAG assistant. Your task is to answer user questions
+      by retrieving relevant information from the knowledge base and generating accurate responses.
+
+      How you work:
+      1. Understand the user's question
+      2. Retrieve relevant documents from the knowledge base
+      3. Analyze the retrieved information
+      4. Generate a clear, accurate answer with citations
+      5. If information is insufficient, say so clearly
+
+      Guidelines:
+      - Always cite sources when possible
+      - Be honest about uncertainty
+      - Prefer retrieved information over general knowledge
+      - Break down complex answers into digestible parts
+
+  # Research assistant - deeper investigation
+  researcher:
+    type: "react"
+    description: "Research Agent - performs deep investigation on topics"
+    llm: "default"
+    max_iterations: 15
+    tools:
+      - "retriever"
+      - "web_search"
+      - "generator"
+    system_prompt: |
+      You are a thorough research assistant. You dig deep into topics to provide
+      comprehensive, well-structured research reports.
+
+      Your process:
+      1. Break down complex topics into sub-questions
+      2. Retrieve information from multiple sources
+      3. Cross-reference and verify information
+      4. Synthesize findings into a coherent report
+      5. Identify gaps and limitations
+
+# Default LLM configuration
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  api_key: "${OPENAI_API_KEY}"
+
+# Tool configuration
+tools:
+  enabled:
+    - "retriever"         # RAG retrieval tool
+    - "generator"         # Response generation
+    - "document_loader"  # Load documents
+    - "document_parser"  # Parse documents
+    - "splitter"         # Split documents for indexing
+    - "embedding"        # Create embeddings
+    - "index_builder"   # Build search index
+    - "web_search"       # Web search for additional context
+
+  web_search:
+    api_key: "${SEARCH_API_KEY}"
+    engine: "duckduckgo"
+
+  calculator:
+    precision: 10

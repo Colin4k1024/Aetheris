@@ -1,0 +1,79 @@
+name: mcp-github
+version: 1.0.0
+description: GitHub API MCP tool for accessing repositories, issues, and pull requests
+author: Aetheris Team
+category: integration
+
+tools:
+  - name: mcp-github
+    description: GitHub API tool for accessing repositories, issues, and pull requests
+    parameters:
+      - name: action
+        type: string
+        required: true
+        description: Action to perform
+        enum:
+          - search_repos
+          - get_issue
+          - create_issue
+          - list_pulls
+          - get_file
+          - create_pr
+      - name: query
+        type: string
+        required: false
+        description: Search query
+      - name: owner
+        type: string
+        required: false
+        description: Repository owner
+      - name: repo
+        type: string
+        required: false
+        description: Repository name
+      - name: issue_number
+        type: integer
+        required: false
+        description: Issue or PR number
+      - name: title
+        type: string
+        required: false
+        description: Issue or PR title
+      - name: body
+        type: string
+        required: false
+        description: Issue or PR body content
+      - name: state
+        type: string
+        required: false
+        description: Issue or PR state
+        enum:
+          - open
+          - closed
+          - all
+      - name: path
+        type: string
+        required: false
+        description: File path
+      - name: ref
+        type: string
+        required: false
+        description: Git reference
+      - name: limit
+        type: integer
+        required: false
+        description: Maximum number of results
+
+dependencies:
+  - github.com/google/go-github/v45
+
+configuration:
+  - name: GITHUB_TOKEN
+    type: string
+    required: true
+    description: GitHub Personal Access Token
+  - name: GITHUB_BASE_URL
+    type: string
+    required: false
+    default: https://api.github.com
+    description: GitHub API Base URL

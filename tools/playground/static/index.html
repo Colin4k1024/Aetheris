@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoRag Playground</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 0;
+            border-bottom: 1px solid #334155;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .badge {
+            background: #6366f1;
+            color: white;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .panel {
+            background: #1e293b;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: #0f172a;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .panel-content {
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+        
+        .input {
+            width: 100%;
+            padding: 12px 16px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .input:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+        
+        .input::placeholder {
+            color: #64748b;
+        }
+        
+        textarea.input {
+            min-height: 200px;
+            resize: vertical;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        select.input {
+            cursor: pointer;
+        }
+        
+        .api-key-section {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .api-key-warning {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            color: #fca5a5;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+        
+        .api-key-warning svg {
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        
+        .api-key-input {
+            position: relative;
+        }
+        
+        .api-key-input .input {
+            padding-right: 40px;
+        }
+        
+        .toggle-visibility {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            padding: 4px;
+        }
+        
+        .toggle-visibility:hover {
+            color: #94a3b8;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            width: 100%;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-secondary {
+            background: #334155;
+            color: #e2e8f0;
+        }
+        
+        .btn-secondary:hover {
+            background: #475569;
+        }
+        
+        .trace-panel {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 200px);
+            min-height: 500px;
+        }
+        
+        .trace-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .trace-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #64748b;
+            text-align: center;
+        }
+        
+        .trace-empty svg {
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .trace-event {
+            display: flex;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #0f172a;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .trace-event-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 12px;
+        }
+        
+        .trace-event.thought .trace-event-icon {
+            background: #6366f1;
+            color: white;
+        }
+        
+        .trace-event.action .trace-event-icon {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .trace-event.observation .trace-event-icon {
+            background: #10b981;
+            color: white;
+        }
+        
+        .trace-event.result .trace-event-icon {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .trace-event.error .trace-event-icon {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .trace-event-body {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .trace-event-type {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+        
+        .trace-event-content {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #e2e8f0;
+            word-break: break-word;
+        }
+        
+        .trace-event-time {
+            font-size: 11px;
+            color: #475569;
+            margin-top: 6px;
+            font-family: monospace;
+        }
+        
+        .trace-event-metadata {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: #1e293b;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: monospace;
+            color: #94a3b8;
+        }
+        
+        .status-bar {
+            padding: 12px 20px;
+            background: #0f172a;
+            border-top: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #64748b;
+        }
+        
+        .status-dot.running {
+            background: #f59e0b;
+            animation: pulse 1s infinite;
+        }
+        
+        .status-dot.completed {
+            background: #10b981;
+        }
+        
+        .status-dot.error {
+            background: #ef4444;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .run-id {
+            color: #64748b;
+            font-family: monospace;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: #0f172a;
+            padding: 4px;
+            border-radius: 8px;
+        }
+        
+        .tab {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #64748b;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .tab:hover {
+            color: #94a3b8;
+        }
+        
+        .tab.active {
+            background: #334155;
+            color: #e2e8f0;
+        }
+        
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .examples-dropdown {
+            position: relative;
+        }
+        
+        .examples-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 8px;
+            min-width: 200px;
+            z-index: 100;
+            display: none;
+        }
+        
+        .examples-menu.show {
+            display: block;
+        }
+        
+        .examples-menu button {
+            width: 100%;
+            text-align: left;
+            padding: 10px 12px;
+            background: transparent;
+            border: none;
+            color: #e2e8f0;
+            font-size: 13px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .examples-menu button:hover {
+            background: #334155;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .loading-overlay.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">CR</div>
+                <h1>CoRag Playground</h1>
+            </div>
+            <span class="badge">Beta</span>
+        </header>
+        
+        <div class="main-grid">
+            <div class="left-column">
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">Agent Configuration</span>
+                        <div class="examples-dropdown">
+                            <button class="btn btn-secondary" onclick="toggleExamples()">
+                                Examples
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                    <path d="M3 5L6 8L9 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                </svg>
+                            </button>
+                            <div class="examples-menu" id="examplesMenu">
+                                <button onclick="loadExample('react')">ReAct Agent</button>
+                                <button onclick="loadExample('rag')">RAG Assistant</button>
+                                <button onclick="loadExample('minimal')">Minimal Config</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel-content">
+                        <div class="form-group">
+                            <label>Configuration Format</label>
+                            <div class="tabs" style="width: fit-content;">
+                                <button class="tab active" data-format="yaml" onclick="setFormat('yaml')">YAML</button>
+                                <button class="tab" data-format="json" onclick="setFormat('json')">JSON</button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Agent Configuration</label>
+                            <textarea id="configEditor" class="input" placeholder="Enter agent configuration in YAML or JSON format..."></textarea>
+                        </div>
+                        
+                        <div class="api-key-section">
+                            <div class="api-key-warning">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                    <path d="M8 1.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 .5-.5h1zm-6.5 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5H2a.5.5 0 0 1-.5-.5v-4zM8 12a6 6 0 1 0 0-12 6 6 0 0 0 0 12zm0-10.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 .5-.5h1zm-6.5 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5H2a.5.5 0 0 1-.5-.5v-4zm11 .5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-4z"/>
+                                </svg>
+                                <span>Your API key is only stored locally in your browser and is never sent to our servers. Use environment variables in production.</span>
+                            </div>
+                            <div class="api-key-input">
+                                <input type="password" id="apiKey" class="input" placeholder="sk-... (optional for demo)">
+                                <button class="toggle-visibility" onclick="toggleApiKeyVisibility()">
+                                    <svg id="eyeIcon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                        <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
+                                        <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Query</label>
+                            <input type="text" id="query" class="input" placeholder="What would you like to ask the agent?">
+                        </div>
+                        
+                        <button id="runBtn" class="btn btn-primary" onclick="runAgent()">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M4 2.5a.5.5 0 0 1 .77-.42l10 6a.5.5 0 0 1 0 .84l-10 6A.5.5 0 0 1 4 14.5v-12z"/>
+                            </svg>
+                            Run Agent
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="right-column">
+                <div class="panel trace-panel">
+                    <div class="panel-header">
+                        <span class="panel-title">Execution Trace</span>
+                        <button class="btn btn-secondary" onclick="clearTrace()" style="padding: 6px 12px; font-size: 12px;">
+                            Clear
+                        </button>
+                    </div>
+                    <div class="trace-content" id="traceContent">
+                        <div class="trace-empty" id="traceEmpty">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="currentColor">
+                                <path d="M8 8h32v32H8V8zm4 4v24h24V12H12z"/>
+                                <path d="M16 20h16v2H16v-2zm0 6h12v2H16v-2z"/>
+                            </svg>
+                            <p>Run an agent to see the execution trace</p>
+                        </div>
+                    </div>
+                    <div class="status-bar">
+                        <div class="status-indicator">
+                            <div class="status-dot" id="statusDot"></div>
+                            <span id="statusText">Ready</span>
+                        </div>
+                        <span class="run-id" id="runIdDisplay"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        let currentFormat = 'yaml';
+        let currentRunId = null;
+        let pollInterval = null;
+        
+        const examples = {
+            react: `# ReAct Agent Configuration
+agents:
+  react:
+    type: "react"
+    description: "ReAct (Reasoning + Acting) Agent"
+    llm: "default"
+    max_iterations: 10
+    tools:
+      - "web_search"
+      - "calculator"
+    system_prompt: |
+      You are a helpful AI assistant.
+      Think step by step to solve problems.
+      Use tools when needed to gather information.
+
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  api_key: "\${OPENAI_API_KEY}"
+
+tools:
+  enabled:
+    - "web_search"
+    - "calculator"`,
+            
+            rag: `# RAG Assistant Configuration
+agents:
+  rag_assistant:
+    type: "react"
+    description: "RAG Assistant for knowledge base Q&A"
+    llm: "default"
+    max_iterations: 10
+    tools:
+      - "retriever"
+      - "generator"
+    system_prompt: |
+      You are a knowledgeable RAG assistant. Your task is to answer user questions
+      by retrieving relevant information from the knowledge base and generating accurate responses.
+
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  api_key: "\${OPENAI_API_KEY}"
+
+tools:
+  enabled:
+    - "retriever"
+    - "generator"`,
+            
+            minimal: `# Minimal Agent Configuration
+agents:
+  simple:
+    type: "react"
+    description: "Simple ReAct Agent"
+    llm: "default"
+    max_iterations: 5
+    system_prompt: "You are a helpful assistant."
+
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  api_key: "\${OPENAI_API_KEY}"`,
+            
+            reactJSON: `{
+  "agents": {
+    "react": {
+      "type": "react",
+      "description": "ReAct (Reasoning + Acting) Agent",
+      "llm": "default",
+      "max_iterations": 10,
+      "tools": ["web_search", "calculator"],
+      "system_prompt": "You are a helpful AI assistant. Think step by step."
+    }
+  },
+  "llm": {
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "api_key": "\${OPENAI_API_KEY}"
+  },
+  "tools": {
+    "enabled": ["web_search", "calculator"]
+  }
+}`,
+            
+            ragJSON: `{
+  "agents": {
+    "rag_assistant": {
+      "type": "react",
+      "description": "RAG Assistant for knowledge base Q&A",
+      "llm": "default",
+      "max_iterations": 10,
+      "tools": ["retriever", "generator"],
+      "system_prompt": "You are a knowledgeable RAG assistant."
+    }
+  },
+  "llm": {
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "api_key": "\${OPENAI_API_KEY}"
+  },
+  "tools": {
+    "enabled": ["retriever", "generator"]
+  }
+}`
+        };
+        
+        function setFormat(format) {
+            currentFormat = format;
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.format === format);
+            });
+            
+            const config = document.getElementById('configEditor').value;
+            if (format === 'json') {
+                try {
+                    if (config.trim() && !config.trim().startsWith('{')) {
+                        document.getElementById('configEditor').value = examples.reactJSON;
+                    }
+                } catch (e) {}
+            } else {
+                try {
+                    if (config.trim() && config.trim().startsWith('{')) {
+                        document.getElementById('configEditor').value = examples.react;
+                    }
+                } catch (e) {}
+            }
+        }
+        
+        function toggleExamples() {
+            document.getElementById('examplesMenu').classList.toggle('show');
+        }
+        
+        function loadExample(name) {
+            const configEditor = document.getElementById('configEditor');
+            if (name === 'react') {
+                configEditor.value = examples.react;
+                setFormat('yaml');
+            } else if (name === 'rag') {
+                configEditor.value = examples.rag;
+                setFormat('yaml');
+            } else if (name === 'minimal') {
+                configEditor.value = examples.minimal;
+                setFormat('yaml');
+            }
+            document.getElementById('examplesMenu').classList.remove('show');
+        }
+        
+        function toggleApiKeyVisibility() {
+            const input = document.getElementById('apiKey');
+            const icon = document.getElementById('eyeIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.innerHTML = '<path d="M3 5.5a.5.5 0 0 0-.854.354L1.354 7.146a.5.5 0 0 0 0 .708l11.5 11.5a.5.5 0 0 0 .854-.354L3 13.5l-2.146-2.5A.5.5 0 0 0 0 10.5v-5a.5.5 0 0 1 .5-.5h3zm.5 0a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.11.31l-1.146 1.5L2.5 9.146A.5.5 0 0 1 2 8.5v-3a.5.5 0 0 1 .5-.5h1zM10 1.5a.5.5 0 0 1 .354-.146l11.5 11.5a.5.5 0 0 1 0 .708l-11.5 11.5a.5.5 0 0 1-.708 0L1 14.354a.5.5 0 0 1 0-.708l11.5-11.5A.5.5 0 0 1 10 1.5z"/>';
+            } else {
+                input.type = 'password';
+                icon.innerHTML = '<path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>';
+            }
+        }
+        
+        function updateStatus(status, runId) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            const runIdDisplay = document.getElementById('runIdDisplay');
+            
+            dot.className = 'status-dot';
+            if (status === 'running') {
+                dot.classList.add('running');
+                text.textContent = 'Running...';
+            } else if (status === 'completed') {
+                dot.classList.add('completed');
+                text.textContent = 'Completed';
+            } else if (status === 'error') {
+                dot.classList.add('error');
+                text.textContent = 'Error';
+            } else {
+                text.textContent = 'Ready';
+            }
+            
+            if (runId) {
+                runIdDisplay.textContent = runId;
+            }
+        }
+        
+        function addTraceEvent(event) {
+            const traceContent = document.getElementById('traceContent');
+            const traceEmpty = document.getElementById('traceEmpty');
+            
+            if (traceEmpty) {
+                traceEmpty.remove();
+            }
+            
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `trace-event ${event.type}`;
+            
+            const iconMap = {
+                thought: '💭',
+                action: '⚡',
+                observation: '👁',
+                result: '✓',
+                error: '✗'
+            };
+            
+            const time = new Date(event.timestamp).toLocaleTimeString();
+            
+            let metadataHtml = '';
+            if (event.metadata && Object.keys(event.metadata).length > 0) {
+                metadataHtml = `<div class="trace-event-metadata">${JSON.stringify(event.metadata, null, 2)}</div>`;
+            }
+            
+            eventDiv.innerHTML = `
+                <div class="trace-event-icon">${iconMap[event.type] || '•'}</div>
+                <div class="trace-event-body">
+                    <div class="trace-event-type">${event.type}</div>
+                    <div class="trace-event-content">${escapeHtml(event.content)}</div>
+                    ${metadataHtml}
+                    <div class="trace-event-time">${time}</div>
+                </div>
+            `;
+            
+            traceContent.appendChild(eventDiv);
+            traceContent.scrollTop = traceContent.scrollHeight;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function clearTrace() {
+            const traceContent = document.getElementById('traceContent');
+            traceContent.innerHTML = `
+                <div class="trace-empty" id="traceEmpty">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="currentColor">
+                        <path d="M8 8h32v32H8V8zm4 4v24h24V12H12z"/>
+                        <path d="M16 20h16v2H16v-2zm0 6h12v2H16v-2z"/>
+                    </svg>
+                    <p>Run an agent to see the execution trace</p>
+                </div>
+            `;
+            updateStatus('ready', null);
+            currentRunId = null;
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+        }
+        
+        async function runAgent() {
+            const config = document.getElementById('configEditor').value;
+            const query = document.getElementById('query').value;
+            const apiKey = document.getElementById('apiKey').value;
+            
+            if (!query.trim()) {
+                alert('Please enter a query');
+                return;
+            }
+            
+            const runBtn = document.getElementById('runBtn');
+            runBtn.disabled = true;
+            runBtn.innerHTML = '<div class="spinner"></div> Running...';
+            
+            clearTrace();
+            updateStatus('running', 'Starting...');
+            
+            try {
+                const response = await fetch('/api/run', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        agent_config: config,
+                        query: query,
+                        api_key: apiKey,
+                        config_type: currentFormat
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                
+                const data = await response.json();
+                currentRunId = data.run_id;
+                updateStatus('running', currentRunId);
+                
+                // Start polling for trace updates
+                pollInterval = setInterval(() => pollTrace(currentRunId), 500);
+                
+            } catch (error) {
+                updateStatus('error', null);
+                addTraceEvent({
+                    timestamp: new Date().toISOString(),
+                    type: 'error',
+                    content: `Failed to start agent: ${error.message}`
+                });
+            } finally {
+                runBtn.disabled = false;
+                runBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M4 2.5a.5.5 0 0 1 .77-.42l10 6a.5.5 0 0 1 0 .84l-10 6A.5.5 0 0 1 4 14.5v-12z"/>
+                    </svg>
+                    Run Agent
+                `;
+            }
+        }
+        
+        async function pollTrace(runId) {
+            try {
+                const response = await fetch(`/api/trace/${runId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Update trace with all events
+                const traceContent = document.getElementById('traceContent');
+                const traceEmpty = document.getElementById('traceEmpty');
+                
+                if (data.events && data.events.length > 0) {
+                    if (traceEmpty) {
+                        traceEmpty.remove();
+                    }
+                    
+                    // Only add new events
+                    const existingEvents = traceContent.querySelectorAll('.trace-event');
+                    const startIdx = existingEvents.length;
+                    
+                    for (let i = startIdx; i < data.events.length; i++) {
+                        addTraceEvent(data.events[i]);
+                    }
+                }
+                
+                // Update status
+                updateStatus(data.status, runId);
+                
+                // Stop polling if completed or failed
+                if (data.status === 'completed' || data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                }
+                
+            } catch (error) {
+                console.error('Poll error:', error);
+            }
+        }
+        
+        // Close examples menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.examples-dropdown')) {
+                document.getElementById('examplesMenu').classList.remove('show');
+            }
+        });
+        
+        // Load default example
+        document.getElementById('configEditor').value = examples.react;
+    </script>
+</body>
+</html>

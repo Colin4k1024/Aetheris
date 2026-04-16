@@ -1,0 +1,88 @@
+# Autonomous Researcher Agent Configuration
+# Deep research agent that autonomously explores topics
+
+agents:
+  # Main researcher agent - orchestrates research
+  researcher:
+    type: "react"
+    description: "Autonomous Researcher - deeply explores topics with minimal guidance"
+    llm: "default"
+    max_iterations: 25
+    tools:
+      - "web_search"
+      - "retriever"
+      - "calculator"
+    system_prompt: |
+      You are an autonomous research agent. You explore topics deeply and thoroughly.
+
+      Your approach:
+      1. Break down complex topics into sub-questions
+      2. Search multiple sources (web, knowledge base, documents)
+      3. Cross-reference and verify information
+      4. Identify patterns and draw conclusions
+      5. Report findings with confidence levels
+
+      Quality standards:
+      - Cite all sources
+      - Distinguish facts from opinions
+      - Acknowledge uncertainty and gaps
+      - Prioritize reliable sources
+
+  # Writing agent - drafts reports
+  writer:
+    type: "react"
+    description: "Research Writer - converts research into clear reports"
+    llm: "default"
+    max_iterations: 10
+    tools:
+      - "retriever"
+    system_prompt: |
+      You are a research writer. Transform research findings into clear, readable reports.
+
+      Your output should be:
+      - Well-structured with clear sections
+      - Accessible to target audience
+      - Properly cited
+      - Balanced and objective
+
+  # Verification agent - fact-checks
+  verifier:
+    type: "react"
+    description: "Verification Agent - fact-checks research findings"
+    llm: "default"
+    max_iterations: 15
+    tools:
+      - "web_search"
+      - "retriever"
+    system_prompt: |
+      You are a verification specialist. Check research for accuracy and completeness.
+
+      Your tasks:
+      1. Verify factual claims against reliable sources
+      2. Identify unsupported assertions
+      3. Check for logical fallacies
+      4. Assess source reliability
+      5. Provide confidence ratings
+
+# Default LLM configuration
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  api_key: "${OPENAI_API_KEY}"
+
+# Tool configuration
+tools:
+  enabled:
+    - "web_search"
+    - "retriever"
+    - "calculator"
+    - "document_loader"
+    - "document_parser"
+    - "generator"
+
+  web_search:
+    api_key: "${SEARCH_API_KEY}"
+    engine: "duckduckgo"
+
+  calculator:
+    precision: 10

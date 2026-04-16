@@ -1,0 +1,189 @@
+{
+  "corag-agents-yaml": {
+    "prefix": "corag-agents-yaml",
+    "body": [
+      "# CoRag Agents Configuration",
+      "# Worker 启动时根据此配置初始化 Eino 适配器",
+      "",
+      "agents:",
+      "  ${1:agent-name}:",
+      "    type: \"${2:react}\"",
+      "    description: \"${3:My CoRag agent}\"",
+      "    llm: \"${4:default}\"",
+      "    max_iterations: ${5:10}",
+      "    tools:",
+      "      - \"${6:web_search}\"",
+      "      - \"${7:calculator}\"",
+      "    system_prompt: |",
+      "      ${8:You are a helpful AI assistant.}",
+      "",
+      "# 默认 LLM 配置",
+      "llm:",
+      "  provider: \"${9:openai}\"",
+      "  model: \"${10:gpt-4o-mini}\"",
+      "  api_key: \"${OPENAI_API_KEY}\"",
+      "",
+      "# 工具配置",
+      "tools:",
+      "  enabled:",
+      "    - \"web_search\"",
+      "    - \"calculator\""
+    ],
+    "description": "Complete agents.yaml configuration"
+  },
+  "corag-react-agent": {
+    "prefix": "corag-react-agent",
+    "body": [
+      "  # ReAct Agent - 基础的思考-行动-观察循环",
+      "  ${1:react-agent}:",
+      "    type: \"react\"",
+      "    description: \"${2:ReAct (Reasoning + Acting) 智能体}\"",
+      "    llm: \"default\"",
+      "    max_iterations: ${3:10}",
+      "    tools:",
+      "      - \"web_search\"",
+      "      - \"calculator\"",
+      "    system_prompt: |",
+      "      ${4:You are a helpful AI assistant.}",
+      "      Think step by step to solve problems.",
+      "      Use tools when needed to gather information."
+    ],
+    "description": "Add ReAct agent configuration"
+  },
+  "corag-deer-agent": {
+    "prefix": "corag-deer-agent",
+    "body": [
+      "  # DEER Agent - 增强的推理和执行",
+      "  ${1:deer-agent}:",
+      "    type: \"deer\"",
+      "    description: \"${2:DEER-Go 增强推理智能体}\"",
+      "    llm: \"default\"",
+      "    max_iterations: ${3:15}",
+      "    tools: []",
+      "    system_prompt: |",
+      "      ${4:You are an advanced reasoning agent.}",
+      "      Decompose complex problems into smaller steps.",
+      "      Use tools efficiently to gather information."
+    ],
+    "description": "Add DEER agent configuration"
+  },
+  "corag-manus-agent": {
+    "prefix": "corag-manus-agent",
+    "body": [
+      "  # Manus Agent - 自主执行智能体",
+      "  ${1:manus-agent}:",
+      "    type: \"manus\"",
+      "    description: \"${2:Manus 自主执行智能体}\"",
+      "    llm: \"default\"",
+      "    max_iterations: ${3:20}",
+      "    tools:",
+      "      - \"web_search\"",
+      "      - \"calculator\"",
+      "      - \"file_reader\"",
+      "      - \"http_request\"",
+      "    system_prompt: |",
+      "      ${4:You are an autonomous agent capable of completing complex tasks.}",
+      "      Plan your approach and execute step by step.",
+      "      Always verify your results."
+    ],
+    "description": "Add Manus agent configuration"
+  },
+  "corag-conversation-chain": {
+    "prefix": "corag-conversation-chain",
+    "body": [
+      "  # Chain - 简单链式调用",
+      "  ${1:conversation-chain}:",
+      "    type: \"chain\"",
+      "    chain_type: \"conversation\"",
+      "    description: \"${2:简单对话链}\"",
+      "    llm: \"default\""
+    ],
+    "description": "Add conversation chain configuration"
+  },
+  "corag-workflow-agent": {
+    "prefix": "corag-workflow-agent",
+    "body": [
+      "  # Workflow - 线性工作流",
+      "  ${1:linear-workflow}:",
+      "    type: \"workflow\"",
+      "    workflow_type: \"linear\"",
+      "    description: \"${2:线性工作流}\"",
+      "    llm: \"default\""
+    ],
+    "description": "Add linear workflow configuration"
+  },
+  "corag-graph-agent": {
+    "prefix": "corag-graph-agent",
+    "body": [
+      "  # Graph - 有向无环图",
+      "  ${1:chat-graph}:",
+      "    type: \"graph\"",
+      "    graph_type: \"directed\"",
+      "    description: \"${2:对话图}\"",
+      "    llm: \"default\""
+    ],
+    "description": "Add directed graph configuration"
+  },
+  "corag-llm-config": {
+    "prefix": "corag-llm-config",
+    "body": [
+      "# 默认 LLM 配置",
+      "llm:",
+      "  provider: \"${1:openai}\"",
+      "  model: \"${2:gpt-4o-mini}\"",
+      "  api_key: \"${OPENAI_API_KEY}\""
+    ],
+    "description": "Add LLM configuration"
+  },
+  "corag-tools-config": {
+    "prefix": "corag-tools-config",
+    "body": [
+      "# 工具配置",
+      "tools:",
+      "  enabled:",
+      "    - \"${1:web_search}\"",
+      "    - \"${2:calculator}\"",
+      "    - \"${3:file_reader}\"",
+      "    - \"${4:http_request}\"",
+      "",
+      "  ${1:web_search}:",
+      "    api_key: \"${SEARCH_API_KEY}\"",
+      "    engine: \"${5:duckduckgo}\"",
+      "",
+      "  ${2:calculator}:",
+      "    precision: ${6:10}",
+      "",
+      "  ${3:file_reader}:",
+      "    allowed_paths:",
+      "      - \"./data\"",
+      "      - \"/tmp\"",
+      "",
+      "  ${4:http_request}:",
+      "    timeout: ${7:30}",
+      "    max_retries: ${8:3}"
+    ],
+    "description": "Add tools configuration"
+  },
+  "corag-job-status-yaml": {
+    "prefix": "corag-job-status-yaml",
+    "body": [
+      "# Job Status Values:",
+      "# - pending: Job is waiting to be processed",
+      "# - running: Job is currently being executed",
+      "# - completed: Job finished successfully",
+      "# - failed: Job encountered an error",
+      "# - cancelled: Job was cancelled",
+      "# - waiting: Job is waiting for a signal (short wait)",
+      "# - parked: Job is parked (long wait, scheduler skips)",
+      "# - retrying: Job failed and is waiting to retry",
+      "",
+      "status: ${1:pending}",
+      "priority: ${2:0}",
+      "queue_class: \"${3:default}\"",
+      "required_capabilities:",
+      "  - \"${4:llm}\"",
+      "  - \"${5:tool}\""
+    ],
+    "description": "Job status and configuration in YAML"
+  }
+}
