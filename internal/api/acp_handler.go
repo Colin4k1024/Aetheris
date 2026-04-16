@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
@@ -56,33 +57,41 @@ type ACPStatusResponse struct {
 	IsCanceled bool   `json:"is_canceled"`
 }
 
-// ACPToolCall represents a tool call event for the audit trail.
-// Used for storing tool call events in the Event Store with idempotency support.
-type ACPToolCall struct {
+// HermesACPToolCall represents a tool call event for the audit trail.
+// This is used by HermesRunner to store tool call events in the Event Store.
+type HermesACPToolCall struct {
 	RunID           string                 `json:"run_id"`
 	StepID          string                 `json:"step_id"`
 	ToolName        string                 `json:"tool_name"`
 	RequestPayload  map[string]interface{} `json:"request_payload,omitempty"`
 	ResponsePayload map[string]interface{} `json:"response_payload,omitempty"`
 	IdempotencyKey  string                 `json:"idempotency_key,omitempty"`
-	Error           string                 `json:"error,omitempty"`
 	StartedAt       int64                  `json:"started_at,omitempty"`
 	EndedAt         int64                  `json:"ended_at,omitempty"`
+	Error           string                 `json:"error,omitempty"`
 }
 
 // ACPSEventStore is an interface for storing ACP events.
 // This allows the ACP handlers to work with any event store implementation.
 type ACPSEventStore interface {
 	Append(ctx context.Context, jobID string, prevSeq int64, event jobstore.JobEvent) (int64, error)
-	StoreACPToolCall(ctx context.Context, call *ACPToolCall) error
+	StoreACPToolCall(ctx context.Context, call *HermesACPToolCall) error
 }
 
 // acpEventStore is the global event store for ACP events.
 var acpEventStore ACPSEventStore
 
+// acpJobEventStore is the global job event store for job status lookups.
+var acpJobEventStore jobstore.JobStore
+
 // SetACPSEventStore sets the event store for ACP handlers.
 func SetACPSEventStore(store ACPSEventStore) {
 	acpEventStore = store
+}
+
+// SetACPJobEventStore sets the job event store for job status lookups.
+func SetACPJobEventStore(store jobstore.JobStore) {
+	acpJobEventStore = store
 }
 
 // HandleACPEvents handles POST /api/acp/events
@@ -92,7 +101,7 @@ func HandleACPEvents(ctx context.Context, c *app.RequestContext) {
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(consts.StatusBadRequest, map[string]string{
 			"error":   "invalid_request",
-			"message": "Failed to parse request body: " + err.Error(),
+			"message": fmt.Sprintf("Failed to parse request body: %v", err),
 		})
 		return
 	}
@@ -176,7 +185,7 @@ func HandleACPEvents(ctx context.Context, c *app.RequestContext) {
 	default:
 		c.JSON(consts.StatusBadRequest, map[string]string{
 			"error":   "unknown_event_type",
-			"message": "Unknown event type: " + req.Type,
+			"message": fmt.Sprintf("Unknown event type: %s", req.Type),
 		})
 		return
 	}
@@ -209,7 +218,7 @@ func HandleACPEvents(ctx context.Context, c *app.RequestContext) {
 
 		// Also store tool call events in the dedicated table for audit
 		if (req.Type == "tool.call" || req.Type == "tool.result") && req.CallID != "" {
-			toolCall := &ACPToolCall{
+			toolCall := &HermesACPToolCall{
 				RunID:  req.JobID,
 				StepID: req.SessionID, // Use session_id as step_id in this context
 			}
@@ -240,7 +249,7 @@ func HandleACPCheckpoints(ctx context.Context, c *app.RequestContext) {
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(consts.StatusBadRequest, map[string]string{
 			"error":   "invalid_request",
-			"message": "Failed to parse request body: " + err.Error(),
+			"message": fmt.Sprintf("Failed to parse request body: %v", err),
 		})
 		return
 	}
@@ -332,16 +341,101 @@ func HandleACPJobStatus(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	// TODO: Implement actual job status lookup from job store
-	// Hermes polls this endpoint to check if a job was canceled by Aetheris.
-	// Return "unknown" so Hermes knows the status is not authoritative.
-	// Fix: query jobstore for actual status (StatusParked/Canceled/etc.)
+	// Query jobstore for actual job status
 	status := "unknown"
 	isCanceled := false
+
+	if acpJobEventStore != nil {
+		events, _, err := acpJobEventStore.ListEvents(ctx, jobID)
+		if err != nil {
+			hlog.CtxWarnf(ctx, "Failed to list events for job %s: %v", jobID, err)
+			// Return "unknown" on error - Hermes will keep polling
+		} else if len(events) > 0 {
+			// Determine status from the latest events
+			status = determineJobStatus(events)
+			isCanceled = status == "canceled"
+		}
+		// If no events found, status remains "unknown"
+	}
 
 	c.JSON(consts.StatusOK, ACPStatusResponse{
 		JobID:      jobID,
 		Status:     status,
 		IsCanceled: isCanceled,
 	})
+}
+
+// determineJobStatus derives the job status from its event stream.
+// It looks at the most recent terminal event to determine the current state.
+func determineJobStatus(events []jobstore.JobEvent) string {
+	// Look for terminal events first (job_complete, job_failed, job_cancelled)
+	for i := len(events) - 1; i >= 0; i-- {
+		e := events[i]
+		switch e.Type {
+		case jobstore.JobCompleted:
+			return "completed"
+		case jobstore.JobFailed:
+			return "failed"
+		case jobstore.JobCancelled:
+			return "canceled"
+		}
+	}
+
+	// Check for parked/waiting states
+	for i := len(events) - 1; i >= 0; i-- {
+		e := events[i]
+		switch e.Type {
+		case jobstore.JobParked:
+			return "parked"
+		case jobstore.JobWaiting:
+			return "waiting"
+		}
+	}
+
+	// Check if job is currently running
+	for i := len(events) - 1; i >= 0; i-- {
+		e := events[i]
+		if e.Type == jobstore.JobRunning {
+			return "running"
+		}
+	}
+
+	// Check for queued/leased states
+	for i := len(events) - 1; i >= 0; i-- {
+		e := events[i]
+		switch e.Type {
+		case jobstore.JobQueued:
+			return "queued"
+		case jobstore.JobLeased:
+			return "leased"
+		case jobstore.JobRetrying:
+			return "retrying"
+		}
+	}
+
+	// Default to running if we have events but no clear terminal state
+	if len(events) > 0 {
+		return "running"
+	}
+
+	return "unknown"
+}
+
+// redacredactCredentials redacts sensitive values from context for logging.
+// It checks if key contains "token" or "secret" (case-insensitive partial match).
+func redactCredentials(context map[string]any) map[string]any {
+	if context == nil {
+		return nil
+	}
+	result := make(map[string]any)
+	for k, v := range context {
+		if strings.Contains(strings.ToLower(k), "token") || strings.Contains(strings.ToLower(k), "secret") {
+			result[k] = "[REDACTED]"
+		} else if m, ok := v.(map[string]any); ok {
+			result[k] = redactCredentials(m)
+		} else {
+			result[k] = v
+		}
+	}
+	return result
 }

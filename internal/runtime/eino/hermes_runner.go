@@ -20,6 +20,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/hermes"
 )
 
@@ -224,5 +226,5 @@ func (r *HermesRunner) GetConfig() *HermesStepConfig {
 
 // generateRunID generates a unique run ID for a Hermes job.
 func generateRunID() string {
-	return fmt.Sprintf("run_%d", time.Now().UnixNano())
+	return "run_" + uuid.New().String()
 }

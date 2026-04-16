@@ -24,9 +24,9 @@ type HermesStepConfig struct {
 	CallbackURL string   // Aetheris callback URL for events
 }
 
-// ACPToolCall represents a tool call event for the audit trail.
+// HermesACPToolCall represents a tool call event for the audit trail.
 // This is used to store tool call events in the Event Store.
-type ACPToolCall struct {
+type HermesACPToolCall struct {
 	RunID           string                 `json:"run_id"`
 	StepID          string                 `json:"step_id"`
 	ToolName        string                 `json:"tool_name"`
