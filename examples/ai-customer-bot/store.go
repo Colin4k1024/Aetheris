@@ -102,7 +102,7 @@ func (s *ConversationStore) saveToFile() error {
 }
 
 // CreateConversation creates a new conversation
-func (s *ConversationStore) CreateConversation(userID string) *Conversation {
+func (s *ConversationStore) CreateConversation(userID string) (*Conversation, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -116,9 +116,12 @@ func (s *ConversationStore) CreateConversation(userID string) *Conversation {
 	}
 
 	s.conversations[conv.ID] = conv
-	s.saveToFile()
+	if err := s.saveToFile(); err != nil {
+		delete(s.conversations, conv.ID)
+		return nil, fmt.Errorf("failed to persist new conversation: %w", err)
+	}
 
-	return conv
+	return conv, nil
 }
 
 // GetConversation retrieves a conversation by ID
@@ -131,14 +134,20 @@ func (s *ConversationStore) GetConversation(id string) (*Conversation, error) {
 		return nil, fmt.Errorf("conversation not found: %s", id)
 	}
 
-	// Return a copy to avoid race conditions
+	// Return a copy to avoid race conditions.
+	// Metadata values are copied shallowly; callers must treat reference-type
+	// values (slices, maps, pointers) as read-only to avoid unintended mutation.
+	metaCopy := make(map[string]any, len(conv.Metadata))
+	for k, v := range conv.Metadata {
+		metaCopy[k] = v
+	}
 	convCopy := &Conversation{
 		ID:        conv.ID,
 		UserID:    conv.UserID,
 		Messages:  make([]Message, len(conv.Messages)),
 		CreatedAt: conv.CreatedAt,
 		UpdatedAt: conv.UpdatedAt,
-		Metadata:  conv.Metadata,
+		Metadata:  metaCopy,
 	}
 	copy(convCopy.Messages, conv.Messages)
 
@@ -162,10 +171,17 @@ func (s *ConversationStore) AddMessage(convID, role, content string) (*Message, 
 		Timestamp: time.Now(),
 	}
 
+	origLen := len(conv.Messages)
+	origUpdatedAt := conv.UpdatedAt
+
 	conv.Messages = append(conv.Messages, msg)
 	conv.UpdatedAt = time.Now()
 
-	s.saveToFile()
+	if err := s.saveToFile(); err != nil {
+		conv.Messages = conv.Messages[:origLen]
+		conv.UpdatedAt = origUpdatedAt
+		return nil, fmt.Errorf("failed to persist message: %w", err)
+	}
 
 	return &msg, nil
 }

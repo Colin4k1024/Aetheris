@@ -102,6 +102,16 @@ func (hr *HumanReviewer) RequestApproval(ctx context.Context, req *ApprovalReque
 	hr.results[req.ID] = respCh
 	hr.mu.Unlock()
 
+	// Ensure map entries are always cleaned up when this call returns,
+	// regardless of which path (response, timeout, or context cancellation)
+	// resolved the request.
+	defer func() {
+		hr.mu.Lock()
+		delete(hr.requests, req.ID)
+		delete(hr.results, req.ID)
+		hr.mu.Unlock()
+	}()
+
 	// Log the approval request
 	fmt.Printf("\n=== Human Approval Required ===\n")
 	fmt.Printf("Request ID: %s\n", req.ID)
