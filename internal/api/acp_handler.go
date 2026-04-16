@@ -333,8 +333,10 @@ func HandleACPJobStatus(ctx context.Context, c *app.RequestContext) {
 	}
 
 	// TODO: Implement actual job status lookup from job store
-	// For now, return a default status
-	status := "running"
+	// Hermes polls this endpoint to check if a job was canceled by Aetheris.
+	// Return "unknown" so Hermes knows the status is not authoritative.
+	// Fix: query jobstore for actual status (StatusParked/Canceled/etc.)
+	status := "unknown"
 	isCanceled := false
 
 	c.JSON(consts.StatusOK, ACPStatusResponse{

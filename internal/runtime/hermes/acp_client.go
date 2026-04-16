@@ -232,8 +232,15 @@ func (c *ACPClient) doPostWithRetry(ctx context.Context, url string, payload []b
 			continue
 		}
 
-		// Don't retry client errors (4xx)
+		// Don't retry client errors (4xx) except 429 (rate limited)
 		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			if resp.StatusCode == 429 {
+				// 429 is retryable — rate limit hit, back off and retry
+				resp.Body.Close()
+				lastErr = fmt.Errorf("rate limited: 429")
+				continue
+			}
+			// 400, 401, 403, 404, etc. — don't retry
 			return resp, nil
 		}
 

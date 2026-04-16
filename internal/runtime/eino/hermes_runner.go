@@ -97,12 +97,24 @@ func (r *HermesRunner) Run(ctx context.Context, input map[string]any) (output ma
 	resultCh := make(chan map[string]any, 1)
 	errorCh := make(chan error, 1)
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	go r.waitForCompletion(ctx, runID, sessionID, resultCh, errorCh)
 
 	select {
 	case <-ctx.Done():
 		// Send stop signal on cancellation
 		r.Signal(ctx, "stop")
+		// Drain channels to unblock goroutine
+		select {
+		case <-resultCh:
+		default:
+		}
+		select {
+		case <-errorCh:
+		default:
+		}
 		return nil, ctx.Err()
 	case result := <-resultCh:
 		return result, nil
