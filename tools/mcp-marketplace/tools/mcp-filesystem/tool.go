@@ -168,14 +168,30 @@ func (t *FilesystemTool) validatePath(path string) error {
 		return fmt.Errorf("invalid path: %w", err)
 	}
 
+	// 解析符号链接以获取真实路径，防止通过符号链接绕过限制
+	realPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("invalid path: %w", err)
+	}
+	// 如果EvalSymlinks失败（例如路径不存在），仍使用原路径进行后续检查
+
 	// 确保路径在允许的目录内
 	rootDir, _ := filepath.Abs(t.config.RootDir)
-	if !strings.HasPrefix(absPath, rootDir) {
+	// 对rootDir也进行符号链接解析
+	realRootDir, _ := filepath.EvalSymlinks(rootDir)
+
+	checkPath := realPath
+	if checkPath == "" {
+		checkPath = absPath
+	}
+
+	if !strings.HasPrefix(checkPath, realRootDir) {
 		// 检查是否在允许的路径列表中
 		allowed := false
 		for _, allowedPath := range t.config.AllowedPaths {
 			allowedAbs, _ := filepath.Abs(allowedPath)
-			if strings.HasPrefix(absPath, allowedAbs) {
+			realAllowedAbs, _ := filepath.EvalSymlinks(allowedAbs)
+			if strings.HasPrefix(checkPath, realAllowedAbs) {
 				allowed = true
 				break
 			}
@@ -415,12 +431,28 @@ func (t *FilesystemTool) searchFiles(ctx context.Context, input map[string]any) 
 func (t *FilesystemTool) deleteFile(ctx context.Context, input map[string]any) (string, error) {
 	path, _ := input["path"].(string)
 
-	info, err := os.Stat(path)
+	info, err := os.Lstat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", fmt.Errorf("path not found: %s", path)
 		}
 		return "", fmt.Errorf("stat path failed: %w", err)
+	}
+
+	// 拒绝删除符号链接，防止通过符号链接删除链接目标
+	if info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("refusing to delete symlink: %s", path)
+	}
+
+	// 解析真实路径并验证仍在允许目录内
+	realPath, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve path failed: %w", err)
+	}
+	rootDir, _ := filepath.Abs(t.config.RootDir)
+	realRootDir, _ := filepath.EvalSymlinks(rootDir)
+	if !strings.HasPrefix(realPath, realRootDir) {
+		return "", fmt.Errorf("path outside allowed directory: %s", path)
 	}
 
 	var err2 error

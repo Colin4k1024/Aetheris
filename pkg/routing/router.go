@@ -136,6 +136,12 @@ func (r *defaultRouter) RecordOutcome(ctx context.Context, outcome *RoutingOutco
 }
 
 func containsAny(s, substr string) bool {
+	if len(substr) == 0 {
+		return false
+	}
+	if len(substr) > len(s) {
+		return false
+	}
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {
 			return true

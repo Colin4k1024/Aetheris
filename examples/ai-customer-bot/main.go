@@ -123,6 +123,11 @@ func runDemo(ctx context.Context, bot *CustomerServiceBot) {
 	// Start approval monitor in background
 	approvalDone := make(chan struct{})
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Printf("panic in approval monitor goroutine: %v\n", r)
+			}
+		}()
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
 		for {

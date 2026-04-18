@@ -318,7 +318,20 @@ type OIDCDiscovery struct {
 func FetchDiscovery(ctx context.Context, issuerURL string) (*OIDCDiscovery, error) {
 	discoveryURL := strings.TrimSuffix(issuerURL, "/") + "/.well-known/openid-configuration"
 
-	resp, err := http.Get(discoveryURL)
+	// Validate URL scheme to prevent SSRF
+	parsedURL, err := url.Parse(discoveryURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid discovery URL: %w", err)
+	}
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return nil, fmt.Errorf("invalid URL scheme: %s, only http and https are allowed", parsedURL.Scheme)
+	}
+
+	// Use HTTP client with timeout to prevent SSRF and resource exhaustion
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Get(discoveryURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch discovery: %w", err)
 	}
@@ -328,7 +341,7 @@ func FetchDiscovery(ctx context.Context, issuerURL string) (*OIDCDiscovery, erro
 		return nil, fmt.Errorf("discovery returned status %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read discovery body: %w", err)
 	}

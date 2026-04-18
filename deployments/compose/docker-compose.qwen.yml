@@ -33,7 +33,7 @@ services:
       JOBSTORE_LEASE_DURATION: "180s"
       PLANNER_TYPE: "${PLANNER_TYPE:-rule}"
       API_MIDDLEWARE_AUTH: "true"
-      API_MIDDLEWARE_JWT_KEY: "local-dev-jwt-key"
+      API_MIDDLEWARE_JWT_KEY: ${API_MIDDLEWARE_JWT_KEY}
       MODEL_DEFAULTS_LLM: "qwen.qwen3_max"
       MODEL_LLM_PROVIDERS_QWEN_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1"
       MODEL_LLM_PROVIDERS_QWEN_API_KEY: "${QWEN_API_KEY}"
