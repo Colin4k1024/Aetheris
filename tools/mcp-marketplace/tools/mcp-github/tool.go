@@ -59,10 +59,7 @@ func NewGitHubTool(config *GitHubConfig) *GitHubTool {
 	var tc *http.Client
 	if config.Token != "" {
 		tc = &http.Client{
-			Transport: &github.UnauthenticatedRateLimitedTransport{
-				ClientID:     "x-access-token",
-				ClientSecret: config.Token,
-			},
+			Transport: &bearerTransport{token: config.Token},
 		}
 	}
 
@@ -75,6 +72,22 @@ func NewGitHubTool(config *GitHubConfig) *GitHubTool {
 		client: client,
 		config: config,
 	}
+}
+
+// bearerTransport is an http.RoundTripper that adds a Bearer token to requests.
+type bearerTransport struct {
+	token     string
+	transport http.RoundTripper
+}
+
+func (t *bearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	r := req.Clone(req.Context())
+	r.Header.Set("Authorization", "Bearer "+t.token)
+	transport := t.transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+	return transport.RoundTrip(r)
 }
 
 // Name 返回工具名称
