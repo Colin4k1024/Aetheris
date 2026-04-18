@@ -26,7 +26,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"github.com/hertz-contrib/jwt"
 
-	"rag-platform/pkg/auth"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/auth"
 )
 
 // Middleware 中间件管理器

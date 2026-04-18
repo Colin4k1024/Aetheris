@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
@@ -32,6 +33,8 @@ const (
 
 	hermesDefaultACPTimeout = 120 * time.Second
 	hermesACPDispatchPath   = "/acp/dispatch"
+	// maxRespSize caps the Hermes response body to prevent OOM from large outputs.
+	maxRespSize = 10 * 1024 * 1024 // 10 MB
 )
 
 // hermesDispatchRequest is the payload sent to the Hermes ACP endpoint.
@@ -158,9 +161,16 @@ func (t *HermesDispatchTool) Execute(ctx context.Context, sess *session.Session,
 		req.JobID = sess.ID
 	}
 
+	// Accept both []any (from JSON/wrapped callers) and []string (from in-process callers).
 	if tools, ok := input["tools"].([]any); ok {
 		for _, tv := range tools {
 			if s, ok := tv.(string); ok && s != "" {
+				req.Tools = append(req.Tools, s)
+			}
+		}
+	} else if tools, ok := input["tools"].([]string); ok {
+		for _, s := range tools {
+			if s != "" {
 				req.Tools = append(req.Tools, s)
 			}
 		}
@@ -178,12 +188,15 @@ func (t *HermesDispatchTool) Execute(ctx context.Context, sess *session.Session,
 		return nil, fmt.Errorf("hermes_dispatch: remote error: %s", result.Error)
 	}
 
-	return map[string]any{
-		"done":       result.Done,
-		"output":     result.Output,
-		"session_id": result.SessionID,
-		"source":     "hermes",
-		"job_id":     req.JobID,
+	return &ToolResult{
+		Done:   result.Done,
+		Output: result.Output,
+		Err:    result.Error,
+		State: map[string]any{
+			"session_id": result.SessionID,
+			"source":     "hermes",
+			"job_id":     req.JobID,
+		},
 	}, nil
 }
 
@@ -194,7 +207,7 @@ func (t *HermesDispatchTool) dispatch(ctx context.Context, req hermesDispatchReq
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	url := t.endpoint + hermesACPDispatchPath
+	url := strings.TrimSuffix(t.endpoint, "/") + hermesACPDispatchPath
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
@@ -208,9 +221,12 @@ func (t *HermesDispatchTool) dispatch(ctx context.Context, req hermesDispatchReq
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(&io.LimitedReader{R: resp.Body, N: maxRespSize + 1})
 	if err != nil {
 		return nil, fmt.Errorf("read response body: %w", err)
+	}
+	if len(respBody) > maxRespSize {
+		return nil, fmt.Errorf("response body exceeds %d bytes (got %d); possible OOM risk", maxRespSize, len(respBody))
 	}
 
 	if resp.StatusCode >= 400 {

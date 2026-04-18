@@ -149,24 +149,28 @@ func TestHermesDispatchTool_Execute_Success(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	m, ok := result.(map[string]any)
+	tr, ok := result.(*ToolResult)
 	if !ok {
-		t.Fatal("expected map result")
+		t.Fatalf("expected *ToolResult, got %T", result)
 	}
-	if m["done"] != true {
+	if !tr.Done {
 		t.Error("expected done=true")
 	}
-	if m["output"] != "Code review complete" {
-		t.Errorf("unexpected output: %v", m["output"])
+	if tr.Output != "Code review complete" {
+		t.Errorf("unexpected output: %v", tr.Output)
 	}
-	if m["session_id"] != "hermes-session-42" {
-		t.Errorf("unexpected session_id: %v", m["session_id"])
+	state, ok := tr.State.(map[string]any)
+	if !ok {
+		t.Fatal("expected state to be map[string]any")
 	}
-	if m["source"] != "hermes" {
-		t.Errorf("expected source='hermes', got %v", m["source"])
+	if state["session_id"] != "hermes-session-42" {
+		t.Errorf("unexpected session_id: %v", state["session_id"])
 	}
-	if m["job_id"] != "job-123" {
-		t.Errorf("expected job_id='job-123', got %v", m["job_id"])
+	if state["source"] != "hermes" {
+		t.Errorf("expected source='hermes', got %v", state["source"])
+	}
+	if state["job_id"] != "job-123" {
+		t.Errorf("expected job_id='job-123', got %v", state["job_id"])
 	}
 	if receivedReq.Task != "Review the pull request and identify security issues" {
 		t.Errorf("unexpected task forwarded: %q", receivedReq.Task)

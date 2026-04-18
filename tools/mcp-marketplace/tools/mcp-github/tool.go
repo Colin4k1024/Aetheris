@@ -60,7 +60,8 @@ func NewGitHubTool(config *GitHubConfig) *GitHubTool {
 	if config.Token != "" {
 		tc = &http.Client{
 			Transport: &github.UnauthenticatedRateLimitedTransport{
-				Triee: config.Token,
+				ClientID:     "x-access-token",
+				ClientSecret: config.Token,
 			},
 		}
 	}
@@ -199,8 +200,8 @@ func (t *GitHubTool) searchRepos(ctx context.Context, input map[string]any) (str
 		return "", fmt.Errorf("search failed: %w", err)
 	}
 
-	result := make([]map[string]any, 0, len(repos))
-	for _, repo := range repos {
+	result := make([]map[string]any, 0, len(repos.Repositories))
+	for _, repo := range repos.Repositories {
 		result = append(result, map[string]any{
 			"name":        repo.GetName(),
 			"full_name":   repo.GetFullName(),
@@ -229,7 +230,7 @@ func (t *GitHubTool) getIssue(ctx context.Context, input map[string]any) (string
 		return "", fmt.Errorf("owner, repo, and issue_number are required")
 	}
 
-	issue, _, err := t.client.Issues.Get(ctx, owner, repo, issueNumber)
+	issue, _, err := t.client.Issues.Get(ctx, owner, repo, int(issueNumber))
 	if err != nil {
 		return "", fmt.Errorf("get issue failed: %w", err)
 	}

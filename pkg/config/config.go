@@ -552,6 +552,16 @@ func replaceEnvVars(config *Config) error {
 		}
 	}
 
+	// 替换 Hermes MCP Headers 中的环境变量
+	for k, v := range config.Hermes.MCPHeaders {
+		if strings.HasPrefix(v, "$") {
+			envVar := strings.TrimPrefix(strings.TrimSuffix(v, "}"), "${")
+			if val := os.Getenv(envVar); val != "" {
+				config.Hermes.MCPHeaders[k] = val
+			}
+		}
+	}
+
 	return nil
 }
 

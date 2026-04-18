@@ -110,7 +110,7 @@ hermes:
   # mcp_endpoint: "http://localhost:8765/sse"
   # mcp_timeout: "60s"
   # mcp_headers:
-  #   Authorization: "Bearer ${HERMES_API_KEY}"
+  #   Authorization: "Bearer ${HERMES_API_KEY}"  # NOTE: ${...} env-substitution is NOT supported in header values; set the env var and reference it via a custom config loader if needed.
 
   # Option B: stdio 传输（Hermes 作为子进程启动）
   # mcp_command: "hermes"

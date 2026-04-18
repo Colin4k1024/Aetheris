@@ -785,21 +785,31 @@ func initMCPManager(cfg *config.Config, reg *tools.Registry, logger *log.Logger)
 				serverName = "hermes"
 			}
 			if cfg.Hermes.MCPEndpoint != "" {
-				serverCfgs[serverName] = mcp.ServerConfig{
-					Type:    "sse",
-					URL:     cfg.Hermes.MCPEndpoint,
-					Headers: cfg.Hermes.MCPHeaders,
-					Timeout: cfg.Hermes.MCPTimeout,
+				// Guard against overwriting an explicitly configured MCP server with the same name.
+				if _, exists := serverCfgs[serverName]; !exists {
+					serverCfgs[serverName] = mcp.ServerConfig{
+						Type:    "sse",
+						URL:     cfg.Hermes.MCPEndpoint,
+						Headers: cfg.Hermes.MCPHeaders,
+						Timeout: cfg.Hermes.MCPTimeout,
+					}
+					logger.Info("Hermes MCP Bridge (SSE) configured", "server", serverName, "endpoint", cfg.Hermes.MCPEndpoint)
+				} else {
+					logger.Warn("Hermes MCP Bridge skipped: server name already in cfg.MCP.Servers", "server", serverName)
 				}
-				logger.Info("Hermes MCP Bridge (SSE) 已配置", "server", serverName, "endpoint", cfg.Hermes.MCPEndpoint)
 			} else if cfg.Hermes.MCPCommand != "" {
-				serverCfgs[serverName] = mcp.ServerConfig{
-					Type:    "stdio",
-					Command: cfg.Hermes.MCPCommand,
-					Args:    cfg.Hermes.MCPArgs,
-					Timeout: cfg.Hermes.MCPTimeout,
+				// Guard against overwriting an explicitly configured MCP server with the same name.
+				if _, exists := serverCfgs[serverName]; !exists {
+					serverCfgs[serverName] = mcp.ServerConfig{
+						Type:    "stdio",
+						Command: cfg.Hermes.MCPCommand,
+						Args:    cfg.Hermes.MCPArgs,
+						Timeout: cfg.Hermes.MCPTimeout,
+					}
+					logger.Info("Hermes MCP Bridge (stdio) configured", "server", serverName, "command", cfg.Hermes.MCPCommand)
+				} else {
+					logger.Warn("Hermes MCP Bridge skipped: server name already in cfg.MCP.Servers", "server", serverName)
 				}
-				logger.Info("Hermes MCP Bridge (stdio) 已配置", "server", serverName, "command", cfg.Hermes.MCPCommand)
 			}
 		}
 	}
@@ -832,7 +842,9 @@ func initMCPManager(cfg *config.Config, reg *tools.Registry, logger *log.Logger)
 func initHermesDispatch(cfg *config.Config, reg *tools.Registry, logger *log.Logger) {
 	var timeout time.Duration
 	if cfg.Hermes.ACPTimeout != "" {
-		if d, err := time.ParseDuration(cfg.Hermes.ACPTimeout); err == nil && d > 0 {
+		if d, err := time.ParseDuration(cfg.Hermes.ACPTimeout); err != nil {
+			logger.Warn("invalid hermes.acp_timeout, using default", "value", cfg.Hermes.ACPTimeout, "error", err)
+		} else if d > 0 {
 			timeout = d
 		}
 	}
