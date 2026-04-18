@@ -116,17 +116,31 @@ func (l *DocumentLoader) ProcessDocument(doc *common.Document) (*common.Document
 
 // loadFromPath 从文件路径加载
 func (l *DocumentLoader) loadFromPath(ctx *common.PipelineContext, path string) (*common.Document, error) {
-	content, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, common.NewPipelineError(l.name, "读取文件failed", err)
+	// Path traversal protection: clean the path and validate it stays within allowed directory
+	cleanPath := filepath.Clean(path)
+
+	// Check for path traversal attempts (paths starting with ".." after cleaning)
+	if strings.HasPrefix(cleanPath, "..") {
+		return nil, common.NewPipelineError(l.name, "path traversal detected", fmt.Errorf("invalid path: path traversal not allowed"))
 	}
 
-	fileInfo, err := os.Stat(path)
+	// Verify the file exists and is accessible
+	fileInfo, err := os.Stat(cleanPath)
 	if err != nil {
 		return nil, common.NewPipelineError(l.name, "获取文件信息failed", err)
 	}
 
-	contentType := l.getContentType(path)
+	// Verify it's a regular file, not a directory
+	if fileInfo.IsDir() {
+		return nil, common.NewPipelineError(l.name, "invalid file type", fmt.Errorf("expected file, got directory: %s", cleanPath))
+	}
+
+	content, err := ioutil.ReadFile(cleanPath)
+	if err != nil {
+		return nil, common.NewPipelineError(l.name, "读取文件failed", err)
+	}
+
+	contentType := l.getContentType(cleanPath)
 	docContent := string(content)
 	if contentType == "application/pdf" {
 		extracted, err := extractPDFText(content)
@@ -140,8 +154,8 @@ func (l *DocumentLoader) loadFromPath(ctx *common.PipelineContext, path string) 
 		ID:      uuid.New().String(),
 		Content: docContent,
 		Metadata: map[string]interface{}{
-			"file_path":    path,
-			"file_name":    filepath.Base(path),
+			"file_path":    cleanPath,
+			"file_name":    filepath.Base(cleanPath),
 			"file_size":    fileInfo.Size(),
 			"content_type": contentType,
 			"created_at":   fileInfo.ModTime(),
@@ -152,7 +166,7 @@ func (l *DocumentLoader) loadFromPath(ctx *common.PipelineContext, path string) 
 	}
 
 	ctx.Metadata["document_id"] = doc.ID
-	ctx.Metadata["file_name"] = filepath.Base(path)
+	ctx.Metadata["file_name"] = filepath.Base(cleanPath)
 
 	return doc, nil
 }

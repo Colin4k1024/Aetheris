@@ -34,7 +34,7 @@ services:
       JOBSTORE_LEASE_DURATION: "180s"
       PLANNER_TYPE: "${PLANNER_TYPE:-rule}"
       API_MIDDLEWARE_AUTH: "true"
-      API_MIDDLEWARE_JWT_KEY: "local-dev-jwt-key"
+      API_MIDDLEWARE_JWT_KEY: ${API_MIDDLEWARE_JWT_KEY}
       MODEL_DEFAULTS_LLM: "openai.gpt_35_turbo"
       MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://host.docker.internal:11434/v1"
       MODEL_LLM_PROVIDERS_OPENAI_API_KEY: "ollama"

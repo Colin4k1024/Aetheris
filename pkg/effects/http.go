@@ -189,7 +189,7 @@ func DefaultHTTPCaller(ctx context.Context, req HTTPRequest) (HTTPResponse, erro
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
 
 	response := HTTPResponse{
 		StatusCode: resp.StatusCode,

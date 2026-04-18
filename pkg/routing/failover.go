@@ -112,10 +112,13 @@ func (h *FailoverHandler) ExecuteWithFailover(
 			if attempts <= h.config.MaxRetries {
 				// 重试同一模型
 				delay := h.calculateRetryDelay(attempts)
+				timer := time.NewTimer(delay)
 				select {
 				case <-ctx.Done():
+					timer.Stop()
 					return nil, model, ctx.Err()
-				case <-time.After(delay):
+				case <-timer.C:
+					timer.Stop()
 					continue
 				}
 			}
@@ -128,10 +131,13 @@ func (h *FailoverHandler) ExecuteWithFailover(
 			// 无法获取备用模型
 			if attempts <= h.config.MaxRetries {
 				delay := h.calculateRetryDelay(attempts)
+				timer := time.NewTimer(delay)
 				select {
 				case <-ctx.Done():
+					timer.Stop()
 					return nil, model, ctx.Err()
-				case <-time.After(delay):
+				case <-timer.C:
+					timer.Stop()
 					continue
 				}
 			}
@@ -145,10 +151,13 @@ func (h *FailoverHandler) ExecuteWithFailover(
 		// 重试新模型
 		if attempts <= h.config.MaxRetries {
 			delay := h.calculateRetryDelay(attempts)
+			timer := time.NewTimer(delay)
 			select {
 			case <-ctx.Done():
+				timer.Stop()
 				return nil, model, ctx.Err()
-			case <-time.After(delay):
+			case <-timer.C:
+				timer.Stop()
 				continue
 			}
 		}
@@ -246,10 +255,13 @@ func (c *RateLimitChecker) CheckAndWait(ctx context.Context, provider string) er
 	if hasLast {
 		elapsed := time.Since(lastTime)
 		if elapsed < interval {
+			timer := time.NewTimer(interval - elapsed)
 			select {
 			case <-ctx.Done():
+				timer.Stop()
 				return ctx.Err()
-			case <-time.After(interval - elapsed):
+			case <-timer.C:
+				timer.Stop()
 			}
 		}
 	}

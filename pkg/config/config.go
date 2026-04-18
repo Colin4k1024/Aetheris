@@ -462,15 +462,12 @@ type PrometheusConfig struct {
 
 // DefaultDevConfig 返回开发模式默认配置
 func DefaultDevConfig() *Config {
-	return &Config{
+	cfg := &Config{
 		Runtime: RuntimeConfig{
 			Profile: "dev",
 		},
 		API: APIConfig{
 			Port: 8080,
-			Middleware: MiddlewareConfig{
-				Auth: false, // 开发模式不需要认证
-			},
 			CORS: CORSConfig{
 				Enable:       true,
 				AllowOrigins: []string{"*"},
@@ -494,6 +491,13 @@ func DefaultDevConfig() *Config {
 			},
 		},
 	}
+
+	// Warn if auth is disabled in dev mode
+	if !cfg.API.Middleware.Auth {
+		log.Printf("WARNING: authentication is disabled in dev mode. This is insecure and should not be used in production.")
+	}
+
+	return cfg
 }
 
 // LoadConfig 加载配置文件

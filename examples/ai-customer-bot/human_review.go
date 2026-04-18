@@ -127,6 +127,11 @@ func (hr *HumanReviewer) RequestApproval(ctx context.Context, req *ApprovalReque
 
 	// Start timeout goroutine
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Printf("panic in approval timeout goroutine: %v\n", r)
+			}
+		}()
 		select {
 		case <-time.After(req.Timeout):
 			hr.mu.Lock()

@@ -477,7 +477,10 @@ func (t *DatabaseTool) describeTable(ctx context.Context, input map[string]any) 
 			ORDER BY ordinal_position`
 		args = []any{table}
 	case "mysql":
-		sqlStr = `DESCRIBE ` + table
+		// Escape table name with backticks to prevent SQL injection
+		// Table name is already validated against AllowedTables if non-empty
+		escapedTable := "`" + strings.ReplaceAll(table, "`", "``") + "`"
+		sqlStr = `DESCRIBE ` + escapedTable
 	default:
 		return "", fmt.Errorf("unsupported driver: %s", t.config.Driver)
 	}

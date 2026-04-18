@@ -251,7 +251,7 @@ func (e *duckDuckGoEngine) Search(ctx context.Context, query string, limit int) 
 		return nil, fmt.Errorf("search failed with status: %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodySize))
 	if err != nil {
 		return nil, err
 	}
@@ -259,9 +259,28 @@ func (e *duckDuckGoEngine) Search(ctx context.Context, query string, limit int) 
 	return parseDuckDuckGoResults(string(body), limit)
 }
 
+// maxBodySize is the maximum response body size to read (10MB)
+const maxBodySize = 10 * 1024 * 1024
+
+// validateURLScheme validates that the URL uses an allowed scheme (http or https)
+func validateURLScheme(targetURL string) error {
+	u, err := url.Parse(targetURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+	scheme := strings.ToLower(u.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("invalid URL scheme %q: only http and https are allowed", scheme)
+	}
+	return nil
+}
+
 func (e *duckDuckGoEngine) GetContent(ctx context.Context, targetURL string) (string, error) {
-	// 使用 textise dot iitty 提取纯文本
-	// 或者直接抓取目标页面
+	// Validate URL scheme to prevent SSRF attacks
+	if err := validateURLScheme(targetURL); err != nil {
+		return "", err
+	}
+
 	req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
 	if err != nil {
 		return "", err
@@ -278,7 +297,7 @@ func (e *duckDuckGoEngine) GetContent(ctx context.Context, targetURL string) (st
 		return "", fmt.Errorf("fetch failed with status: %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodySize))
 	if err != nil {
 		return "", err
 	}
@@ -371,7 +390,7 @@ func (e *bingEngine) Search(ctx context.Context, query string, limit int) ([]Sea
 		} `json:"webPages"`
 	}
 
-	body, _ := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxBodySize))
 	if err := json.Unmarshal(body, &bingResp); err != nil {
 		return nil, err
 	}
@@ -394,6 +413,11 @@ func (e *bingEngine) Search(ctx context.Context, query string, limit int) ([]Sea
 }
 
 func (e *bingEngine) GetContent(ctx context.Context, targetURL string) (string, error) {
+	// Validate URL scheme to prevent SSRF attacks
+	if err := validateURLScheme(targetURL); err != nil {
+		return "", err
+	}
+
 	req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
 	if err != nil {
 		return "", err
@@ -409,7 +433,10 @@ func (e *bingEngine) GetContent(ctx context.Context, targetURL string) (string, 
 		return "", fmt.Errorf("fetch failed with status: %d", resp.StatusCode)
 	}
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodySize))
+	if err != nil {
+		return "", err
+	}
 	return extractText(string(body)), nil
 }
 
@@ -457,7 +484,7 @@ func (e *googleEngine) Search(ctx context.Context, query string, limit int) ([]S
 		} `json:"items"`
 	}
 
-	body, _ := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxBodySize))
 	if err := json.Unmarshal(body, &googleResp); err != nil {
 		return nil, err
 	}
@@ -476,6 +503,11 @@ func (e *googleEngine) Search(ctx context.Context, query string, limit int) ([]S
 }
 
 func (e *googleEngine) GetContent(ctx context.Context, targetURL string) (string, error) {
+	// Validate URL scheme to prevent SSRF attacks
+	if err := validateURLScheme(targetURL); err != nil {
+		return "", err
+	}
+
 	req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
 	if err != nil {
 		return "", err
@@ -491,7 +523,10 @@ func (e *googleEngine) GetContent(ctx context.Context, targetURL string) (string
 		return "", fmt.Errorf("fetch failed with status: %d", resp.StatusCode)
 	}
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodySize))
+	if err != nil {
+		return "", err
+	}
 	return extractText(string(body)), nil
 }
 
