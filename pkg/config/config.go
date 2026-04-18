@@ -41,6 +41,7 @@ type Config struct {
 	RateLimits      RateLimitsConfig      `mapstructure:"rate_limits"`
 	Security        SecurityConfig        `mapstructure:"security"`
 	MCP             MCPConfig             `mapstructure:"mcp"`
+	Hermes          HermesConfig          `mapstructure:"hermes"`
 }
 
 // RuntimeConfig 运行时环境配置
@@ -221,6 +222,55 @@ type MCPServerConfig struct {
 	Headers map[string]string `mapstructure:"headers"`
 	// Timeout is per-call timeout, e.g. "60s".
 	Timeout string `mapstructure:"timeout"`
+}
+
+// HermesConfig configures the Hermes-Agent integration (Phase 1: MCP Bridge, Phase 2: ACP Dispatch).
+//
+// Phase 1 — MCP Bridge: When MCPEndpoint (SSE) or MCPCommand (stdio) is set, Aetheris
+// automatically registers Hermes as an MCP server and exposes its tools (terminal, file ops,
+// messaging, etc.) to Eino workflows and agent planners.
+//
+// Phase 2 — ACP Dispatch: When ACPEndpoint is set, a `hermes_dispatch` tool is registered
+// in the tool registry. Workflows and agents can call this tool to delegate coding tasks,
+// terminal operations, or multi-platform messaging to Hermes-Agent. Each dispatch is tagged
+// with the calling job ID so Hermes sessions can be correlated in the Aetheris Event Store.
+type HermesConfig struct {
+	// Enabled activates the Hermes integration. When false (default), no connection is attempted.
+	Enabled bool `mapstructure:"enabled"`
+
+	// --- Phase 1: MCP Bridge ---
+
+	// MCPEndpoint is the Hermes MCP SSE server URL (e.g. "http://localhost:8765/sse").
+	// Set this when Hermes is running as a standalone service with `hermes mcp serve`.
+	// Takes precedence over MCPCommand when both are set.
+	MCPEndpoint string `mapstructure:"mcp_endpoint"`
+
+	// MCPCommand is the executable to launch for stdio-based MCP transport (e.g. "hermes").
+	// Used when Hermes should be started as a subprocess. Ignored when MCPEndpoint is set.
+	MCPCommand string `mapstructure:"mcp_command"`
+
+	// MCPArgs are arguments passed to MCPCommand (e.g. ["mcp", "serve"]).
+	MCPArgs []string `mapstructure:"mcp_args"`
+
+	// MCPHeaders are optional HTTP headers for the SSE transport (e.g. authorization).
+	MCPHeaders map[string]string `mapstructure:"mcp_headers"`
+
+	// MCPTimeout is the per-call timeout for MCP tool invocations, e.g. "120s". Default 60s.
+	MCPTimeout string `mapstructure:"mcp_timeout"`
+
+	// ServerName is the MCP server name used in tool namespacing and registry registration.
+	// Defaults to "hermes" when empty.
+	ServerName string `mapstructure:"server_name"`
+
+	// --- Phase 2: ACP Dispatch ---
+
+	// ACPEndpoint is the Hermes ACP (Agent Communication Protocol) HTTP base URL
+	// (e.g. "http://localhost:8765"). When set, a `hermes_dispatch` tool is registered
+	// so workflows can delegate tasks to Hermes with full job-ID correlation.
+	ACPEndpoint string `mapstructure:"acp_endpoint"`
+
+	// ACPTimeout is the HTTP timeout for ACP dispatch calls, e.g. "120s". Default 120s.
+	ACPTimeout string `mapstructure:"acp_timeout"`
 }
 
 // AgentADKConfig ADK Runner 配置（主对话入口）
@@ -498,6 +548,16 @@ func replaceEnvVars(config *Config) error {
 			if val := os.Getenv(envVar); val != "" {
 				providerConfig.APIKey = val
 				config.Model.Vision.Providers[provider] = providerConfig
+			}
+		}
+	}
+
+	// 替换 Hermes MCP Headers 中的环境变量
+	for k, v := range config.Hermes.MCPHeaders {
+		if strings.HasPrefix(v, "$") {
+			envVar := strings.TrimPrefix(strings.TrimSuffix(v, "}"), "${")
+			if val := os.Getenv(envVar); val != "" {
+				config.Hermes.MCPHeaders[k] = val
 			}
 		}
 	}
