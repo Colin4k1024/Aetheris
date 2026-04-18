@@ -425,11 +425,36 @@ func (t *GitHubTool) createPR(ctx context.Context, input map[string]any) (string
 }
 
 // EnvToken 从环境变量获取 GitHub Token
+// Token 格式验证：GitHub PAT 通常为 40 字符的十六进制字符串（ghp_ 前缀或无前缀）
 func EnvToken() string {
 	token := os.Getenv("GITHUB_TOKEN")
 	// 支持多种环境变量名
 	if token == "" {
 		token = os.Getenv("GH_TOKEN")
 	}
-	return strings.TrimSpace(token)
+	token = strings.TrimSpace(token)
+
+	// Token 格式验证：检查基本格式合理性
+	// GitHub Classic PAT 无前缀时为 40 字符十六进制，ghp_ 前缀时为 51 字符
+	// gho_ (OAuth), ghs_, ghr_ 等也是有效前缀
+	if token != "" {
+		stripped := strings.TrimPrefix(token, "ghp_")
+		stripped = strings.TrimPrefix(stripped, "gho_")
+		stripped = strings.TrimPrefix(stripped, "ghs_")
+		stripped = strings.TrimPrefix(stripped, "ghr_")
+		stripped = strings.TrimPrefix(stripped, "github_pat_")
+
+		// 验证是否为合理的十六进制字符串（长度应为 36-40）
+		if len(stripped) < 36 || len(stripped) > 40 {
+			// 长度不合理，可能不是有效的 GitHub Token
+			return ""
+		}
+		for _, c := range stripped {
+			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+				return ""
+			}
+		}
+	}
+
+	return token
 }

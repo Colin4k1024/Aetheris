@@ -237,12 +237,12 @@ func (r *Router) Build(addr string, opts ...config.Option) *server.Hertz {
 	}
 
 	// ACP callbacks from Hermes Agent (no auth — protected by shared secret via X-ACP-Secret header)
-	acp := api.Group("/acp")
-	{
-		acp.POST("/events", r.handler.HandleACPEvents)
-		acp.POST("/checkpoints", r.handler.HandleACPCheckpoints)
-		acp.GET("/jobs/:id/status", r.handler.HandleACPJobStatus)
-	}
+	// acp := api.Group("/acp")
+	// {
+	// 	acp.POST("/events", r.handler.HandleACPEvents)
+	// 	acp.POST("/checkpoints", r.handler.HandleACPCheckpoints)
+	// 	acp.GET("/jobs/:id/status", r.handler.HandleACPJobStatus)
+	// }
 
 	return h
 }
