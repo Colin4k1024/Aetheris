@@ -18,6 +18,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"log"
 	"math"
 	"sort"
 	"sync"
@@ -143,7 +144,7 @@ func NewMemoryPipeline(config MemoryPipelineConfig, embedder Embedder, store vec
 	if err := store.Create(ctx, index); err != nil {
 		// Index might already exist, that's OK
 		// Log but don't fail
-		_ = err
+		log.Printf("warning: failed to create vector index (may already exist): %v", err)
 	}
 
 	return p, nil
@@ -277,7 +278,7 @@ func (p *MemoryPipeline) Decay(ctx context.Context) error {
 	for _, id := range toDelete {
 		if err := p.store.Delete(ctx, p.config.VectorIndexName, p.items[id].VectorID); err != nil {
 			// Log but continue
-			_ = err
+			log.Printf("warning: failed to delete vector for item %s during decay: %v", id, err)
 		}
 		delete(p.items, id)
 	}

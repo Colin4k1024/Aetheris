@@ -222,6 +222,8 @@ func (h *Handler) ForensicsBatchExport(c context.Context, ctx *app.RequestContex
 	}
 	setForensicsTask(task)
 
+	// Use detached context to avoid goroutine being cancelled when HTTP response is sent
+	runCtx := context.WithoutCancel(c)
 	go func(jobIDs []string, id string) {
 		var err error
 		defer func() {
@@ -240,7 +242,7 @@ func (h *Handler) ForensicsBatchExport(c context.Context, ctx *app.RequestContex
 			setForensicsTask(t)
 		}()
 
-		if _, err = h.buildBatchForensicsPackage(c, jobIDs); err != nil {
+		if _, err = h.buildBatchForensicsPackage(runCtx, jobIDs); err != nil {
 			return
 		}
 	}(append([]string(nil), req.JobIDs...), taskID)
