@@ -29,13 +29,17 @@ Want to submit a case study? Use this template:
 
 ---
 
-## Featured Case Studies
+## Technical Examples (Not Real Companies)
 
-### 1. AutoFinance - AI Financial Advisor
+> **⚠️ The following are technical demonstration examples, not real company case studies.**
+> These illustrate how Aetheris features solve specific production problems.
+> To submit a real case study, see [below](#submit-your-case-study).
+
+### 1. Financial Trading Agent — At-Most-Once Execution
 
 **Industry:** Fintech
-**Use Case:** Autonomous investment portfolio rebalancing agent
-**Results:** 99.9% execution reliability, 60% reduction in manual oversight
+**Use Case:** Autonomous portfolio rebalancing with zero duplicate trades
+**Key Features:** Effects Ledger, Durable Execution, Evidence Chain
 
 #### Challenge
 AutoFinance needed an AI agent to handle portfolio rebalancing decisions that must execute reliably even during market volatility. Previous solutions using LangGraph experienced:
@@ -56,11 +60,11 @@ Built on Aetheris with:
 
 ---
 
-### 2. HealthAI - Patient Triage Assistant
+### 2. Healthcare Triage Agent — Human-in-the-Loop
 
 **Industry:** Healthcare
 **Use Case:** Multi-step patient triage with human-in-the-loop approval
-**Results:** 40% faster triage, 100% decision traceability
+**Key Features:** StatusParked, State Checkpoints, Evidence Export
 
 #### Challenge
 HealthAI's triage assistant needed to:
@@ -81,11 +85,11 @@ Leveraged Aetheris features:
 
 ---
 
-### 3. LogiShip - Supply Chain Optimization
+### 3. Multi-Region Inventory Optimization — Horizontal Scaling
 
 **Industry:** Logistics
 **Use Case:** Autonomous inventory replenishment across 50 warehouses
-**Results:** 25% reduction in stockouts, $2M annual savings
+**Key Features:** Regional Scheduling, Lease Fencing, SLA Quotas, Multi-Worker
 
 #### Challenge
 LogiShip manages inventory across 50 warehouses with:

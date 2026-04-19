@@ -1,69 +1,88 @@
-# AutoFinance - AI Financial Advisor
+# Example: Financial Trading Agent — Autonomous Rebalancing
 
+> **⚠️ This is a technical example/demonstration, not a real company case study.**
+>
+> For real-world case studies, see [Discussions › Show & Tell](https://github.com/Colin4k1024/Aetheris/discussions/category/show-and-tell).
+
+**Type:** Example / Technical Demo
 **Industry:** Fintech
 **Use Case:** Autonomous investment portfolio rebalancing agent
-**Results:** 99.9% execution reliability, 60% reduction in manual oversight
+**Aetheris Features:** Durable Execution, At-Most-Once, Evidence Chain
 
 ---
 
-## Company Overview
+## Problem Statement
 
-AutoFinance is a fintech startup providing AI-powered wealth management services to retail investors. Their core product is an autonomous agent that monitors market conditions and executes portfolio rebalancing decisions.
+A portfolio rebalancing agent must:
 
----
+- Execute reliably even during worker restarts (market volatility = high restart risk)
+- **Never** execute duplicate trades (network timeouts cause retries → duplicate executions)
+- Provide complete audit trail for regulatory compliance
 
-## Challenge
-
-AutoFinance needed an AI agent to handle portfolio rebalancing decisions that must execute reliably even during market volatility. Their previous solution (built with LangGraph) experienced:
-
-| Problem | Impact |
-|---------|--------|
-| Lost execution state | Jobs failed mid-execution during worker restarts |
-| Duplicate trades | Network timeouts caused retries, leading to duplicate executions |
-| No audit trail | Could not meet regulatory compliance requirements |
-
-> "We lost $50K in a single incident due to a duplicate trade. We needed a solution that guarantees execution exactly once." — CTO, AutoFinance
+```
+❌ Worker crash → lost execution state → restart from scratch
+❌ Retry on timeout → same order sent twice → $50K duplicate trade
+❌ No audit trail → regulatory violation
+```
 
 ---
 
 ## Solution
 
-AutoFinance rebuilt their agent on Aetheris, leveraging:
-
-### 1. Durable Execution
-
-```yaml
-jobstore:
-  type: postgres
-  dsn: "postgres://user:pass@db:5432/aetheris"
-```
+### 1. Durable Execution with PostgreSQL
 
 Job state persists to PostgreSQL. Any process restart preserves execution context.
+
+```yaml
+# configs/api.yaml
+jobstore:
+  type: postgres
+  dsn: "postgres://user:password@db:5432/aetheris"
+```
+
+```go
+// Job automatically checkpoints after each step
+job, err := runtime.SubmitJob(ctx, &Job{
+    Name:   "rebalance-portfolio",
+    Agent:  portfolioAgent,
+    Input:  map[string]int{"AAPL": 100, "GOOGL": 50, "MSFT": 75},
+})
+// Worker crash? Job resumes from last checkpoint — no restart from scratch.
+```
 
 ### 2. At-Most-Once via Effects Ledger
 
 ```go
-// Tool execution with idempotency
-toolCallID, err := ledger.Commit(ctx, "execute_trade", map[string]interface{}{
-    "symbol":   "AAPL",
-    "quantity": 100,
-    "action":   "BUY",
+// Tool execution with idempotency key
+toolCallID, err := ledger.Commit(ctx, "execute_trade", map[string]any{
+    "symbol":    "AAPL",
+    "quantity":  100,
+    "action":    "BUY",
+    "idempotency_key": "order-AAPL-2026-01-15-001",
 })
+if err == ErrAlreadyCommitted {
+    log.Printf("Trade already executed, skipping")
+    return nil
+}
 ```
 
-- Unique `tool_call_id` per trade
-- Commit before execution, rollback on failure
-- Deduplication via stored trade IDs
+- Commit **before** execution, rollback on failure
+- Deduplication via stored idempotency keys
+- **0 duplicate trades** even after worker crashes
 
 ### 3. Evidence Chain for Compliance
 
 ```bash
-# Export evidence package for audit
-curl -X POST http://localhost:8080/api/jobs/job-xxx/export \
+# Export audit package
+curl -X POST http://localhost:8080/api/jobs/{job_id}/export \
   -o evidence-2026-01-15.zip
 
-# Verify evidence integrity
-aetheris verify evidence-2026-01-15.zip
+# Evidence package contains:
+# - All events with timestamps
+# - State snapshots at each checkpoint
+# - LLM prompts and responses
+# - Tool calls with effects
+# - Cryptographic integrity hash
 ```
 
 ---
@@ -78,43 +97,55 @@ aetheris verify evidence-2026-01-15.zip
 │  ├── Job Management (Create/Query/Stop)                 │
 │  └── Evidence Export                                    │
 ├─────────────────────────────────────────────────────────┤
-│  Worker Pool (3 nodes)                                  │
+│  Worker Pool (N nodes)                                  │
 │  ├── Scheduler (Lease Fencing)                          │
-│  ├── Planner (TaskGraph Generation)                     │
+│  ├── Planner (TaskGraph Generation)                      │
 │  └── Runner (Execution + Effects Ledger)                │
 ├─────────────────────────────────────────────────────────┤
-│  PostgreSQL                                              │
+│  PostgreSQL                                             │
 │  ├── Job Events (Event Sourcing)                        │
-│  ├── Checkpoints (State Recovery)                       │
-│  └── Effects Ledger (At-Most-Once)                      │
+│  ├── Checkpoints (State Recovery)                      │
+│  └── Effects Ledger (At-Most-Once)                     │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Results
+## Key Aetheris Features Used
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Execution reliability | 85% | **99.9%** |
-| Duplicate trades (6 mo) | 12 | **0** |
-| Manual oversight hours/week | 40 | **16** |
-| Audit compliance | Partial | **100%** |
-
-> "Aetheris gave us the reliability and auditability we needed to operate in production. It's Temporal for Agents, exactly what we needed." — Lead Engineer, AutoFinance
+| Feature | Why It Matters for Trading |
+|---------|---------------------------|
+| **At-Most-Once** | Never duplicate a trade — critical for financial compliance |
+| **Durable Execution** | Survive worker crashes mid-session without losing progress |
+| **Evidence Chain** | Regulatory audit trail with cryptographic integrity |
+| **Lease Fencing** | Multiple workers can't process the same job |
 
 ---
 
-## Future Plans
+## Run This Example
 
-- Multi-region deployment for global customers
-- Real-time risk monitoring with human-in-the-loop
-- Integration with Bloomberg Terminal
+```bash
+# Start PostgreSQL
+docker run -d --name aetheris-pg -p 5432:5432 \
+  -e POSTGRES_USER=aetheris -e POSTGRES_PASSWORD=secret \
+  -e POSTGRES_DB=aetheris postgres:15-alpine
+
+# Apply schema
+psql "postgres://aetheris:secret@localhost:5432/aetheris?sslmode=disable" \
+  -f internal/runtime/jobstore/schema.sql
+
+# Run the example
+cd examples/financial-trading-agent
+go run ./...
+
+# Observe: kill the worker mid-execution, restart it — job resumes
+```
 
 ---
 
 ## Learn More
 
 - [Runtime Guarantees](../guides/runtime-guarantees.md)
+- [Effects Ledger (At-Most-Once)](../docs/concepts/event-sourcing.md)
 - [Evidence Package Export](../guides/m3-evidence-graph-guide.md)
-- [At-Most-Once Execution](https://docs.aetheris.ai/concepts/execution-guarantees)
+- [Human-in-the-Loop](../guides/getting-started-agents.md)

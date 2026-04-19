@@ -34,6 +34,10 @@ Welcome to the Aetheris blog! Here you'll find tutorials, guides, and insights a
 - [何时选择 Aetheris：与 LangGraph、Temporal 的对比](./11-when-to-choose-aetheris.md) — 适用场景、反例、选型对比表
 - [构建灵活的多框架 Agent：Aetheris 多框架支持](./12-multi-framework-agent-support.md) — LangChainGo、LangGraphGo、Google ADK 等框架集成
 
+### New (v2.5.3)
+
+- [再见了 LangChain——我的 AI Agent 终于不会在生产环境崩溃了](./13-goodbye-langchain-crash-recovery.md) — 实战对比：Worker 崩溃 5 次、Job 自动恢复、0 重复执行
+
 ### Runtime & Architecture
 
 - [为什么 AI Agent 需要自己的 Runtime](./2026-04-14-why-agents-need-runtime.md) — Agent 与微服务本质差异、事件溯源、检查点、At-Most-Once 执行保证

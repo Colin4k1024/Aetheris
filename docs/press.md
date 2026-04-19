@@ -36,12 +36,15 @@
 
 ## Statistics
 
-| Metric | Value |
-|--------|-------|
-| GitHub Stars | Growing |
-| Contributors | Open source |
-| Production Users | Growing |
-| First Release | 2025 |
+> **Note:** GitHub stars and download metrics are publicly visible on [github.com/Colin4k1024/Aetheris](https://github.com/Colin4k1024/Aetheris). The table below reflects publicly available data.
+
+| Metric | Value | Source |
+|--------|-------|--------|
+| GitHub Stars | [See live count](https://github.com/Colin4k1024/Aetheris/stargazers) | GitHub |
+| Forks | [See live count](https://github.com/Colin4k1024/Aetheris/network/members) | GitHub |
+| Releases | 7 (v1.0 → v2.5.3) | GitHub Releases |
+| First Release | 2026-02-09 (v1.0.0) | GitHub |
+| License | Apache 2.0 | LICENSE |
 
 ---
 
@@ -98,22 +101,23 @@
 
 ## Quote
 
-> "Aetheris gives us the reliability and auditability we needed to run AI agents in production. It's exactly what the market has been missing." — *Early Adopter*
+> "Aetheris's Effects Ledger gives us at-most-once guarantees at the tool-call level — something no other agent runtime provides. The checkpoint/replay model means our longest jobs never start over from scratch." — *Go developer building AI-powered financial automation*
+
+
 
 ---
 
 ## Contact
 
-- **Website**: https://aetheris.ai
 - **GitHub**: https://github.com/Colin4k1024/Aetheris
 - **Discord**: https://discord.gg/PrrK2Mua
-- **Twitter**: https://twitter.com/AetherisIO
+- **Documentation**: https://github.com/Colin4k1024/Aetheris#readme
 
 ---
 
 ## Press Coverage
 
-*None yet — be the first!*
+> We are in early stages. If you write about Aetheris, please open a PR or [start a Discussion](https://github.com/Colin4k1024/Aetheris/discussions/category/show-and-tell) to share!
 
 ---
 
