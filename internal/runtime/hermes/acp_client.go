@@ -88,7 +88,7 @@ func (c *ACPClient) DispatchJob(ctx context.Context, job *JobDispatch) (sessionI
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 		return "", fmt.Errorf("dispatch job failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -131,7 +131,7 @@ func (c *ACPClient) SendToolResult(ctx context.Context, callID string, result st
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 		return fmt.Errorf("send tool result failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -160,7 +160,7 @@ func (c *ACPClient) SendCheckpoint(ctx context.Context, sessionID string, checkp
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 		return fmt.Errorf("send checkpoint failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -183,7 +183,7 @@ func (c *ACPClient) GetJobStatus(ctx context.Context, jobID string) (*JobStatusR
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 		return nil, fmt.Errorf("get job status failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -209,17 +209,10 @@ func (c *ACPClient) doPostWithRetry(ctx context.Context, url string, payload []b
 	var lastErr error
 	for attempt := 0; attempt <= MaxRetries; attempt++ {
 		if attempt > 0 {
-			timer := time.NewTimer(backoff)
 			select {
 			case <-ctx.Done():
-				if !timer.Stop() {
-					select {
-					case <-timer.C:
-					default:
-					}
-				}
 				return nil, ctx.Err()
-			case <-timer.C:
+			case <-time.After(backoff):
 			}
 			backoff *= 2
 			if backoff > MaxBackoff {
