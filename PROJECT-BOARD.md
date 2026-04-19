@@ -64,10 +64,29 @@
 
 | 版本 | 日期 | 关键内容 |
 |---|---|---|
-| v2.5.3 | 2026-04-19 | Hermes集成+安全修复+发布v2.5.3 |
+| v2.5.3 | 2026-04-19 | Hermes集成+MCP Gateway+安全修复+发布v2.5.3 |
 | v2.5.2 | 2026-04-14 | awesome-go 收录 |
 | v2.5.1 | 2026-04-14 | 测试补充 |
 | v2.5.0 | 2026-03-24 | At-Most-Once 执行保证 |
+
+## 本次完成内容（Week 2 全部收尾）
+
+- [x] `tools/mcp-marketplace/` → `tools/mcp-gateway/`（rename + 生产化）
+- [x] `tools/mcp-gateway/openapi.yaml`
+- [x] `examples/mcp-gateway/`
+- [x] `docs/mcp/integration.md`（MCP Gateway 集成指南）
+- [x] `docs/mcp/integration.md`（新增，~5.5KB）
+- [x] `docs/reference/api.md`（API 快速参考 + curl 示例）
+- [x] `docs/guides/quickstart.md`（补充 MCP 链接）
+- [x] 修复 docs 里所有 `rag-platform` → `github.com/Colin4k1024/Aetheris/v2`
+- [x] `docs/blog/11-why-agents-need-runtime.md`（博客 #3: Aetheris vs Temporal）
+- [x] `docs/guides/mcp-marketplace.md`（MCP 工具市场展示页）
+- [x] `docs/promotion/newsletter.md`（订阅方式说明）
+- [x] `docs/promotion/tweet-drafts-v2.5.3.md`（推文草稿 x3）
+- [x] README.md 新增 Templates & Ecosystem 板块
+- [x] GitHub Discussion #166（Announcements: v2.5.3 发布公告）
+- [x] GitHub Discussion #167（Q&A 欢迎帖 + FAQ）
+- [x] awesome-ai-agents PR #781 ping maintainer + 更新描述
 
 ---
 
