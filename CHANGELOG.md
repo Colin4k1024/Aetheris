@@ -2,7 +2,7 @@
 
 本文档记录 Aetheris 项目的版本与重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
-## [Unreleased]
+## [v2.5.3] - 2026-04-19
 
 ### Added
 
