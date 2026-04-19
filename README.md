@@ -236,6 +236,23 @@ Aetheris makes agents production-ready.
 
 ---
 
+## 🧩 Templates & Ecosystem
+
+Start fast with production-ready templates:
+
+| Template | Description |
+|----------|-------------|
+| [Customer Service Agent](./templates/customer-service-agent/) | Multi-turn support with human approval |
+| [RAG Assistant](./templates/rag-assistant/) | Vector search + LLM with citations |
+| [Autonomous Researcher](./templates/autonomous-researcher/) | Self-directed research agent |
+| [Multi-Agent Debate](./templates/multi-agent-debate/) | Multi-agent discussion & consensus |
+
+[MCP Gateway](./tools/mcp-gateway/) — Pre-built tools: GitHub, Filesystem, Web Search, Database
+
+[VSCode Extension](./tools/vscode-extension/) — Code snippets & syntax highlighting
+
+---
+
 ## 🌍 Community
 
 [Discord](https://discord.gg/PrrK2Mua) • [Discussions](https://github.com/Colin4k1024/Aetheris/discussions) • [Docs](https://docs.aetheris.ai)
