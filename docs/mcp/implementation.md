@@ -28,10 +28,10 @@ internal/tool/
 
 ```go
 import (
-    "rag-platform/internal/tool"
-    "rag-platform/internal/tool/mcp"
-    "rag-platform/internal/tool/gatekeeper"
-    "rag-platform/internal/tool/registry"
+    "github.com/Colin4k1024/Aetheris/v2/internal/tool"
+    "github.com/Colin4k1024/Aetheris/v2/internal/tool/mcp"
+    "github.com/Colin4k1024/Aetheris/v2/internal/tool/gatekeeper"
+    "github.com/Colin4k1024/Aetheris/v2/internal/tool/registry"
 )
 
 // 创建工具注册表
@@ -75,7 +75,7 @@ package mytool
 
 import (
     "context"
-    "rag-platform/internal/tool"
+    "github.com/Colin4k1024/Aetheris/v2/internal/tool"
 )
 
 type MyTool struct{}

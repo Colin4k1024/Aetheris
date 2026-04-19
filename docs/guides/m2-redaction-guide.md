@@ -258,7 +258,7 @@ export REDACTION_ENCRYPT_KEY="32_byte_encryption_key_here"
 ### 在代码中使用脱敏
 
 ```go
-import "rag-platform/pkg/redaction"
+import "github.com/Colin4k1024/Aetheris/v2/pkg/redaction"
 
 // 创建脱敏引擎
 policy := &redaction.RedactionPolicy{

@@ -49,8 +49,8 @@ package main
 
 import (
     "context"
-    "rag-platform/internal/agent/tools"
-    "rag-platform/internal/runtime/session"
+    "github.com/Colin4k1024/Aetheris/v2/internal/agent/tools"
+    "github.com/Colin4k1024/Aetheris/v2/internal/runtime/session"
 )
 
 type QueryOrderTool struct{}
@@ -177,7 +177,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"rag-platform/internal/agent/runtime/executor"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor"
 )
 
 // QueryOrderTool 查询订单状态（模拟外部 API）
@@ -259,8 +259,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"rag-platform/internal/agent/memory"
-	"rag-platform/internal/agent/planner"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/memory"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
 )
 
 // RefundAgentPlanner 为退款场景生成固定 TaskGraph
@@ -342,9 +342,9 @@ import (
 	"net/http"
 	"time"
 
-	"rag-platform/internal/agent/memory"
-	"rag-platform/internal/agent/runtime"
-	"rag-platform/internal/agent/tools"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/memory"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/tools"
 )
 
 func main() {

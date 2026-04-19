@@ -1,0 +1,80 @@
+openapi: 3.1.0
+info:
+  title: Aetheris MCP Gateway API
+  version: 1.0.0
+  description: |
+    MCP (Model Context Protocol) Gateway for Aetheris CoRag agent runtime.
+    Exposes tools via JSON-RPC 2.0 over stdio, HTTP+SSE, or WebSocket.
+
+servers:
+  - url: http://localhost:8080/mcp
+    description: Local development
+
+paths:
+  /tools/list:
+    post:
+      operationId: listTools
+      summary: List all available MCP tools
+      responses:
+        '200':
+          description: List of available tools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tools:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MCTool'
+
+  /tools/call:
+    post:
+      operationId: callTool
+      summary: Call an MCP tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, arguments]
+              properties:
+                name:
+                  type: string
+                  description: Tool name (e.g. mcp-github)
+                arguments:
+                  type: object
+                  description: Tool arguments
+      responses:
+        '200':
+          description: Tool execution result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+
+components:
+  schemas:
+    MCTool:
+      type: object
+      required: [name, description, inputSchema]
+      properties:
+        name:
+          type: string
+          example: mcp-github
+        description:
+          type: string
+        inputSchema:
+          type: object
+          description: JSON Schema for tool arguments
+
+    ToolResult:
+      type: object
+      properties:
+        content:
+          type: string
+          description: Result content as string
+        isError:
+          type: boolean
+          default: false

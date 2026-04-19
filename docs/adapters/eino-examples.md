@@ -30,8 +30,8 @@ go mod tidy
 
 ```go
 import (
-    eino_examples "rag-platform/internal/agent/runtime/executor/eino_examples"
-    "rag-platform/internal/model/llm"
+    eino_examples "github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime/executor/eino_examples"
+    "github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
 )
 
 // Using Ollama (local LLM)

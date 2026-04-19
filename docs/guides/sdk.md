@@ -39,7 +39,7 @@ answer, err := agent.Run(ctx, "用户问题")
 对于新项目，推荐通过 `AgentFactory` 配置驱动创建 Agent，而非手动组装 Planner + Executor：
 
 ```go
-import "rag-platform/internal/runtime/eino"
+import "github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
 
 // 获取已从 agents.yaml 加载的 Runner
 runner, ok := agentFactory.GetRunner("my_agent")
