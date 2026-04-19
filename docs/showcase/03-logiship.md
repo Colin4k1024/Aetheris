@@ -1,37 +1,41 @@
-# LogiShip - Supply Chain Optimization
+# Example: Multi-Region Inventory Optimization — Horizontal Scaling
 
+> **⚠️ This is a technical example/demonstration, not a real company case study.**
+>
+> For real-world case studies, see [Discussions › Show & Tell](https://github.com/Colin4k1024/Aetheris/discussions/category/show-and-tell).
+
+**Type:** Example / Technical Demo
 **Industry:** Logistics
 **Use Case:** Autonomous inventory replenishment across 50 warehouses
-**Results:** 25% reduction in stockouts, $2M annual savings
+**Aetheris Features:** Regional Scheduling, Lease Fencing, SLA Quotas, Durable Execution, Multi-Worker
 
 ---
 
-## Company Overview
+## Problem Statement
 
-LogiShip is a logistics company managing inventory across 50 warehouses in 5 regions (US, EU, APAC). Their AI agent automates inventory replenishment decisions based on demand forecasting.
+A large-scale inventory optimization system must:
 
----
+- Handle long-running optimization tasks (hours) that survive worker crashes
+- Prevent multiple workers from processing the same warehouse (race conditions)
+- Route jobs to workers in the same region (data residency)
+- Handle high volume (50K+ jobs/day) with per-region rate limiting
 
-## Challenge
-
-| Challenge | Impact |
-|-----------|--------|
-| Long-running optimization (hours) | Worker crashes lost all progress |
-| Multiple workers = race conditions | Same warehouse processed twice |
-| Regional data residency | EU data must stay in EU |
-| High volume (50K jobs/day) | Need rate limiting per region |
-
-> "We tried Kubernetes Jobs but couldn't handle the complexity of agent state. Workers would fight over jobs, or crash and lose everything." — VP Engineering, LogiShip
+```
+❌ Long-running job (2 hours) → worker crashes → all progress lost
+❌ Two workers pick up same warehouse → duplicate processing
+❌ EU warehouse job routed to US worker → GDPR violation
+❌ Burst of 10K jobs → overwhelm EU region capacity
+```
 
 ---
 
 ## Solution
 
-### 1. Regional Scheduling (v2.2.0)
+### 1. Regional Scheduling
 
 ```yaml
 # Worker in US-East
-configs/worker.yaml
+# configs/worker.yaml
 scheduler:
   region: "us-east-1"
   allowed_regions: ["us-east-1", "us-east-2"]
@@ -42,7 +46,7 @@ scheduler:
   allowed_regions: ["eu-west-1", "eu-central-1"]
 ```
 
-Jobs automatically route to workers in the same region.
+Jobs automatically route to workers in the matching region. EU data never leaves EU.
 
 ### 2. Lease Fencing
 
@@ -50,24 +54,58 @@ Jobs automatically route to workers in the same region.
 // Scheduler prevents duplicate execution
 lease, err := scheduler.AcquireLease(ctx, jobID, workerID, 5*time.Minute)
 if err == ErrLeaseHeldByOther {
-    // Another worker has it, skip
-    return
+    log.Printf("Job %s already being processed by another worker, skipping", jobID)
+    return nil // Another worker has it, don't touch
+}
+// We hold the lease — we own this job for the next 5 minutes
+```
+
+```go
+// Renew lease while processing
+for {
+    select {
+    case <-ctx.Done():
+        // Job cancelled — release lease
+        scheduler.ReleaseLease(ctx, jobID, workerID)
+        return ctx.Err()
+    case <-time.After(4 * time.Minute):
+        // Renew before expiry
+        scheduler.RenewLease(ctx, jobID, workerID, 5*time.Minute)
+    }
 }
 ```
 
-Each job has a 5-minute lease. Only the lease holder can execute.
+Each job has a 5-minute lease. Only the lease holder can execute. Crashed worker loses lease → job reassigned.
 
-### 3. SLA Quotas
+### 3. SLA Quotas (Per-Region Rate Limiting)
 
 ```bash
 # Per-region rate limiting
 curl -X POST http://localhost:8080/api/sla/quotas \
+  -H "Content-Type: application/json" \
   -d '{
     "agent_id": "inventory-agent",
     "region": "eu-west-1",
     "max_rpm": 1000,
     "max_daily": 50000
   }'
+```
+
+Burst of EU jobs → rate limiter queues them, doesn't overwhelm.
+
+### 4. Durable Execution
+
+```go
+// Long-running job (2+ hours) survives worker crashes
+job, err := runtime.SubmitJob(ctx, &Job{
+    Name:   "optimize-warehouse-eu-17",
+    Agent:  inventoryAgent,
+    Input:  warehouseConfig,
+    // Automatically checkpointed every step
+})
+
+// Worker crashes at hour 1?
+// New worker picks up at hour 1 checkpoint — not from scratch
 ```
 
 ---
@@ -79,27 +117,17 @@ curl -X POST http://localhost:8080/api/sla/quotas \
 │                   Regional Workers                       │
 ├─────────────┬─────────────┬─────────────┬───────────────┤
 │  us-east-1  │  us-west-2  │  eu-west-1  │   apac-east   │
-│  (12 jobs/s)│  (10 jobs/s)│  (8 jobs/s)│  (15 jobs/s) │
+│  (12 j/sec) │  (10 j/sec) │  (8 j/sec)  │   (15 j/sec)  │
+│  [100% US]  │  [100% US]  │  [100% EU]  │  [100% APAC]  │
 └─────────────┴─────────────┴─────────────┴───────────────┘
          │              │             │              │
          └──────────────┴─────────────┴──────────────┘
                            │
                     PostgreSQL
-                    (Primary + Replica per region)
+                 (Primary + Replica per region)
+                    Lease Fencing
+                   (prevents duplicates)
 ```
-
----
-
-## Results
-
-| Metric | Before | After |
-|--------|--------|-------|
-| Stockout rate | 8% | **6%** |
-| Annual savings | — | **$2M** |
-| Job completion | 97% | **99.99%** |
-| Processing cost/job | $0.12 | **$0.03** |
-
-> "Aetheris reduced our infrastructure costs by 75% while improving reliability. The regional scheduling alone saved us $500K in data transfer costs." — CTO, LogiShip
 
 ---
 
@@ -107,16 +135,38 @@ curl -X POST http://localhost:8080/api/sla/quotas \
 
 | Feature | Benefit |
 |---------|---------|
-| **Lease Fencing** | Prevents duplicate processing |
+| **Lease Fencing** | Prevents duplicate processing across workers |
 | **Region Scheduling** | Data residency compliance |
 | **SLA Quotas** | Per-region rate limiting |
 | **Durable Execution** | Long-running jobs survive crashes |
 | **Multi-Worker** | Horizontal scaling |
+| **Event Sourcing** | Full replay capability for debugging |
+
+---
+
+## Run This Example
+
+```bash
+# Start 3 workers in different regions
+REGION=us-east-1 go run ./cmd/worker &
+REGION=eu-west-1 go run ./cmd/worker &
+REGION=apac-east go run ./cmd/worker &
+
+# Submit 1000 inventory jobs
+for i in $(seq 1 1000); do
+  curl -X POST http://localhost:8080/api/jobs \
+    -d "{\"agent\":\"inventory-agent\",\"region\":\"eu-west-1\",\"input\":{\"warehouse\":\"eu-$i\"}}"
+done
+
+# Observe: EU jobs only processed by EU worker, leases prevent duplicates
+aetheris jobs list --region eu-west-1
+```
 
 ---
 
 ## Learn More
 
 - [Regional Scheduling](../guides/deployment.md)
-- [SLA Quota Manager](../guides/m2-rbac-guide.md)
-- [Scheduler Design](../design/scheduler-correctness.md)
+- [Lease Fencing](../guides/runtime-guarantees.md)
+- [SLA Quota Manager](../guides/sla-management.md)
+- [Multi-Region Deployment](../guides/multi-region-deployment.md)

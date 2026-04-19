@@ -1,89 +1,94 @@
-# HealthAI - Patient Triage Assistant
+# Example: Healthcare Triage Assistant — Human-in-the-Loop Approval
 
+> **⚠️ This is a technical example/demonstration, not a real company case study.**
+>
+> For real-world case studies, see [Discussions › Show & Tell](https://github.com/Colin4k1024/Aetheris/discussions/category/show-and-tell).
+
+**Type:** Example / Technical Demo
 **Industry:** Healthcare
 **Use Case:** Multi-step patient triage with human-in-the-loop approval
-**Results:** 40% faster triage, 100% decision traceability
+**Aetheris Features:** StatusParked (Human-in-the-Loop), State Checkpoints, Evidence Export
 
 ---
 
-## Company Overview
+## Problem Statement
 
-HealthAI provides AI-powered healthcare decision support systems for clinics and hospitals. Their triage assistant helps nurses prioritize patient care based on symptoms and medical history.
+A patient triage agent must:
 
----
+- Collect symptoms across multiple steps (cannot lose state if worker restarts)
+- Pause and wait for human doctor approval before taking action
+- Maintain HIPAA-compliant audit logs
 
-## Challenge
-
-HealthAI's triage assistant needed to:
-
-| Requirement | Previous Solution Issues |
-|------------|-------------------------|
-| Collect symptoms across multiple steps | State lost when worker restarted |
-| Wait for human doctor approval | No native support, built custom queue |
-| HIPAA-compliant audit logs | Fragmented, incomplete |
-
-> "Our previous solution couldn't handle the 'waiting for approval' scenario well. Nurses would lose their place if the system restarted." — Product Manager, HealthAI
+```
+❌ Worker restart → patient data lost → start triage from scratch
+❌ No native pause/resume → custom queue spaghetti code
+❌ Audit logs incomplete → HIPAA violation
+```
 
 ---
 
 ## Solution
 
-Leveraged Aetheris v2.0+ features:
-
 ### 1. Human-in-the-Loop with StatusParked
 
+```go
+// Agent pauses automatically when human approval is needed
+result, err := agent.Run(ctx, &agent.Input{
+    Message:    "Patient presents with chest pain",
+    ParkOn:     []string{"prescribe_medication", "order_test"},
+    ParkReason: "requires doctor approval",
+})
+
+// Job status becomes "parked" — no worker resources consumed
+// Doctor reviews and approves via API
+```
+
 ```bash
-# Agent pauses and waits for doctor approval
-curl -X POST http://localhost:8080/api/agents/agent-xxx/message \
-  -d '{"message":"Patient presents with chest pain"}'
+# Check job status
+curl http://localhost:8080/api/jobs/{job_id}
+# {"status": "parked", "park_reason": "requires doctor approval"}
 
-# Job pauses automatically when needing human input
-# GET /api/jobs/job-xxx returns status: "parked"
+# Doctor reviews and resumes
+curl -X POST http://localhost:8080/api/jobs/{job_id}/resume \
+  -H "Content-Type: application/json" \
+  -d '{"decision": "approved", "notes": "Proceed with ECG"}'
 
-# Doctor reviews and approves
-curl -X POST http://localhost:8080/api/jobs/job-xxx/resume \
-  -d '{"decision":"approved","notes":"Proceed with ECG"}'
+# Agent resumes from checkpoint with doctor's decision in context
 ```
 
 ### 2. State Checkpoints
 
+Every step automatically checkpointed to PostgreSQL:
+
 ```go
-// Automatic state persistence at each step
 type PatientState struct {
-    Name         string    `json:"name"`
-    Symptoms     []string  `json:"symptoms"`
-    Vitals       Vitals    `json:"vitals"`
-    Assessment   string    `json:"assessment,omitempty"`
-    DoctorNote   string    `json:"doctor_note,omitempty"`
+    Name       string    `json:"name"`
+    Symptoms   []string  `json:"symptoms"`
+    Vitals     Vitals    `json:"vitals"`
+    Assessment string    `json:"assessment,omitempty"`
+    DoctorNote string    `json:"doctor_note,omitempty"`
+    // Checkpointed automatically after each step
 }
+
+// After pause + resume, agent has full context:
+// "Patient John: symptoms=[chest_pain, shortness_of_breath],
+//  vitals={bp:140/90}, doctor_note: Proceed with ECG"
 ```
 
-Every step checkpointed to PostgreSQL — no data loss during pause.
-
-### 3. Evidence Export for HIPAA
+### 3. Evidence Export for Compliance
 
 ```bash
 # Export complete audit trail
-curl -X POST http://localhost:8080/api/jobs/job-xxx/export \
+curl -X POST http://localhost:8080/api/jobs/{job_id}/export \
   -o patient-123-evidence.zip
 
-# Contains:
+# Evidence package contains:
 # - All events with timestamps
-# - State snapshots
+# - State snapshots at each checkpoint
 # - LLM prompts/responses
-# - Doctor decisions
+# - Doctor approval decisions
+# - Cryptographic integrity hash
 ```
-
----
-
-## Results
-
-| Metric | Before | After |
-|--------|--------|-------|
-| Average triage time | 45 min | **27 min** |
-| Data loss incidents | 12/month | **0** |
-| Decision traceability | 60% | **100%** |
-| HIPAA audit ready | No | **Yes** |
 
 ---
 
@@ -98,8 +103,8 @@ curl -X POST http://localhost:8080/api/jobs/job-xxx/export \
                     │     Symptoms   │
                     │                 │
                     │  2. Park &     │
-                    │     Wait       │◀────
-                    │                 │
+                    │     Wait       │◀────  (auto-pauses,
+                    │                 │       no resources)
                     │  3. Resume     │
                     │     with       │
                     │     Approval   │
@@ -112,10 +117,27 @@ curl -X POST http://localhost:8080/api/jobs/job-xxx/export \
 
 | Feature | Benefit |
 |---------|---------|
-| **StatusParked** | Native wait-for-human support |
-| **State Checkpoints** | Preserve patient data across pauses |
-| **Evidence Chain** | Complete audit trail for HIPAA |
-| **RBAC** | Doctor-only approval permissions |
+| **StatusParked** | Native wait-for-human, no custom queue |
+| **State Checkpoints** | Preserve patient data across pauses/restarts |
+| **Evidence Chain** | Complete audit trail for HIPAA compliance |
+| **RBAC** | Only authorized doctors can approve |
+
+---
+
+## Run This Example
+
+```bash
+cd examples/human-approval-agent
+go run . --patient-symptoms "chest_pain,shortness_of_breath"
+
+# Job pauses at triage decision step
+# Check status: curl http://localhost:8080/api/jobs/{job_id}
+
+# Doctor approves via API or CLI
+aetheris jobs approve {job_id} --notes "Proceed with ECG"
+
+# Agent resumes with approval in context
+```
 
 ---
 
