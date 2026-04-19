@@ -15,7 +15,7 @@ tools:
   # GitHub 集成工具
   # ============================================
   - name: mcp-github
-    path: tools/mcp-marketplace/tools/mcp-github
+    path: tools/mcp-gateway/tools/mcp-github
     status: template  # template | ready | deprecated
     category: integration
     tags:
@@ -47,7 +47,7 @@ tools:
   # 文件系统工具
   # ============================================
   - name: mcp-filesystem
-    path: tools/mcp-marketplace/tools/mcp-filesystem
+    path: tools/mcp-gateway/tools/mcp-filesystem
     status: template
     category: storage
     tags:
@@ -83,7 +83,7 @@ tools:
   # 网页搜索工具
   # ============================================
   - name: mcp-web-search
-    path: tools/mcp-marketplace/tools/mcp-web-search
+    path: tools/mcp-gateway/tools/mcp-web-search
     status: template
     category: search
     tags:
@@ -120,7 +120,7 @@ tools:
   # 数据库工具
   # ============================================
   - name: mcp-database
-    path: tools/mcp-marketplace/tools/mcp-database
+    path: tools/mcp-gateway/tools/mcp-database
     status: template
     category: database
     tags:
@@ -187,7 +187,7 @@ installation:
     corag tools install mcp-github
     
     # 方式2: 手动复制到项目
-    cp -r tools/mcp-marketplace/tools/mcp-github internal/tool/mcp/
+    cp -r tools/mcp-gateway/tools/mcp-github internal/tool/mcp/
   
   dependencies: |
     # 安装 Go 依赖

@@ -9,7 +9,7 @@
 每个工具应有独立的目录：
 
 ```
-tools/mcp-marketplace/tools/mcp-{name}/
+tools/mcp-gateway/tools/mcp-{name}/
 ├── tool.go           # 主要实现
 ├── tool_test.go      # 单元测试
 ├── manifest.yaml     # 工具清单
@@ -166,7 +166,7 @@ func TestMyTool_Execute(t *testing.T) {
 ```yaml
 tools:
   - name: mcp-mytool
-    path: tools/mcp-marketplace/tools/mcp-mytool
+    path: tools/mcp-gateway/tools/mcp-mytool
     status: template
     manifest: manifest.yaml
     category: integration
@@ -205,7 +205,7 @@ tools:
 
 ## 发布工具
 
-1. 确保所有测试通过：`go test ./tools/mcp-marketplace/tools/...`
+1. 确保所有测试通过：`go test ./tools/mcp-gateway/tools/...`
 2. 更新 README.md 中的工具列表
 3. 提交 Pull Request 到 `main` 分支
 
