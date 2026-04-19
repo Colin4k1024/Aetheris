@@ -235,6 +235,7 @@ go run main.go
 
 ## 下一步
 
+- [MCP Gateway 集成](../mcp/integration.md) — 使用 MCP Gateway 工具扩展 Agent 能力
 - [事件溯源概念](./concepts/event-sourcing.md) — 深入理解 Aetheris 的核心设计
 - [Code Review Agent 教程](./tutorials/code-review-agent.md) — 构建企业级代码审查 Agent
 - [Audit Agent 教程](./tutorials/audit-agent.md) — 构建合规审计 Agent
