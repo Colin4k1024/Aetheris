@@ -40,9 +40,9 @@ import (
 	"log"
 	"os"
 
-	"rag-platform/internal/agent"
-	"rag-platform/internal/agent/runtime"
-	"rag-platform/pkg/config"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent"
+	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 func main() {
@@ -330,7 +330,7 @@ go run main.go
 
 ```go
 import (
-    "rag-platform/internal/runtime/eino"
+    "github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
 )
 
 // 在 generateReportStep 中添加 LLM 分析

@@ -27,7 +27,7 @@ security:
 ### HTTP Server
 
 ```go
-import "rag-platform/pkg/security/mtls"
+import "github.com/Colin4k1024/Aetheris/v2/pkg/security/mtls"
 
 server, err := mtls.NewHTTPServer(mtls.HTTPServerConfig{
     CertFile: "server.crt",
@@ -39,7 +39,7 @@ server, err := mtls.NewHTTPServer(mtls.HTTPServerConfig{
 ### gRPC Server
 
 ```go
-import "rag-platform/pkg/security/mtls"
+import "github.com/Colin4k1024/Aetheris/v2/pkg/security/mtls"
 
 server, err := mtls.NewGRPCServer(mtls.GRPCServerConfig{
     CertFile: "server.crt",
@@ -70,7 +70,7 @@ security:
 ### Middleware Usage
 
 ```go
-import "rag-platform/internal/api/http/middleware"
+import "github.com/Colin4k1024/Aetheris/v2/internal/api/http/middleware"
 
 signer, err := middleware.NewSignerMiddleware("your-secret-key", []string{
     "/api/admin/*",
@@ -84,7 +84,7 @@ h.Use(signer.Middleware())
 ### Client Signing
 
 ```go
-import "rag-platform/pkg/security/signer"
+import "github.com/Colin4k1024/Aetheris/v2/pkg/security/signer"
 
 s := signer.NewSigner("your-secret-key", signer.WithAlgorithm("hmac-sha256"))
 
@@ -118,7 +118,7 @@ security:
 ### Usage
 
 ```go
-import "rag-platform/pkg/secrets"
+import "github.com/Colin4k1024/Aetheris/v2/pkg/secrets"
 
 store, err := secrets.NewStore(secrets.Config{
     Provider: "aws",
@@ -157,7 +157,7 @@ security:
 ### Usage
 
 ```go
-import "rag-platform/internal/api/http/middleware"
+import "github.com/Colin4k1024/Aetheris/v2/internal/api/http/middleware"
 
 allowlist, err := middleware.NewIPAllowList(middleware.IPAllowListConfig{
     Enabled:        true,
@@ -184,7 +184,7 @@ security:
 ### Usage
 
 ```go
-import "rag-platform/pkg/security/sso"
+import "github.com/Colin4k1024/Aetheris/v2/pkg/security/sso"
 
 oidc, err := sso.NewOIDC(sso.OIDCConfig{
     IssuerURL:    "https://accounts.google.com",

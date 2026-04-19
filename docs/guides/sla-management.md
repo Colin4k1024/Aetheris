@@ -40,7 +40,7 @@ sla:
 ### Job Deadline Manager
 
 ```go
-import "rag-platform/pkg/sla"
+import "github.com/Colin4k1024/Aetheris/v2/pkg/sla"
 
 manager := sla.NewJobDeadlineManager()
 

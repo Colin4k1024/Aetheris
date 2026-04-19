@@ -17,7 +17,7 @@ For product positioning and transformation context, read [strategy-and-user-stor
 ## Project names
 
 - **Aetheris** — Product/project name and CLI command (`aetheris`)
-- **rag-platform** — go.mod module name (internal use only, not user-facing)
+- **github.com/Colin4k1024/Aetheris/v2** — go.mod module name (internal use only, not user-facing)
 
 Environment variables use `AETHERIS_*` prefix (e.g., `AETHERIS_API_URL`).
 

@@ -257,7 +257,7 @@ cy.on('tap', 'node', function(evt){
 ### 构建 Evidence Graph
 
 ```go
-import "rag-platform/pkg/evidence"
+import "github.com/Colin4k1024/Aetheris/v2/pkg/evidence"
 
 builder := evidence.NewBuilder()
 graph, err := builder.BuildFromEvents(events)

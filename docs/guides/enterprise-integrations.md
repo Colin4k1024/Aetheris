@@ -25,7 +25,7 @@ security:
 ### Usage
 
 ```go
-import "rag-platform/pkg/integration/ldap"
+import "github.com/Colin4k1024/Aetheris/v2/pkg/integration/ldap"
 
 store, err := ldap.NewLDAPStore(&ldap.Config{
     URL:       "ldaps://ldap.example.com:636",
@@ -82,7 +82,7 @@ integration:
 ### Usage
 
 ```go
-import "rag-platform/pkg/integration/queue"
+import "github.com/Colin4k1024/Aetheris/v2/pkg/integration/queue"
 
 // Create queue
 q, err := queue.NewMessageQueue(queue.Config{
@@ -124,7 +124,7 @@ integration:
 ### Usage
 
 ```go
-import "rag-platform/pkg/integration/storage"
+import "github.com/Colin4k1024/Aetheris/v2/pkg/integration/storage"
 
 // Create storage
 s, err := storage.NewObjectStore(storage.Config{
