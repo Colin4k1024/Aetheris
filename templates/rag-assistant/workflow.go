@@ -255,38 +255,6 @@ func executeDemo(ctx context.Context, workflow *planner.TaskGraph) {
 	fmt.Println("\nWorkflow saved to rag_workflow.json")
 }
 
-// createSimpleRAGWorkflow is a simpler version for basic RAG
-func createSimpleRAGWorkflow() *planner.TaskGraph {
-	return &planner.TaskGraph{
-		Nodes: []planner.TaskNode{
-			{
-				ID:   "retrieve",
-				Type: planner.NodeTool,
-				Config: map[string]any{
-					"tool_name": "retriever",
-					"top_k":     5,
-				},
-			},
-			{
-				ID:   "generate",
-				Type: planner.NodeLLM,
-				Config: map[string]any{
-					"prompt": `Based on the following context, answer the user's question.
-
-						Question: {{input.query}}
-						Context: {{retrieve}}
-
-						Provide a clear, accurate answer with citations.`,
-					"input": "{{input.query}}",
-				},
-			},
-		},
-		Edges: []planner.TaskEdge{
-			{From: "retrieve", To: "generate"},
-		},
-	}
-}
-
 // CreateQueryWorkflow creates a basic query workflow using compose
 func CreateQueryWorkflow(ctx context.Context) (compose.Runnable[*RAGInput, *RAGOutput], error) {
 	graph := compose.NewGraph[*RAGInput, *RAGOutput]()
