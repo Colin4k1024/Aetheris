@@ -399,15 +399,22 @@ func (t *FilesystemTool) searchFiles(ctx context.Context, input map[string]any) 
 	if recursive {
 		err = filepath.Walk(path, walkFn)
 	} else {
-		entries, err := os.ReadDir(path)
+		var entries []os.DirEntry
+		entries, err = os.ReadDir(path)
 		if err != nil {
 			return "", fmt.Errorf("read directory failed: %w", err)
 		}
 		for _, entry := range entries {
 			entryInfo, _ := entry.Info()
 			if entryInfo != nil {
-				//nolint:errcheck // walkFn always returns nil in this usage
-				_ = walkFn(filepath.Join(path, entry.Name()), entryInfo, nil)
+				walkErr := walkFn(filepath.Join(path, entry.Name()), entryInfo, nil)
+				if errors.Is(walkErr, filepath.SkipDir) {
+					// walkFn returns SkipDir when the match limit is reached; stop iterating.
+					break
+				}
+				if walkErr != nil {
+					return "", fmt.Errorf("search files failed: %w", walkErr)
+				}
 			}
 		}
 	}
