@@ -408,13 +408,12 @@ func (t *FilesystemTool) searchFiles(ctx context.Context, input map[string]any) 
 			entryInfo, _ := entry.Info()
 			if entryInfo != nil {
 				walkErr := walkFn(filepath.Join(path, entry.Name()), entryInfo, nil)
-				if errors.Is(walkErr, filepath.SkipDir) {
+					if errors.Is(walkErr, filepath.SkipDir) {
 					// walkFn returns SkipDir when the match limit is reached; stop iterating.
 					break
 				}
 				if walkErr != nil {
-					err = walkErr
-					break
+					return "", fmt.Errorf("search files failed: %w", walkErr)
 				}
 			}
 		}
