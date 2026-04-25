@@ -489,7 +489,7 @@ func CreateResearchGraph(ctx context.Context) (compose.Runnable[*ResearchInput, 
 	}))
 
 	// Research node
-	graph.AddLambdaNode("research", compose.InvokableLambda(func(ctx context.Context, input *struct { //nolint:errcheck
+	graph.AddLambdaNode("research", compose.InvokableLambda(func(ctx context.Context, input *struct {
 		Results []string
 		Topic   string
 	}) (*struct {
@@ -500,7 +500,7 @@ func CreateResearchGraph(ctx context.Context) (compose.Runnable[*ResearchInput, 
 		}{
 			Findings: []string{"Finding 1", "Finding 2", "Finding 3"},
 		}, nil
-	}))
+	})) //nolint:errcheck
 
 	// Report node
 	graph.AddLambdaNode("report", compose.InvokableLambda(func(ctx context.Context, input *struct {

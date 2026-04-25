@@ -17,6 +17,7 @@ package eino
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -108,7 +109,7 @@ func (r *HermesRunner) Run(ctx context.Context, input map[string]any) (output ma
 	case <-ctx.Done():
 		// Send stop signal on cancellation
 		if err := r.Signal(ctx, "stop"); err != nil {
-			// Best-effort: log but don't change the cancellation result
+			slog.WarnContext(ctx, "failed to send stop signal to Hermes", "run_id", runID, "session_id", sessionID, "error", err)
 		}
 		// Drain channels to unblock goroutine
 		select {
