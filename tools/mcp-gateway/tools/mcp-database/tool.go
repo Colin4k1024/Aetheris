@@ -199,7 +199,7 @@ func (t *DatabaseTool) validateSQL(sqlStr string) error {
 	}
 
 	// 验证表访问权限
-	if t.config.AllowedTables != nil && len(t.config.AllowedTables) > 0 {
+	if len(t.config.AllowedTables) > 0 {
 		// 简单检查 FROM/INTO/JOIN 子句中的表名
 		tables := extractTables(sqlStr)
 		for _, table := range tables {
@@ -452,7 +452,7 @@ func (t *DatabaseTool) describeTable(ctx context.Context, input map[string]any) 
 	}
 
 	// 验证表权限
-	if t.config.AllowedTables != nil && len(t.config.AllowedTables) > 0 {
+	if len(t.config.AllowedTables) > 0 {
 		allowed := false
 		for _, allowedTable := range t.config.AllowedTables {
 			if table == allowedTable {

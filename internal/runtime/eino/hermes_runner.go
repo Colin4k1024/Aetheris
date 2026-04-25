@@ -107,7 +107,9 @@ func (r *HermesRunner) Run(ctx context.Context, input map[string]any) (output ma
 	select {
 	case <-ctx.Done():
 		// Send stop signal on cancellation
-		r.Signal(ctx, "stop")
+		if err := r.Signal(ctx, "stop"); err != nil {
+			// Best-effort: log but don't change the cancellation result
+		}
 		// Drain channels to unblock goroutine
 		select {
 		case <-resultCh:
@@ -146,7 +148,6 @@ func (r *HermesRunner) waitForCompletion(ctx context.Context, runID, sessionID s
 			}
 			switch event.Type {
 			case "session_end":
-				finalStatus = event.Status
 				if event.Result != nil {
 					finalResponse = fmt.Sprintf("%v", event.Result)
 				}
