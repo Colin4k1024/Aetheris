@@ -50,7 +50,7 @@ jobs:
           echo "Artifacts to generate provenance for:"
           echo "---"
           for f in dist/*; do
-            echo "  - $(basename $f): $(file $f) ($(stat -f%z $f 2>/dev/null || stat -c%s $f) bytes)"
+            echo "  - $(basename "$f"): $(file "$f") ($(stat -f%z "$f" 2>/dev/null || stat -c%s "$f") bytes)"
           done
           echo "---"
           echo "subjects=$(find dist -type f -exec basename {} \; | tr '\n' ',')" >> $GITHUB_OUTPUT
@@ -100,7 +100,7 @@ jobs:
           echo ""
           echo "Generated artifacts:"
           for f in dist/*; do
-            echo "  - $(basename $f)"
+            echo "  - $(basename "$f")"
           done
           echo ""
           echo "Provenance attestation: slsa-attestations.intoto.jsonl"
