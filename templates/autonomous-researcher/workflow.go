@@ -475,7 +475,7 @@ func CreateResearchGraph(ctx context.Context) (compose.Runnable[*ResearchInput, 
 	graph := compose.NewGraph[*ResearchInput, *ResearchOutput]()
 
 	// Search node
-	graph.AddLambdaNode("search", compose.InvokableLambda(func(ctx context.Context, input *ResearchInput) (*struct {
+	if err := graph.AddLambdaNode("search", compose.InvokableLambda(func(ctx context.Context, input *ResearchInput) (*struct {
 		Results []string
 		Topic   string
 	}, error) {
@@ -486,10 +486,12 @@ func CreateResearchGraph(ctx context.Context) (compose.Runnable[*ResearchInput, 
 			Results: []string{"source1", "source2", "source3"},
 			Topic:   input.Topic,
 		}, nil
-	}))
+	})); err != nil {
+		return nil, fmt.Errorf("add search node: %w", err)
+	}
 
 	// Research node
-	graph.AddLambdaNode("research", compose.InvokableLambda(func(ctx context.Context, input *struct {
+	if err := graph.AddLambdaNode("research", compose.InvokableLambda(func(ctx context.Context, input *struct {
 		Results []string
 		Topic   string
 	}) (*struct {
@@ -500,10 +502,12 @@ func CreateResearchGraph(ctx context.Context) (compose.Runnable[*ResearchInput, 
 		}{
 			Findings: []string{"Finding 1", "Finding 2", "Finding 3"},
 		}, nil
-	})) //nolint:errcheck
+	})); err != nil {
+		return nil, fmt.Errorf("add research node: %w", err)
+	}
 
 	// Report node
-	graph.AddLambdaNode("report", compose.InvokableLambda(func(ctx context.Context, input *struct {
+	if err := graph.AddLambdaNode("report", compose.InvokableLambda(func(ctx context.Context, input *struct {
 		Findings []string
 	}) (*ResearchOutput, error) {
 		return &ResearchOutput{
@@ -513,12 +517,22 @@ func CreateResearchGraph(ctx context.Context) (compose.Runnable[*ResearchInput, 
 			Report:           "Full report content...",
 			Confidence:       0.85,
 		}, nil
-	}))
+	})); err != nil {
+		return nil, fmt.Errorf("add report node: %w", err)
+	}
 
-	graph.AddEdge(compose.START, "search")
-	graph.AddEdge("search", "research")
-	graph.AddEdge("research", "report")
-	graph.AddEdge("report", compose.END)
+	if err := graph.AddEdge(compose.START, "search"); err != nil {
+		return nil, fmt.Errorf("add start->search edge: %w", err)
+	}
+	if err := graph.AddEdge("search", "research"); err != nil {
+		return nil, fmt.Errorf("add search->research edge: %w", err)
+	}
+	if err := graph.AddEdge("research", "report"); err != nil {
+		return nil, fmt.Errorf("add research->report edge: %w", err)
+	}
+	if err := graph.AddEdge("report", compose.END); err != nil {
+		return nil, fmt.Errorf("add report->end edge: %w", err)
+	}
 
 	return graph.Compile(ctx)
 }
