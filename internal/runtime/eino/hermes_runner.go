@@ -106,10 +106,11 @@ func (r *HermesRunner) Run(ctx context.Context, input map[string]any) (output ma
 
 	select {
 	case <-ctx.Done():
-		// Send stop signal on cancellation
-		if err := r.Signal(ctx, "stop"); err != nil {
-			// Best-effort: log but don't change the cancellation result
-		}
+		// Send stop signal on cancellation using a fresh context so the
+		// already-canceled ctx does not prevent signal delivery.
+		stopCtx, stopCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer stopCancel()
+		_ = r.Signal(stopCtx, "stop") // best-effort; ignore error
 		// Drain channels to unblock goroutine
 		select {
 		case <-resultCh:
