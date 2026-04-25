@@ -108,9 +108,9 @@ func (r *HermesRunner) Run(ctx context.Context, input map[string]any) (output ma
 	case <-ctx.Done():
 		// Send stop signal on cancellation using a fresh context so the
 		// already-canceled ctx does not prevent signal delivery.
-		stopCtx, stopCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-		defer stopCancel()
-		_ = r.Signal(stopCtx, "stop") // best-effort; ignore error
+		signalCtx, signalCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer signalCancel()
+		_ = r.Signal(signalCtx, "stop") // best-effort; ignore error
 		// Drain channels to unblock goroutine
 		select {
 		case <-resultCh:
