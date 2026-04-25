@@ -406,10 +406,15 @@ func (t *FilesystemTool) searchFiles(ctx context.Context, input map[string]any) 
 		for _, entry := range entries {
 			entryInfo, _ := entry.Info()
 			if entryInfo != nil {
-				walkFn(filepath.Join(path, entry.Name()), entryInfo, nil)
+				walkErr := walkFn(filepath.Join(path, entry.Name()), entryInfo, nil)
+				if errors.Is(walkErr, filepath.SkipDir) {
+					break
+				}
+				if walkErr != nil {
+					return "", fmt.Errorf("search files failed: %w", walkErr)
+				}
 			}
 		}
-		err = nil
 	}
 
 	if err != nil {

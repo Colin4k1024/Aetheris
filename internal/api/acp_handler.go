@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
@@ -419,23 +418,4 @@ func determineJobStatus(events []jobstore.JobEvent) string {
 	}
 
 	return "unknown"
-}
-
-// redacredactCredentials redacts sensitive values from context for logging.
-// It checks if key contains "token" or "secret" (case-insensitive partial match).
-func redactCredentials(context map[string]any) map[string]any {
-	if context == nil {
-		return nil
-	}
-	result := make(map[string]any)
-	for k, v := range context {
-		if strings.Contains(strings.ToLower(k), "token") || strings.Contains(strings.ToLower(k), "secret") {
-			result[k] = "[REDACTED]"
-		} else if m, ok := v.(map[string]any); ok {
-			result[k] = redactCredentials(m)
-		} else {
-			result[k] = v
-		}
-	}
-	return result
 }
