@@ -46,8 +46,27 @@ type Config struct {
 
 // RuntimeConfig 运行时环境配置
 type RuntimeConfig struct {
-	Profile string `mapstructure:"profile"` // dev | prod
-	Strict  bool   `mapstructure:"strict"`  // true 时启用生产强校验门禁
+	Profile  string                `mapstructure:"profile"` // dev | prod
+	Strict   bool                  `mapstructure:"strict"`  // true 时启用生产强校验门禁
+	Snapshot RuntimeSnapshotConfig `mapstructure:"snapshot"`
+	GC       RuntimeGCConfig       `mapstructure:"gc"`
+}
+
+// RuntimeSnapshotConfig 配置 Worker 自动快照。
+type RuntimeSnapshotConfig struct {
+	Enabled        bool   `mapstructure:"enabled"`
+	Interval       string `mapstructure:"interval"`
+	EventThreshold int    `mapstructure:"event_threshold"`
+	BatchLimit     int    `mapstructure:"batch_limit"`
+	KeepLatest     int    `mapstructure:"keep_latest"`
+}
+
+// RuntimeGCConfig 配置 Worker 存储生命周期清理。
+type RuntimeGCConfig struct {
+	Enabled   bool   `mapstructure:"enabled"`
+	Interval  string `mapstructure:"interval"`
+	TTLDays   int    `mapstructure:"ttl_days"`
+	BatchSize int    `mapstructure:"batch_size"`
 }
 
 // RateLimitsConfig 限流配置（Tool + LLM）
@@ -465,6 +484,19 @@ func DefaultDevConfig() *Config {
 	cfg := &Config{
 		Runtime: RuntimeConfig{
 			Profile: "dev",
+			Snapshot: RuntimeSnapshotConfig{
+				Enabled:        true,
+				Interval:       "1h",
+				EventThreshold: 1000,
+				BatchLimit:     50,
+				KeepLatest:     1,
+			},
+			GC: RuntimeGCConfig{
+				Enabled:   true,
+				Interval:  "24h",
+				TTLDays:   90,
+				BatchSize: 1000,
+			},
 		},
 		API: APIConfig{
 			Port: 8080,
@@ -503,6 +535,7 @@ func DefaultDevConfig() *Config {
 // LoadConfig 加载配置文件
 func LoadConfig(configPath string) (*Config, error) {
 	viper.SetConfigFile(configPath)
+	setRuntimeOpsDefaults(viper.GetViper())
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
@@ -521,6 +554,18 @@ func LoadConfig(configPath string) (*Config, error) {
 	}
 
 	return &config, nil
+}
+
+func setRuntimeOpsDefaults(v *viper.Viper) {
+	v.SetDefault("runtime.snapshot.enabled", true)
+	v.SetDefault("runtime.snapshot.interval", "1h")
+	v.SetDefault("runtime.snapshot.event_threshold", 1000)
+	v.SetDefault("runtime.snapshot.batch_limit", 50)
+	v.SetDefault("runtime.snapshot.keep_latest", 1)
+	v.SetDefault("runtime.gc.enabled", true)
+	v.SetDefault("runtime.gc.interval", "24h")
+	v.SetDefault("runtime.gc.ttl_days", 90)
+	v.SetDefault("runtime.gc.batch_size", 1000)
 }
 
 // replaceEnvVars 替换配置中的环境变量

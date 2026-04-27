@@ -54,6 +54,54 @@ func TestJobStoreMem_ListByAgent(t *testing.T) {
 	}
 }
 
+func TestJobStoreMem_GetByAgentTenantAndIdempotencyKey(t *testing.T) {
+	ctx := context.Background()
+	s := NewJobStoreMem()
+
+	tenantAJobID, err := s.Create(ctx, &Job{
+		AgentID:        "agent-1",
+		TenantID:       "tenant-a",
+		Goal:           "tenant a goal",
+		IdempotencyKey: "same-key",
+	})
+	if err != nil {
+		t.Fatalf("create tenant-a job: %v", err)
+	}
+	tenantBJobID, err := s.Create(ctx, &Job{
+		AgentID:        "agent-1",
+		TenantID:       "tenant-b",
+		Goal:           "tenant b goal",
+		IdempotencyKey: "same-key",
+	})
+	if err != nil {
+		t.Fatalf("create tenant-b job: %v", err)
+	}
+
+	gotA, err := s.GetByAgentTenantAndIdempotencyKey(ctx, "agent-1", "tenant-a", "same-key")
+	if err != nil {
+		t.Fatalf("lookup tenant-a: %v", err)
+	}
+	if gotA == nil || gotA.ID != tenantAJobID || gotA.TenantID != "tenant-a" {
+		t.Fatalf("tenant-a lookup got %+v, want job %s", gotA, tenantAJobID)
+	}
+
+	gotB, err := s.GetByAgentTenantAndIdempotencyKey(ctx, "agent-1", "tenant-b", "same-key")
+	if err != nil {
+		t.Fatalf("lookup tenant-b: %v", err)
+	}
+	if gotB == nil || gotB.ID != tenantBJobID || gotB.TenantID != "tenant-b" {
+		t.Fatalf("tenant-b lookup got %+v, want job %s", gotB, tenantBJobID)
+	}
+
+	gotMissing, err := s.GetByAgentTenantAndIdempotencyKey(ctx, "agent-1", "tenant-c", "same-key")
+	if err != nil {
+		t.Fatalf("lookup tenant-c: %v", err)
+	}
+	if gotMissing != nil {
+		t.Fatalf("tenant-c lookup got %+v, want nil", gotMissing)
+	}
+}
+
 func TestJobStoreMem_UpdateStatus_UpdateCursor(t *testing.T) {
 	ctx := context.Background()
 	s := NewJobStoreMem()

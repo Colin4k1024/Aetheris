@@ -36,20 +36,20 @@
 - PostgreSQL schema
 - CLI 工具
 
-### ⚠️ 已实现框架，需要集成（2-4 周可完成）
+### ⚠️ 已接入，需要验收/配置化（1-2 周可完成）
 
 **Operational Runtime 核心**:
 
-- Event snapshot/compaction（已有接口和数据结构，需worker集成）
-- Rate limiting（已有 limiter，需应用到执行路径）
-- Tenant isolation（已有 schema，需 API 层集成）
-- Storage lifecycle/GC（已有框架，需定时任务）
+- Event snapshot/compaction（Worker 已有自动化 loop；需要配置化、保留策略验收）
+- Rate limiting（LLM 与 Tool 执行路径已接入；需要配置样例与压测验收）
+- Tenant isolation（JobStore/API 已有 tenant 过滤；需要幂等查询与导出路径加固）
+- Storage lifecycle/GC（Worker 已有定时任务；需要配置化与生命周期 store 验收）
 
 **基础审计**:
 
-- Evidence zip export（已有 proof包，需与实际 Store 集成）
-- Hash chain（已在 Append 中计算，需验证工具）
-- RBAC基础（已有权限模型，需middleware集成）
+- Evidence zip export（HTTP/CLI 已接入 proof 包；需要真实 handler/store E2E 验收）
+- Hash chain（已在 Append 中计算，CLI/HTTP verify 已接入；需要篡改失败用例）
+- RBAC基础（权限模型与 middleware 已接入；需要关键路径权限矩阵验收）
 
 ### 🔬 已有设计原型，3.0再完善（非当前 focus）
 
@@ -79,34 +79,33 @@
 ### P0 必做（2-4 周）
 
 1. **Rate Limiter 实际应用**
-   - 集成到 ToolNodeAdapter.runNodeExecute
-   - 集成到 LLM 调用路径
-   - 配置验证和测试
+   - 已接入 ToolNodeAdapter 与 LLM client wrapper
+   - 补齐配置验证、指标检查和并发压测
 
 2. **Tenant Isolation 完整**
-   - 所有 API handler 添加 tenant 过滤
-   - Job 创建时绑定 tenant_id
-   - 跨 tenant 访问测试
+   - Job 创建已绑定 tenant_id
+   - 幂等查询下沉到 store 层 tenant-aware 语义
+   - 补齐跨 tenant 访问、导出、事件读取测试
 
 3. **Snapshot 自动化**
-   - Worker 定时任务创建 snapshot
-   - Compaction 策略触发
-   - ReplayContextBuilder 使用 snapshot
+   - Worker 定时任务已创建 snapshot
+   - 阈值、间隔、批量、保留数量需配置化
+   - ReplayContextBuilder 使用 snapshot 的 E2E 需要验收
 
 4. **Storage GC 完整**
-   - 定时扫描过期数据
+   - 定时扫描已接入 Worker
    - Tool invocations 归档/清理
-   - Event 表维护
+   - TTL、批量、启停需配置化
 
 5. **Evidence Export 集成**
-   - 连接真实 ToolInvocationStore
-   - JobStore 适配
-   - End-to-end 测试
+   - JobStore 适配已接入
+   - HTTP/CLI 导出与离线 verify 保持兼容
+   - 补真实 handler/store End-to-end 测试
 
 6. **Metrics 生产配置**
-   - Prometheus 集成测试
+   - Prometheus `/metrics` 与 Jaeger 配置已接入
+   - Compose/Grafana dashboard 需运行验收
    - 告警规则调优
-   - Grafana dashboard
 
 ### P1 应做（4-8 周）
 
@@ -179,8 +178,9 @@
 
 - pkg/proof/ - 基础导出/验证
 - pkg/auth/ - 基础 RBAC
-- internal/runtime/jobstore/ - Snapshot 接口
-- internal/agent/runtime/executor/ - Rate limiter（待集成）
+- internal/runtime/jobstore/ - Snapshot / GC 接口与实现
+- internal/agent/runtime/executor/ - Tool Rate limiter（已接执行路径）
+- internal/model/llm/ - LLM Rate limiter（已接 client wrapper）
 
 ### 原型/未来（prototypes/ 或标记 TODO）
 

@@ -229,6 +229,83 @@ func TestRateLimitsConfig(t *testing.T) {
 	}
 }
 
+func TestRuntimeOpsConfig_Defaults(t *testing.T) {
+	cfg := DefaultDevConfig()
+
+	if !cfg.Runtime.Snapshot.Enabled {
+		t.Fatal("expected snapshot automation enabled by default")
+	}
+	if cfg.Runtime.Snapshot.Interval != "1h" {
+		t.Fatalf("expected snapshot interval 1h, got %q", cfg.Runtime.Snapshot.Interval)
+	}
+	if cfg.Runtime.Snapshot.EventThreshold != 1000 {
+		t.Fatalf("expected snapshot threshold 1000, got %d", cfg.Runtime.Snapshot.EventThreshold)
+	}
+	if cfg.Runtime.Snapshot.BatchLimit != 50 {
+		t.Fatalf("expected snapshot batch limit 50, got %d", cfg.Runtime.Snapshot.BatchLimit)
+	}
+	if cfg.Runtime.Snapshot.KeepLatest != 1 {
+		t.Fatalf("expected snapshot keep_latest 1, got %d", cfg.Runtime.Snapshot.KeepLatest)
+	}
+
+	if !cfg.Runtime.GC.Enabled {
+		t.Fatal("expected runtime GC enabled by default")
+	}
+	if cfg.Runtime.GC.Interval != "24h" {
+		t.Fatalf("expected GC interval 24h, got %q", cfg.Runtime.GC.Interval)
+	}
+	if cfg.Runtime.GC.TTLDays != 90 {
+		t.Fatalf("expected GC TTL 90 days, got %d", cfg.Runtime.GC.TTLDays)
+	}
+	if cfg.Runtime.GC.BatchSize != 1000 {
+		t.Fatalf("expected GC batch size 1000, got %d", cfg.Runtime.GC.BatchSize)
+	}
+}
+
+func TestRuntimeOpsConfig_LoadConfigOverride(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "runtime-ops.yaml")
+	configContent := `
+runtime:
+  profile: dev
+  snapshot:
+    enabled: false
+    interval: 30m
+    event_threshold: 250
+    batch_limit: 10
+    keep_latest: 3
+  gc:
+    enabled: false
+    interval: 12h
+    ttl_days: 30
+    batch_size: 25
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if cfg.Runtime.Snapshot.Enabled {
+		t.Fatal("expected snapshot override enabled=false")
+	}
+	if cfg.Runtime.Snapshot.Interval != "30m" {
+		t.Fatalf("snapshot interval got %q", cfg.Runtime.Snapshot.Interval)
+	}
+	if cfg.Runtime.Snapshot.EventThreshold != 250 || cfg.Runtime.Snapshot.BatchLimit != 10 || cfg.Runtime.Snapshot.KeepLatest != 3 {
+		t.Fatalf("snapshot override got %+v", cfg.Runtime.Snapshot)
+	}
+	if cfg.Runtime.GC.Enabled {
+		t.Fatal("expected GC override enabled=false")
+	}
+	if cfg.Runtime.GC.Interval != "12h" || cfg.Runtime.GC.TTLDays != 30 || cfg.Runtime.GC.BatchSize != 25 {
+		t.Fatalf("GC override got %+v", cfg.Runtime.GC)
+	}
+}
+
 func TestWorkerConfig(t *testing.T) {
 	cfg := &Config{
 		Worker: WorkerConfig{

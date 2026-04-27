@@ -317,6 +317,48 @@ func TestNewAgentJobRunner_Defaults(t *testing.T) {
 	}
 }
 
+func TestRuntimeOpsConfigDefaults(t *testing.T) {
+	snapshot := runtimeSnapshotOpsConfig(nil)
+	if !snapshot.Enabled || snapshot.Interval != time.Hour || snapshot.EventThreshold != 1000 || snapshot.BatchLimit != 50 || snapshot.KeepLatest != 1 {
+		t.Fatalf("unexpected snapshot defaults: %+v", snapshot)
+	}
+
+	gc := runtimeGCOpsConfig(nil)
+	if !gc.Enabled || gc.Interval != 24*time.Hour || gc.TTLDays != 90 || gc.BatchSize != 1000 {
+		t.Fatalf("unexpected GC defaults: %+v", gc)
+	}
+}
+
+func TestRuntimeOpsConfigOverrides(t *testing.T) {
+	cfg := &config.Config{
+		Runtime: config.RuntimeConfig{
+			Snapshot: config.RuntimeSnapshotConfig{
+				Enabled:        false,
+				Interval:       "30m",
+				EventThreshold: 250,
+				BatchLimit:     10,
+				KeepLatest:     3,
+			},
+			GC: config.RuntimeGCConfig{
+				Enabled:   false,
+				Interval:  "12h",
+				TTLDays:   30,
+				BatchSize: 25,
+			},
+		},
+	}
+
+	snapshot := runtimeSnapshotOpsConfig(cfg)
+	if snapshot.Enabled || snapshot.Interval != 30*time.Minute || snapshot.EventThreshold != 250 || snapshot.BatchLimit != 10 || snapshot.KeepLatest != 3 {
+		t.Fatalf("unexpected snapshot override: %+v", snapshot)
+	}
+
+	gc := runtimeGCOpsConfig(cfg)
+	if gc.Enabled || gc.Interval != 12*time.Hour || gc.TTLDays != 30 || gc.BatchSize != 25 {
+		t.Fatalf("unexpected GC override: %+v", gc)
+	}
+}
+
 func TestNewAgentJobRunner_NegativeConcurrency(t *testing.T) {
 	runner := NewAgentJobRunner(
 		"test-worker",

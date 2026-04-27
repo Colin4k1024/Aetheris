@@ -26,6 +26,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/ut"
 
 	"github.com/Colin4k1024/Aetheris/v2/internal/agent/job"
+	agentruntime "github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
 	"github.com/Colin4k1024/Aetheris/v2/internal/agent/signal"
 	"github.com/Colin4k1024/Aetheris/v2/internal/api/http/middleware"
 	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
@@ -627,4 +628,96 @@ func TestGetJobTrace_TenantIsolation(t *testing.T) {
 			t.Fatalf("mismatched tenant status got %d, want 404", resp.StatusCode())
 		}
 	})
+}
+
+func TestExportJobForensics_TenantIsolation(t *testing.T) {
+	jobID := "job-export-tenant-a"
+	handler := setupTenantJobWithEvents(t, jobID, "tenant-a", []jobstore.JobEvent{
+		{JobID: jobID, Type: jobstore.JobCreated},
+		{JobID: jobID, Type: jobstore.JobCompleted},
+	})
+
+	h := server.Default(server.WithHostPorts(":0"))
+	h.POST("/api/jobs/:id/export", func(c context.Context, reqCtx *app.RequestContext) {
+		handler.ExportJobForensics(auth.WithTenantID(c, "tenant-b"), reqCtx)
+	})
+	w := ut.PerformRequest(h.Engine, "POST", "/api/jobs/"+jobID+"/export", &ut.Body{Body: bytes.NewReader(nil), Len: 0})
+	resp := w.Result()
+	if resp.StatusCode() != 404 {
+		t.Fatalf("cross-tenant export status got %d, want 404; body=%s", resp.StatusCode(), resp.Body())
+	}
+}
+
+func TestExportJobForensics_NoEventStoreReturnsServiceUnavailable(t *testing.T) {
+	handler := NewHandler(nil, nil)
+	h := server.Default(server.WithHostPorts(":0"))
+	h.POST("/api/jobs/:id/export", func(c context.Context, reqCtx *app.RequestContext) {
+		handler.ExportJobForensics(auth.WithTenantID(c, "tenant-a"), reqCtx)
+	})
+
+	w := ut.PerformRequest(h.Engine, "POST", "/api/jobs/job-without-store/export", &ut.Body{Body: bytes.NewReader(nil), Len: 0})
+	resp := w.Result()
+	if resp.StatusCode() != 503 {
+		t.Fatalf("status got %d, want 503; body=%s", resp.StatusCode(), resp.Body())
+	}
+	if !bytes.Contains(resp.Body(), []byte("job event store is not configured")) {
+		t.Fatalf("body missing event store diagnostic: %s", resp.Body())
+	}
+}
+
+func TestAgentMessage_IdempotencyKeyIsTenantScoped(t *testing.T) {
+	ctx := context.Background()
+	manager := agentruntime.NewManager()
+	agent, err := manager.Create(ctx, "agent-1", agentruntime.NewSessionWithTenant("", "agent-1", "tenant-a"), nil, nil, nil)
+	if err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	handler := NewHandler(nil, nil)
+	handler.SetAgentRuntime(manager, nil, nil)
+	handler.SetJobStore(job.NewJobStoreMem())
+
+	h := server.Default(server.WithHostPorts(":0"))
+	h.POST("/api/agents/:id/message", func(c context.Context, reqCtx *app.RequestContext) {
+		tenantID := string(reqCtx.GetHeader("X-Test-Tenant"))
+		handler.AgentMessage(auth.WithTenantID(c, tenantID), reqCtx)
+	})
+
+	post := func(tenantID string) string {
+		t.Helper()
+		body := []byte(`{"message":"hello"}`)
+		w := ut.PerformRequest(
+			h.Engine,
+			"POST",
+			"/api/agents/"+agent.ID+"/message",
+			&ut.Body{Body: bytes.NewReader(body), Len: len(body)},
+			ut.Header{Key: "Idempotency-Key", Value: "same-key"},
+			ut.Header{Key: "X-Test-Tenant", Value: tenantID},
+		)
+		resp := w.Result()
+		if resp.StatusCode() != 202 {
+			t.Fatalf("tenant %s status got %d, want 202; body=%s", tenantID, resp.StatusCode(), resp.Body())
+		}
+		var payload struct {
+			JobID string `json:"job_id"`
+		}
+		if err := json.Unmarshal(resp.Body(), &payload); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if payload.JobID == "" {
+			t.Fatalf("tenant %s returned empty job_id", tenantID)
+		}
+		return payload.JobID
+	}
+
+	jobA := post("tenant-a")
+	jobB := post("tenant-b")
+	jobAAgain := post("tenant-a")
+
+	if jobA == jobB {
+		t.Fatalf("different tenants reused same idempotent job: %s", jobA)
+	}
+	if jobAAgain != jobA {
+		t.Fatalf("same tenant idempotent retry got job %s, want %s", jobAAgain, jobA)
+	}
 }

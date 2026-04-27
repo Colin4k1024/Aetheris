@@ -71,6 +71,73 @@ type App struct {
 	mcpManager     *mcp.Manager
 }
 
+type runtimeSnapshotOps struct {
+	Enabled        bool
+	Interval       time.Duration
+	EventThreshold int
+	BatchLimit     int
+	KeepLatest     int
+}
+
+type runtimeGCOps struct {
+	Enabled   bool
+	Interval  time.Duration
+	TTLDays   int
+	BatchSize int
+}
+
+func runtimeSnapshotOpsConfig(cfg *config.Config) runtimeSnapshotOps {
+	out := runtimeSnapshotOps{
+		Enabled:        true,
+		Interval:       time.Hour,
+		EventThreshold: 1000,
+		BatchLimit:     50,
+		KeepLatest:     1,
+	}
+	if cfg == nil {
+		return out
+	}
+	c := cfg.Runtime.Snapshot
+	out.Enabled = c.Enabled
+	if d, err := time.ParseDuration(strings.TrimSpace(c.Interval)); err == nil && d > 0 {
+		out.Interval = d
+	}
+	if c.EventThreshold > 0 {
+		out.EventThreshold = c.EventThreshold
+	}
+	if c.BatchLimit > 0 {
+		out.BatchLimit = c.BatchLimit
+	}
+	if c.KeepLatest > 0 {
+		out.KeepLatest = c.KeepLatest
+	}
+	return out
+}
+
+func runtimeGCOpsConfig(cfg *config.Config) runtimeGCOps {
+	out := runtimeGCOps{
+		Enabled:   true,
+		Interval:  24 * time.Hour,
+		TTLDays:   90,
+		BatchSize: 1000,
+	}
+	if cfg == nil {
+		return out
+	}
+	c := cfg.Runtime.GC
+	out.Enabled = c.Enabled
+	if d, err := time.ParseDuration(strings.TrimSpace(c.Interval)); err == nil && d > 0 {
+		out.Interval = d
+	}
+	if c.TTLDays > 0 {
+		out.TTLDays = c.TTLDays
+	}
+	if c.BatchSize > 0 {
+		out.BatchSize = c.BatchSize
+	}
+	return out
+}
+
 // NewApp 创建新的 Worker 应用
 func NewApp(cfg *config.Config) (*App, error) {
 	if err := validateProductionRuntimeConfig(cfg); err != nil {
@@ -485,14 +552,29 @@ func (a *App) Start() error {
 		a.logger.Info("Prometheus /metrics 已启用", "addr", addr)
 	}
 
-	// Snapshot 自动化（2.0 performance）：每小时扫描事件数 > 1000 的 Job，自动创建快照减少 Replay 开销
-	if a.jobEventStore != nil {
-		go a.runSnapshotLoop()
+	// Snapshot 自动化（2.0 performance）：按配置扫描高事件量 Job，自动创建快照减少 Replay 开销
+	snapshotCfg := runtimeSnapshotOpsConfig(a.config)
+	a.logger.Info("Runtime Snapshot 配置",
+		"enabled", snapshotCfg.Enabled,
+		"interval", snapshotCfg.Interval,
+		"event_threshold", snapshotCfg.EventThreshold,
+		"batch_limit", snapshotCfg.BatchLimit,
+		"keep_latest", snapshotCfg.KeepLatest,
+	)
+	if a.jobEventStore != nil && snapshotCfg.Enabled {
+		go a.runSnapshotLoop(snapshotCfg)
 	}
 
-	// Storage GC（2.0 operational）：每 24h 清理超 TTL 的 tool_invocations 记录
-	if a.jobEventStore != nil {
-		go a.runGCLoop()
+	// Storage GC（2.0 operational）：按配置清理超 TTL 的 tool_invocations 记录
+	gcCfg := runtimeGCOpsConfig(a.config)
+	a.logger.Info("Runtime GC 配置",
+		"enabled", gcCfg.Enabled,
+		"interval", gcCfg.Interval,
+		"ttl_days", gcCfg.TTLDays,
+		"batch_size", gcCfg.BatchSize,
+	)
+	if a.jobEventStore != nil && gcCfg.Enabled {
+		go a.runGCLoop(gcCfg)
 	}
 
 	// 启动工作队列消费者：收到入库任务时调用 engine.ExecuteWorkflow(ctx, "ingest_pipeline", payload)
@@ -504,16 +586,11 @@ func (a *App) Start() error {
 	return nil
 }
 
-// runSnapshotLoop 定时扫描高事件量的 Job 并自动创建快照（每小时运行一次）
-func (a *App) runSnapshotLoop() {
-	const (
-		snapshotInterval = 1 * time.Hour
-		eventThreshold   = 1000 // 事件数超过此值时触发快照
-		batchLimit       = 50
-	)
-	ticker := time.NewTicker(snapshotInterval)
+// runSnapshotLoop 定时扫描高事件量的 Job 并自动创建快照。
+func (a *App) runSnapshotLoop(cfg runtimeSnapshotOps) {
+	ticker := time.NewTicker(cfg.Interval)
 	defer ticker.Stop()
-	a.logger.Info("Snapshot 自动化 goroutine 已启动", "interval", snapshotInterval, "event_threshold", eventThreshold)
+	a.logger.Info("Snapshot 自动化 goroutine 已启动", "interval", cfg.Interval, "event_threshold", cfg.EventThreshold)
 
 	for {
 		select {
@@ -521,12 +598,12 @@ func (a *App) runSnapshotLoop() {
 			return
 		case <-ticker.C:
 		}
-		a.triggerSnapshotsForHighEventJobs(eventThreshold, batchLimit)
+		a.triggerSnapshotsForHighEventJobs(cfg.EventThreshold, cfg.BatchLimit, cfg.KeepLatest)
 	}
 }
 
 // triggerSnapshotsForHighEventJobs 对高事件量的 Job 触发快照创建
-func (a *App) triggerSnapshotsForHighEventJobs(eventThreshold, limit int) {
+func (a *App) triggerSnapshotsForHighEventJobs(eventThreshold, limit, keepLatest int) {
 	ss, ok := a.jobEventStore.(jobstore.SnapshotJobStore)
 	if !ok {
 		return
@@ -570,20 +647,21 @@ func (a *App) triggerSnapshotsForHighEventJobs(eventThreshold, limit int) {
 			a.logger.Warn("快照写入failed", "job_id", jobID, "error", err)
 			continue
 		}
-		// 清理旧快照（保留最新一个）
-		if latestSnap, err := ss.GetLatestSnapshot(ctx, jobID); err == nil && latestSnap != nil {
-			_ = ss.DeleteSnapshotsBefore(ctx, jobID, latestSnap.Version)
+		// 当前 SnapshotStore 只支持按版本删除，keep_latest=1 时保留最新快照。
+		if keepLatest <= 1 {
+			if latestSnap, err := ss.GetLatestSnapshot(ctx, jobID); err == nil && latestSnap != nil {
+				_ = ss.DeleteSnapshotsBefore(ctx, jobID, latestSnap.Version)
+			}
 		}
 		a.logger.Info("快照已创建", "job_id", jobID, "version", version)
 	}
 }
 
-// runGCLoop 定时清理过期的 tool_invocations 记录（每 24h 运行一次）
-func (a *App) runGCLoop() {
-	const gcInterval = 24 * time.Hour
-	ticker := time.NewTicker(gcInterval)
+// runGCLoop 定时清理过期的 tool_invocations 记录。
+func (a *App) runGCLoop(cfg runtimeGCOps) {
+	ticker := time.NewTicker(cfg.Interval)
 	defer ticker.Stop()
-	a.logger.Info("Storage GC goroutine 已启动", "interval", gcInterval)
+	a.logger.Info("Storage GC goroutine 已启动", "interval", cfg.Interval)
 
 	for {
 		select {
@@ -591,17 +669,17 @@ func (a *App) runGCLoop() {
 			return
 		case <-ticker.C:
 		}
-		a.runGC()
+		a.runGC(cfg)
 	}
 }
 
 // runGC 执行一次 GC
-func (a *App) runGC() {
+func (a *App) runGC(cfg runtimeGCOps) {
 	gcCfg := jobstore.GCConfig{
-		Enable:      true,
-		TTLDays:     90,
-		BatchSize:   1000,
-		RunInterval: 24 * time.Hour,
+		Enable:      cfg.Enabled,
+		TTLDays:     cfg.TTLDays,
+		BatchSize:   cfg.BatchSize,
+		RunInterval: cfg.Interval,
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()

@@ -259,6 +259,57 @@ func (s *JobStorePg) GetByAgentAndIdempotencyKey(ctx context.Context, agentID, i
 	return &j, nil
 }
 
+func (s *JobStorePg) GetByAgentTenantAndIdempotencyKey(ctx context.Context, agentID, tenantID, idempotencyKey string) (*Job, error) {
+	if idempotencyKey == "" {
+		return nil, nil
+	}
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	var j Job
+	var status int
+	var cursor, sessionID, key, requiredCaps, storedTenantID *string
+	var retryCount int
+	var cancelRequestedAt *time.Time
+	var createdAt, updatedAt time.Time
+	err := s.pool.QueryRow(ctx,
+		`SELECT id, agent_id, COALESCE(tenant_id, 'default'), goal, status, cursor, retry_count, session_id, cancel_requested_at, created_at, updated_at, idempotency_key, required_capabilities
+		 FROM jobs
+		 WHERE agent_id = $1
+		   AND idempotency_key = $2
+		   AND (tenant_id = $3 OR (tenant_id IS NULL AND $3 = 'default'))`,
+		agentID, idempotencyKey, tenantID).Scan(&j.ID, &j.AgentID, &storedTenantID, &j.Goal, &status, &cursor, &retryCount, &sessionID, &cancelRequestedAt, &createdAt, &updatedAt, &key, &requiredCaps)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if storedTenantID != nil {
+		j.TenantID = *storedTenantID
+	} else {
+		j.TenantID = "default"
+	}
+	j.Status = pgToStatus(status)
+	if cursor != nil {
+		j.Cursor = *cursor
+	}
+	if sessionID != nil {
+		j.SessionID = *sessionID
+	}
+	if cancelRequestedAt != nil {
+		j.CancelRequestedAt = *cancelRequestedAt
+	}
+	if key != nil {
+		j.IdempotencyKey = *key
+	}
+	j.RetryCount = retryCount
+	j.CreatedAt = createdAt
+	j.UpdatedAt = updatedAt
+	j.RequiredCapabilities = pgToCaps(requiredCaps)
+	return &j, nil
+}
+
 func (s *JobStorePg) ListByAgent(ctx context.Context, agentID string, tenantID string) ([]*Job, error) {
 	query := `SELECT id, agent_id, COALESCE(tenant_id, 'default'), goal, status, cursor, retry_count, session_id, cancel_requested_at, created_at, updated_at, idempotency_key, required_capabilities FROM jobs WHERE agent_id = $1`
 	args := []interface{}{agentID}

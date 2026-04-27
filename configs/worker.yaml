@@ -28,6 +28,18 @@ jobstore:
 runtime:
   profile: "dev"   # dev | prod
   strict: false
+  # Operational Runtime：快照减少长事件流 replay 成本，GC 清理过期 tool invocation/checkpoint 数据。
+  snapshot:
+    enabled: true
+    interval: "1h"
+    event_threshold: 1000
+    batch_limit: 50
+    keep_latest: 1
+  gc:
+    enabled: true
+    interval: "24h"
+    ttl_days: 90
+    batch_size: 1000
 
 # Effect Store（两步提交第一阶段：先写 effect，再写 command_committed）
 effect_store:

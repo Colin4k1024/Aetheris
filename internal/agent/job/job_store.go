@@ -26,8 +26,10 @@ import (
 type JobStore interface {
 	Create(ctx context.Context, job *Job) (string, error)
 	Get(ctx context.Context, jobID string) (*Job, error)
-	// GetByAgentAndIdempotencyKey 按 Agent 与幂等键查已有 Job，用于 Idempotency-Key 去重；无则返回 nil, nil；tenantID 为空时不过滤
+	// GetByAgentAndIdempotencyKey 按 Agent 与幂等键查已有 Job，用于旧调用方兼容；无则返回 nil, nil
 	GetByAgentAndIdempotencyKey(ctx context.Context, agentID, idempotencyKey string) (*Job, error)
+	// GetByAgentTenantAndIdempotencyKey 按 Agent、Tenant 与幂等键查已有 Job，用于多租户 Idempotency-Key 去重
+	GetByAgentTenantAndIdempotencyKey(ctx context.Context, agentID, tenantID, idempotencyKey string) (*Job, error)
 	// ListByAgent 按 Agent 列出 Job；tenantID 非空时仅返回该租户下的 Job
 	ListByAgent(ctx context.Context, agentID string, tenantID string) ([]*Job, error)
 	UpdateStatus(ctx context.Context, jobID string, status JobStatus) error
@@ -153,6 +155,24 @@ func (s *JobStoreMem) GetByAgentAndIdempotencyKey(ctx context.Context, agentID, 
 	defer s.mu.Unlock()
 	for _, j := range s.byID {
 		if j.AgentID == agentID && j.IdempotencyKey == idempotencyKey {
+			cp := *j
+			return &cp, nil
+		}
+	}
+	return nil, nil
+}
+
+func (s *JobStoreMem) GetByAgentTenantAndIdempotencyKey(ctx context.Context, agentID, tenantID, idempotencyKey string) (*Job, error) {
+	if idempotencyKey == "" {
+		return nil, nil
+	}
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, j := range s.byID {
+		if j.AgentID == agentID && j.TenantID == tenantID && j.IdempotencyKey == idempotencyKey {
 			cp := *j
 			return &cp, nil
 		}
