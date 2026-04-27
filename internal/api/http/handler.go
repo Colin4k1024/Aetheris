@@ -1009,8 +1009,8 @@ func (h *Handler) AgentMessage(ctx context.Context, c *app.RequestContext) {
 	// 幂等：若带 Idempotency-Key 且该 Agent 下已有同 key 且同租户的 Job，直接返回已有 job_id（202）
 	idempotencyKey := strings.TrimSpace(string(c.GetHeader("Idempotency-Key")))
 	if idempotencyKey != "" && h.jobStore != nil {
-		existing, _ := h.jobStore.GetByAgentAndIdempotencyKey(ctx, id, idempotencyKey)
-		if existing != nil && existing.TenantID == tenantID {
+		existing, _ := h.jobStore.GetByAgentTenantAndIdempotencyKey(ctx, id, tenantID, idempotencyKey)
+		if existing != nil {
 			runtimeSubmission := map[string]interface{}{
 				"legacy_facade": true,
 				"canonical_api": "/api/runs",

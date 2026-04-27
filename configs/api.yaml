@@ -68,6 +68,18 @@ jobstore:
 runtime:
   profile: "dev"   # dev | prod
   strict: false
+  # Operational Runtime defaults; Worker uses these when it owns job execution.
+  snapshot:
+    enabled: true
+    interval: "1h"
+    event_threshold: 1000
+    batch_limit: 50
+    keep_latest: 1
+  gc:
+    enabled: true
+    interval: "24h"
+    ttl_days: 90
+    batch_size: 1000
 
 # Effect Store（两步提交第一阶段：先写 effect，再写 command_committed）
 effect_store:

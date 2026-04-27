@@ -39,6 +39,17 @@ func (h *Handler) ExportJobForensics(c context.Context, ctx *app.RequestContext)
 		})
 		return
 	}
+	if h.jobStore != nil {
+		if _, ok := h.getJobAndCheckTenant(c, ctx, jobID); !ok {
+			return
+		}
+	}
+	if h.jobEventStore == nil {
+		ctx.JSON(consts.StatusServiceUnavailable, map[string]string{
+			"error": "job event store is not configured",
+		})
+		return
+	}
 
 	zipData, err := h.buildForensicsPackage(c, jobID)
 	if err != nil {

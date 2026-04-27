@@ -8,11 +8,19 @@
 
 ## 🔴 P1 — 必须完成
 
+### Operational Runtime 生产就绪验收
+- [x] Store 层 tenant-aware Idempotency-Key 查询，避免跨租户复用 Job
+- [x] Worker Snapshot/GC 参数配置化，并打印启动生效配置
+- [x] Evidence export handler 增加 tenant 校验和无事件存储失败语义
+- [x] HTTP/Store/Config 补充生产就绪回归测试
+- [ ] Compose + Grafana + Jaeger 端到端运行验收
+- [ ] 100 并发 jobs 与长事件流 snapshot 压测
+
 ### MCP Gateway 正式版
-- [ ] 整理 `tools/mcp-marketplace/` → `tools/mcp-gateway/`，生产就绪
-- [ ] 补充 `tools/mcp-gateway/openapi.yaml`
-- [ ] 写 `docs/mcp-integration.md` 集成指南
-- [ ] `examples/` 添加 MCP 集成示例
+- [x] 整理 `tools/mcp-marketplace/` → `tools/mcp-gateway/`，生产就绪
+- [x] 补充 `tools/mcp-gateway/openapi.yaml`
+- [x] 写 `docs/mcp/integration.md` 集成指南
+- [x] `examples/` 添加 MCP 集成示例
 
 ### 文档完善
 - [ ] 快速开始文档（5 分钟跑起来）
