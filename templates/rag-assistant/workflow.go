@@ -260,7 +260,7 @@ func CreateQueryWorkflow(ctx context.Context) (compose.Runnable[*RAGInput, *RAGO
 	graph := compose.NewGraph[*RAGInput, *RAGOutput]()
 
 	// Add retrieval node
-	graph.AddLambdaNode("retrieve", compose.InvokableLambda(func(ctx context.Context, input *RAGInput) (*struct {
+	if err := graph.AddLambdaNode("retrieve", compose.InvokableLambda(func(ctx context.Context, input *RAGInput) (*struct {
 		Docs  []string
 		Query string
 	}, error) {
@@ -272,10 +272,12 @@ func CreateQueryWorkflow(ctx context.Context) (compose.Runnable[*RAGInput, *RAGO
 			Docs:  []string{"doc1", "doc2"},
 			Query: input.Query,
 		}, nil
-	}))
+	})); err != nil {
+		return nil, fmt.Errorf("add retrieve node: %w", err)
+	}
 
 	// Add generation node
-	graph.AddLambdaNode("generate", compose.InvokableLambda(func(ctx context.Context, input *struct {
+	if err := graph.AddLambdaNode("generate", compose.InvokableLambda(func(ctx context.Context, input *struct {
 		Docs  []string
 		Query string
 	}) (*RAGOutput, error) {
@@ -284,12 +286,20 @@ func CreateQueryWorkflow(ctx context.Context) (compose.Runnable[*RAGInput, *RAGO
 			Sources:    input.Docs,
 			Confidence: 0.85,
 		}, nil
-	}))
+	})); err != nil {
+		return nil, fmt.Errorf("add generate node: %w", err)
+	}
 
 	// Add edges
-	graph.AddEdge(compose.START, "retrieve")
-	graph.AddEdge("retrieve", "generate")
-	graph.AddEdge("generate", compose.END)
+	if err := graph.AddEdge(compose.START, "retrieve"); err != nil {
+		return nil, fmt.Errorf("add start->retrieve edge: %w", err)
+	}
+	if err := graph.AddEdge("retrieve", "generate"); err != nil {
+		return nil, fmt.Errorf("add retrieve->generate edge: %w", err)
+	}
+	if err := graph.AddEdge("generate", compose.END); err != nil {
+		return nil, fmt.Errorf("add generate->end edge: %w", err)
+	}
 
 	return graph.Compile(ctx)
 }

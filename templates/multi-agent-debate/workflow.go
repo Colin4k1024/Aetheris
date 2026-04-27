@@ -479,7 +479,7 @@ func CreateDebateGraph(ctx context.Context) (compose.Runnable[*DebateInput, *Deb
 	graph := compose.NewGraph[*DebateInput, *DebateOutput]()
 
 	// Simplified debate flow
-	graph.AddLambdaNode("setup", compose.InvokableLambda(func(ctx context.Context, input *DebateInput) (*struct {
+	if err := graph.AddLambdaNode("setup", compose.InvokableLambda(func(ctx context.Context, input *DebateInput) (*struct {
 		Motion string
 		Topic  string
 	}, error) {
@@ -490,9 +490,11 @@ func CreateDebateGraph(ctx context.Context) (compose.Runnable[*DebateInput, *Deb
 			Motion: "Should AI be regulated?",
 			Topic:  input.Topic,
 		}, nil
-	}))
+	})); err != nil {
+		return nil, fmt.Errorf("add setup node: %w", err)
+	}
 
-	graph.AddLambdaNode("debate", compose.InvokableLambda(func(ctx context.Context, input *struct {
+	if err := graph.AddLambdaNode("debate", compose.InvokableLambda(func(ctx context.Context, input *struct {
 		Motion string
 		Topic  string
 	}) (*struct {
@@ -506,9 +508,11 @@ func CreateDebateGraph(ctx context.Context) (compose.Runnable[*DebateInput, *Deb
 			For:     "AI regulation is necessary for safety and accountability",
 			Against: "AI regulation would stifle innovation and be premature",
 		}, nil
-	}))
+	})); err != nil {
+		return nil, fmt.Errorf("add debate node: %w", err)
+	}
 
-	graph.AddLambdaNode("synthesize", compose.InvokableLambda(func(ctx context.Context, input *struct {
+	if err := graph.AddLambdaNode("synthesize", compose.InvokableLambda(func(ctx context.Context, input *struct {
 		For     string
 		Against string
 	}) (*DebateOutput, error) {
@@ -518,12 +522,22 @@ func CreateDebateGraph(ctx context.Context) (compose.Runnable[*DebateInput, *Deb
 			Scores:    map[string]float64{"advocate": 7.5, "opponent": 7.0},
 			KeyPoints: []string{"AI safety is important", "Innovation matters"},
 		}, nil
-	}))
+	})); err != nil {
+		return nil, fmt.Errorf("add synthesize node: %w", err)
+	}
 
-	graph.AddEdge(compose.START, "setup")
-	graph.AddEdge("setup", "debate")
-	graph.AddEdge("debate", "synthesize")
-	graph.AddEdge("synthesize", compose.END)
+	if err := graph.AddEdge(compose.START, "setup"); err != nil {
+		return nil, fmt.Errorf("add start->setup edge: %w", err)
+	}
+	if err := graph.AddEdge("setup", "debate"); err != nil {
+		return nil, fmt.Errorf("add setup->debate edge: %w", err)
+	}
+	if err := graph.AddEdge("debate", "synthesize"); err != nil {
+		return nil, fmt.Errorf("add debate->synthesize edge: %w", err)
+	}
+	if err := graph.AddEdge("synthesize", compose.END); err != nil {
+		return nil, fmt.Errorf("add synthesize->end edge: %w", err)
+	}
 
 	return graph.Compile(ctx)
 }
