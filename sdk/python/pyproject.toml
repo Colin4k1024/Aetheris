@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "aetheris"
+version = "0.1.0"
+description = "Python client for the Aetheris durable agent execution runtime"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.9"
+keywords = ["ai", "agent", "durable-execution", "llm", "workflow"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+# requests or httpx — at least one is required at runtime.
+# We declare both as optional so users can choose.
+dependencies = []
+
+[project.optional-dependencies]
+requests = ["requests>=2.28"]
+httpx = ["httpx>=0.24"]
+# Install with: pip install aetheris[requests]
+# or:          pip install aetheris[httpx]
+dev = [
+    "requests>=2.28",
+    "pytest>=7.0",
+    "pytest-mock>=3.0",
+    "responses>=0.23",   # mock requests in tests
+]
+
+[project.urls]
+Homepage = "https://github.com/Colin4k1024/Aetheris"
+Documentation = "https://github.com/Colin4k1024/Aetheris/blob/main/sdk/python/README.md"
+Repository = "https://github.com/Colin4k1024/Aetheris"
+"Bug Tracker" = "https://github.com/Colin4k1024/Aetheris/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aetheris*"]
