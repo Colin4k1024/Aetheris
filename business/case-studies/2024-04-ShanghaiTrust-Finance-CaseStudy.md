@@ -1,5 +1,7 @@
 # Shanghai Trust Financial: Automated Compliance Review System
 
+> ⚠️ **FICTIONAL SCENARIO** — This case study is a hypothetical illustration of potential use cases and is not based on a real customer engagement.
+
 ---
 
 ## Executive Summary

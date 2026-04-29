@@ -1,3 +1,5 @@
+> ⚠️ **FICTIONAL SCENARIO** — This case study is a hypothetical illustration of potential use cases and is not based on a real customer engagement.
+
 # ShopVista Commerce: Intelligent Customer Service Transformation
 
 ---
