@@ -50,6 +50,10 @@ type ReplayContext struct {
 	ApprovedCorrelationKeys  map[string]struct{}            // wait_completed 中的 correlation_key 集合，供 CapabilityPolicyChecker 审批后放行（design/capability-policy.md）
 	// WorkingMemorySnapshot 最近一次 job_waiting 的 resumption_context.memory_snapshot.working_memory（AgentState JSON）；恢复时 Apply 到 Session（design/durable-memory-layer.md）
 	WorkingMemorySnapshot []byte
+	// PendingWaitNode 尚未收到 wait_completed 的等待节点 node_id（来自 job_waiting 事件）；
+	// 非空说明 job 正处于等待状态，runner 不应再次写入 job_waiting 事件（去重）。
+	// 收到 wait_completed 时清空。
+	PendingWaitNode string
 	// Phase 由事件流推导的执行阶段（plan 3.4），用于观测与「Agent 即长期进程」表述
 	Phase ExecutionPhase
 	// RecordedTime effect_id -> 记录的时间（UnixNano）；来自 timer_fired 事件，Replay 时仅注入（2.0 确定性）
@@ -72,6 +76,7 @@ const (
 	PhaseCompleted                // 已 job_completed
 	PhaseFailed                   // 已 job_failed
 	PhaseCancelled                // 已 job_cancelled
+	PhaseWaiting                  // 已 job_waiting，等待外部信号（未收到 wait_completed）
 )
 
 // ExecutionState 执行状态：由事件流（或 Checkpoint）推导，供 Advance 决定下一步；ReplayContext 为其一种实现（plan 3.1 A）
@@ -231,6 +236,10 @@ func (b *replayBuilder) BuildFromEvents(ctx context.Context, jobID string) (*Rep
 			if err != nil || len(p.ResumptionContext) == 0 {
 				continue
 			}
+			// Session1-2 fix: 记录等待节点，供 runner 检测重复 job_waiting
+			if p.NodeID != "" {
+				out.PendingWaitNode = p.NodeID
+			}
 			var resumption map[string]interface{}
 			if json.Unmarshal(p.ResumptionContext, &resumption) != nil {
 				continue
@@ -264,6 +273,8 @@ func (b *replayBuilder) BuildFromEvents(ctx context.Context, jobID string) (*Rep
 			out.CompletedNodeIDs[pl.NodeID] = struct{}{}
 			out.CursorNode = pl.NodeID
 			out.CompletedCommandIDs[pl.NodeID] = struct{}{}
+			// Session1-2 fix: wait_completed 到达，清除等待状态
+			out.PendingWaitNode = ""
 			if pl.CorrelationKey != "" {
 				out.ApprovedCorrelationKeys[pl.CorrelationKey] = struct{}{}
 			}
@@ -320,6 +331,9 @@ func (b *replayBuilder) BuildFromEvents(ctx context.Context, jobID string) (*Rep
 		out.Phase = PhaseFailed
 	case jobstore.JobCancelled:
 		out.Phase = PhaseCancelled
+	case jobstore.JobWaiting:
+		// Session1-2 fix: job_waiting 且尚未收到 wait_completed
+		out.Phase = PhaseWaiting
 	default:
 		if len(out.TaskGraphState) > 0 {
 			out.Phase = PhaseExecuting
@@ -419,6 +433,7 @@ func deserializeSnapshot(snapshotData []byte) (*ReplayContext, error) {
 		StateChangesByStep:       make(map[string][]StateChangeRecord),
 		ApprovedCorrelationKeys:  make(map[string]struct{}),
 		WorkingMemorySnapshot:    []byte(payload.WorkingMemorySnapshot),
+		PendingWaitNode:          payload.PendingWaitNode,
 		Phase:                    ExecutionPhase(payload.Phase),
 		RecordedTime:             payload.RecordedTime,
 		RecordedRandom:           make(map[string][]byte),
@@ -588,6 +603,10 @@ func (b *replayBuilder) applyIncrementalEvents(rc *ReplayContext, events []jobst
 			if err != nil || len(p.ResumptionContext) == 0 {
 				continue
 			}
+			// Session1-2 fix: 记录等待节点
+			if p.NodeID != "" {
+				rc.PendingWaitNode = p.NodeID
+			}
 			var resumption map[string]interface{}
 			if json.Unmarshal(p.ResumptionContext, &resumption) != nil {
 				continue
@@ -621,6 +640,8 @@ func (b *replayBuilder) applyIncrementalEvents(rc *ReplayContext, events []jobst
 			rc.CompletedNodeIDs[pl.NodeID] = struct{}{}
 			rc.CursorNode = pl.NodeID
 			rc.CompletedCommandIDs[pl.NodeID] = struct{}{}
+			// Session1-2 fix: 清除等待状态
+			rc.PendingWaitNode = ""
 			if pl.CorrelationKey != "" {
 				rc.ApprovedCorrelationKeys[pl.CorrelationKey] = struct{}{}
 			}
@@ -676,6 +697,9 @@ func (b *replayBuilder) applyIncrementalEvents(rc *ReplayContext, events []jobst
 		rc.Phase = PhaseFailed
 	case jobstore.JobCancelled:
 		rc.Phase = PhaseCancelled
+	case jobstore.JobWaiting:
+		// Session1-2 fix
+		rc.Phase = PhaseWaiting
 	default:
 		if len(rc.TaskGraphState) > 0 {
 			rc.Phase = PhaseExecuting
@@ -706,6 +730,7 @@ func SerializeReplayContext(rc *ReplayContext) ([]byte, error) {
 		StateChangesByStep:       make(map[string]json.RawMessage),
 		ApprovedCorrelationKeys:  make([]string, 0, len(rc.ApprovedCorrelationKeys)),
 		WorkingMemorySnapshot:    json.RawMessage(rc.WorkingMemorySnapshot),
+		PendingWaitNode:          rc.PendingWaitNode,
 		Phase:                    int(rc.Phase),
 		RecordedTime:             rc.RecordedTime,
 		RecordedRandom:           make(map[string]json.RawMessage),

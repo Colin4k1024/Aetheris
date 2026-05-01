@@ -602,6 +602,47 @@ func (s *nodeEventSinkImpl) AppendPlanEvolution(ctx context.Context, jobID strin
 	return err
 }
 
+// AppendJobCompleted 实现 NodeEventSink；写入 job_completed 终态事件（Session1-4 fix）
+// 必须在 UpdateStatus(completed) 前调用，确保事件流写入先于 metadata 更新。
+func (s *nodeEventSinkImpl) AppendJobCompleted(ctx context.Context, jobID string, goal string) error {
+	if s.store == nil {
+		return nil
+	}
+	_, ver, err := s.store.ListEvents(ctx, jobID)
+	if err != nil {
+		return err
+	}
+	pl := map[string]interface{}{"goal": goal}
+	payload, _ := json.Marshal(pl)
+	_, err = s.store.Append(ctx, jobID, ver, jobstore.JobEvent{
+		JobID: jobID, Type: jobstore.JobCompleted, Payload: payload,
+	})
+	return err
+}
+
+// AppendJobFailed 实现 NodeEventSink；写入 job_failed 终态事件（Session1-4 fix）
+// 必须在 UpdateStatus(failed) 前调用，确保事件流写入先于 metadata 更新。
+func (s *nodeEventSinkImpl) AppendJobFailed(ctx context.Context, jobID string, reason string, sf *agentexec.StepFailure) error {
+	if s.store == nil {
+		return nil
+	}
+	_, ver, err := s.store.ListEvents(ctx, jobID)
+	if err != nil {
+		return err
+	}
+	pl := map[string]interface{}{"error": reason}
+	if sf != nil {
+		pl["result_type"] = string(sf.Type)
+		pl["node_id"] = sf.FailedNodeID()
+		pl["reason"] = reason
+	}
+	payload, _ := json.Marshal(pl)
+	_, err = s.store.Append(ctx, jobID, ver, jobstore.JobEvent{
+		JobID: jobID, Type: jobstore.JobFailed, Payload: payload,
+	})
+	return err
+}
+
 // NewReplayContextBuilder 创建从事件流重建 ReplayContext 的 Builder（供 Runner 无 Checkpoint 时恢复）
 func NewReplayContextBuilder(store jobstore.JobStore) replay.ReplayContextBuilder {
 	return replay.NewReplayContextBuilder(store)

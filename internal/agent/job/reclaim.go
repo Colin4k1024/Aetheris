@@ -21,7 +21,10 @@ import (
 )
 
 // ReclaimOrphanedFromEventStore 以 event store 租约为准回收孤儿（design/runtime-contract.md §3）：
-// 仅当租约已过期且 Job 未处于 Blocked（JobWaiting，§2）时，将 metadata 中该 job 置回 Pending。返回回收数量。
+// Session1-3 fix: 使用 DeriveStatusFromEvents 判断 event stream 真实状态，按结果分流处理：
+//   - 事件流为 terminal (Completed/Failed/Cancelled)：同步 metadata 为对应终态，不重新入队。
+//   - 事件流为 Blocked (Waiting/Parked)：跳过，不重新入队。
+//   - 其余情况（Running/Pending）：metadata 置回 Pending 重新入队。
 func ReclaimOrphanedFromEventStore(ctx context.Context, metadata JobStore, eventStore jobstore.JobStore) (int, error) {
 	if metadata == nil || eventStore == nil {
 		return 0, nil
@@ -36,9 +39,23 @@ func ReclaimOrphanedFromEventStore(ctx context.Context, metadata JobStore, event
 		if err != nil {
 			continue
 		}
-		if IsJobBlocked(events) {
+		derived := DeriveStatusFromEvents(events)
+		switch derived {
+		case StatusCompleted, StatusFailed, StatusCancelled:
+			// 事件流已有终态事件，仅同步 metadata（不重新入队）
+			j, err := metadata.Get(ctx, jobID)
+			if err != nil || j == nil {
+				continue
+			}
+			if j.Status != derived {
+				_ = metadata.UpdateStatus(ctx, jobID, derived)
+			}
+			continue
+		case StatusWaiting, StatusParked:
+			// Job 处于 Blocked 状态，不回收
 			continue
 		}
+		// 事件流状态为 Running/Pending（租约已过期），回收到 Pending 重新执行
 		j, err := metadata.Get(ctx, jobID)
 		if err != nil || j == nil {
 			continue

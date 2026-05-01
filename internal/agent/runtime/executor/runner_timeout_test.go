@@ -78,6 +78,14 @@ func (s *timeoutNodeSink) AppendPlanEvolution(ctx context.Context, jobID string,
 	return nil
 }
 
+func (s *timeoutNodeSink) AppendJobCompleted(ctx context.Context, jobID string, goal string) error {
+	return nil
+}
+
+func (s *timeoutNodeSink) AppendJobFailed(ctx context.Context, jobID string, reason string, sf *StepFailure) error {
+	return nil
+}
+
 func (s *timeoutNodeSink) snapshot() (string, StepResultType, string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
