@@ -616,22 +616,32 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 			_ = agentStateStore.SaveAgentState(ctx, j.AgentID, agent.Session.ID, runtime.SessionToAgentState(agent.Session))
 		}
 		// 事件流补全：执行结束后追加 JobCompleted / JobFailed，便于审计与回放
+		// Session1-4 fix: 若 runner 已写入终态事件，跳过重复写入
 		if jobEventStore != nil {
-			_, ver, _ := jobEventStore.ListEvents(ctx, j.ID)
-			evType := jobstore.JobCompleted
-			pl := map[string]interface{}{"goal": j.Goal}
-			if err != nil {
-				evType = jobstore.JobFailed
-				pl["error"] = err.Error()
-				var sf *agentexec.StepFailure
-				if errors.As(err, &sf) {
-					pl["result_type"] = string(sf.Type)
-					pl["node_id"] = sf.FailedNodeID()
-					pl["reason"] = err.Error()
+			existingEvents, ver, _ := jobEventStore.ListEvents(ctx, j.ID)
+			alreadyTerminal := false
+			for _, ev := range existingEvents {
+				if ev.Type == jobstore.JobCompleted || ev.Type == jobstore.JobFailed || ev.Type == jobstore.JobCancelled {
+					alreadyTerminal = true
+					break
 				}
 			}
-			payload, _ := json.Marshal(pl)
-			_, _ = jobEventStore.Append(ctx, j.ID, ver, jobstore.JobEvent{JobID: j.ID, Type: evType, Payload: payload})
+			if !alreadyTerminal {
+				evType := jobstore.JobCompleted
+				pl := map[string]interface{}{"goal": j.Goal}
+				if err != nil {
+					evType = jobstore.JobFailed
+					pl["error"] = err.Error()
+					var sf *agentexec.StepFailure
+					if errors.As(err, &sf) {
+						pl["result_type"] = string(sf.Type)
+						pl["node_id"] = sf.FailedNodeID()
+						pl["reason"] = err.Error()
+					}
+				}
+				payload, _ := json.Marshal(pl)
+				_, _ = jobEventStore.Append(ctx, j.ID, ver, jobstore.JobEvent{JobID: j.ID, Type: evType, Payload: payload})
+			}
 		}
 		return err
 	}

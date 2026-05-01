@@ -102,21 +102,61 @@ func (s *SchedulerDistributed) WakeAgent(ctx context.Context, agentID string) er
 		// 未能获取锁，说明其他 Worker 正在处理
 		return nil
 	}
-	defer s.releaseLock(ctx, agentID, lockValue)
 
 	agent, err := s.manager.Get(ctx, agentID)
 	if err != nil || agent == nil {
+		_ = s.releaseLock(ctx, agentID, lockValue)
 		return nil
 	}
 	status := agent.GetStatus()
 	if status == StatusRunning || status == StatusWaitingTool {
+		_ = s.releaseLock(ctx, agentID, lockValue)
 		return nil
 	}
 	agent.SetStatus(StatusRunning)
+
+	// Fix E: start a background goroutine to renew the lock TTL while the agent runs.
+	// Without this, any agent execution longer than lockTTL would have its lock expire,
+	// allowing another worker to acquire it and run the same agent concurrently.
+	renewCtx, stopRenew := context.WithCancel(context.Background())
+	go s.keepLockAlive(renewCtx, agentID, lockValue)
+
 	if s.run != nil {
 		s.run(ctx, agentID)
 	}
+
+	// Stop renewal before releasing so we don't race with releaseLock.
+	stopRenew()
+	_ = s.releaseLock(ctx, agentID, lockValue)
 	return nil
+}
+
+// keepLockAlive 每隔 lockTTL/2 续期一次分布式锁，防止执行时间超过 TTL 导致锁过期。
+// 通过 Lua 脚本做 compare-and-expire，确保只续期自己持有的锁。
+func (s *SchedulerDistributed) keepLockAlive(ctx context.Context, agentID, lockValue string) {
+	renewInterval := s.lockTTL / 2
+	if renewInterval < time.Second {
+		renewInterval = time.Second
+	}
+	ticker := time.NewTicker(renewInterval)
+	defer ticker.Stop()
+	lockKey := s.keyPrefix + "lock:" + agentID
+	script := redis.NewScript(`
+		if redis.call("get", KEYS[1]) == ARGV[1] then
+			return redis.call("pexpire", KEYS[1], ARGV[2])
+		else
+			return 0
+		end
+	`)
+	ttlMs := s.lockTTL.Milliseconds()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			_ = script.Run(ctx, s.redis, []string{lockKey}, lockValue, ttlMs).Err()
+		}
+	}
 }
 
 // Suspend 挂起 Agent
@@ -138,17 +178,25 @@ func (s *SchedulerDistributed) Resume(ctx context.Context, agentID string) error
 	if !acquired {
 		return nil
 	}
-	defer s.releaseLock(ctx, agentID, lockValue)
 
 	agent, err := s.manager.Get(ctx, agentID)
 	if err != nil || agent == nil {
+		_ = s.releaseLock(ctx, agentID, lockValue)
 		return nil
 	}
 	agent.SetStatus(StatusIdle)
 	agent.SetStatus(StatusRunning)
+
+	// Fix E: same lock-renewal pattern as WakeAgent.
+	renewCtx, stopRenew := context.WithCancel(context.Background())
+	go s.keepLockAlive(renewCtx, agentID, lockValue)
+
 	if s.run != nil {
 		s.run(ctx, agentID)
 	}
+
+	stopRenew()
+	_ = s.releaseLock(ctx, agentID, lockValue)
 	return nil
 }
 

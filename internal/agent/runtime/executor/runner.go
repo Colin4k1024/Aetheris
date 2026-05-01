@@ -149,6 +149,7 @@ type PlanGeneratedSink interface {
 // resultType/reason 为 Phase A failed语义；仅 result_type==success 时 Replay 将节点视为完成
 // AppendStateCheckpointed 的 opts 可选携带 changed_keys、tool_side_effects、resource_refs 供 Trace UI「本步变更」展示
 // AppendJobWaiting 写入 job_waiting，表示 Job 在 Wait 节点挂起（design/job-state-machine.md）
+// AppendJobCompleted/AppendJobFailed 写入终态事件（Session1-4 fix）：必须在 UpdateStatus 前调用，确保事件流与 metadata 的写入顺序正确
 type NodeEventSink interface {
 	AppendNodeStarted(ctx context.Context, jobID string, nodeID string, attempt int, workerID string) error
 	// AppendNodeFinished 写入 node_finished；stepID 为空时用 nodeID；inputHash 非空时写入 payload 供 Replay 确定性判定（plan 3.3）
@@ -157,6 +158,10 @@ type NodeEventSink interface {
 	AppendStepCommitted(ctx context.Context, jobID string, nodeID string, stepID string, commandID string, idempotencyKey string) error
 	AppendStateCheckpointed(ctx context.Context, jobID string, nodeID string, stateBefore, stateAfter []byte, opts *StateCheckpointOpts) error
 	AppendJobWaiting(ctx context.Context, jobID string, nodeID string, waitKind, reason string, expiresAt time.Time, correlationKey string, resumptionContext []byte) error
+	// AppendJobCompleted 写入 job_completed 终态事件；必须在 UpdateStatus(completed) 前调用（Session1-4 fix）
+	AppendJobCompleted(ctx context.Context, jobID string, goal string) error
+	// AppendJobFailed 写入 job_failed 终态事件；必须在 UpdateStatus(failed) 前调用（Session1-4 fix）
+	AppendJobFailed(ctx context.Context, jobID string, reason string, sf *StepFailure) error
 	// AppendReasoningSnapshot 写入 reasoning_snapshot 事件，供因果调试（design：Causal Debugging）
 	AppendReasoningSnapshot(ctx context.Context, jobID string, payload []byte) error
 	// AppendStepCompensated 写入 step_compensated 事件（2.0 Tool Contract）；补偿回调执行后调用
@@ -290,6 +295,22 @@ func (r *Runner) SetMaxParallelSteps(n int) {
 	r.maxParallelSteps = n
 }
 
+// writeTerminalCompleted Session1-4 fix: 写入 job_completed 事件后再更新 metadata，确保事件流先行
+func (r *Runner) writeTerminalCompleted(ctx context.Context, jobID string, goal string) {
+	if r.nodeEventSink != nil {
+		_ = r.nodeEventSink.AppendJobCompleted(ctx, jobID, goal)
+	}
+	_ = r.jobStore.UpdateStatus(ctx, jobID, 2) // 2 = statusCompleted
+}
+
+// writeTerminalFailed Session1-4 fix: 写入 job_failed 事件后再更新 metadata，确保事件流先行
+func (r *Runner) writeTerminalFailed(ctx context.Context, jobID string, reason string, sf *StepFailure) {
+	if r.nodeEventSink != nil {
+		_ = r.nodeEventSink.AppendJobFailed(ctx, jobID, reason, sf)
+	}
+	_ = r.jobStore.UpdateStatus(ctx, jobID, 3) // 3 = statusFailed
+}
+
 // nextRunnableBatch 返回下一可执行步的索引列表（同层或单步）。completedSet 的 key 为 effectiveStepID。
 // 若 levelGroups 为 nil 则按顺序返回第一个未完成的步。
 func (r *Runner) nextRunnableBatch(steps []SteppableStep, levelGroups [][]string, completedSet map[string]struct{}, jobID, decisionID string) []int {
@@ -390,17 +411,20 @@ func (r *Runner) runParallelLevel(
 		} else {
 			stepCtx = runtime.WithClock(stepCtx, func() time.Time { return time.Now() })
 		}
+		// Fix F: use a per-goroutine cancel captured in the closure so the context is
+		// cancelled as soon as the goroutine finishes, rather than deferring to
+		// runParallelLevel's return (which would accumulate N cancels in memory).
+		var stepCancel context.CancelFunc = func() {} // no-op default
 		if r.stepTimeout > 0 {
-			var cancel context.CancelFunc
-			stepCtx, cancel = context.WithTimeout(stepCtx, r.stepTimeout)
-			defer cancel()
+			stepCtx, stepCancel = context.WithTimeout(stepCtx, r.stepTimeout)
 		}
 		payloadCopy := &AgentDAGPayload{Goal: payload.Goal, AgentID: payload.AgentID, SessionID: payload.SessionID, Results: make(map[string]any)}
 		for k, v := range payload.Results {
 			payloadCopy.Results[k] = v
 		}
-		s, sCtx, eid := step, stepCtx, effectiveStepID
+		s, sCtx, eid, sc := step, stepCtx, effectiveStepID, stepCancel
 		go func() {
+			defer sc() // Fix F: cancel context promptly when step finishes
 			defer func() {
 				if r := recover(); r != nil {
 					ch <- result{idx: idx, payload: payloadCopy, err: fmt.Errorf("panic in step execution: %v", r)}
@@ -449,7 +473,30 @@ func (r *Runner) runParallelLevel(
 		if resultType == StepResultRetryableFailure {
 			metrics.StepRetriesTotal.WithLabelValues(tenant, nodeType, reason).Inc()
 		}
+		// Fix C: write node_finished for sibling steps that succeeded before the failure,
+		// so crash+retry does not re-execute their side effects.
 		if r.nodeEventSink != nil {
+			for _, res := range results {
+				if res.err != nil {
+					continue // skip the failed step (written below) and any other failed steps
+				}
+				siblingStep := steps[res.idx]
+				siblingStepID := DeterministicStepID(j.ID, runLoopDecisionID, res.idx, siblingStep.NodeType)
+				rt := StepResultPure
+				if siblingStep.NodeType == "tool" {
+					rt = StepResultSideEffectCommitted
+				}
+				siblingPayload, marshalErr := marshalJSONForRunner(res.payload.Results, "parallel_sibling_payload")
+				if marshalErr != nil {
+					siblingPayload = []byte("{}")
+				}
+				_ = r.nodeEventSink.AppendNodeFinished(ctx, j.ID, siblingStep.NodeID, siblingPayload, 0, "ok", 1, rt, "", siblingStepID, "")
+				_ = r.nodeEventSink.AppendStepCommitted(ctx, j.ID, siblingStep.NodeID, siblingStepID, siblingStepID, "")
+				if completedSet != nil {
+					completedSet[siblingStepID] = struct{}{}
+				}
+			}
+			// write node_finished for the failed step
 			_ = r.nodeEventSink.AppendNodeFinished(ctx, j.ID, step.NodeID, []byte("{}"), 0, string(resultType), 1, resultType, reason, effectiveStepID, "")
 		}
 		_ = r.jobStore.UpdateStatus(ctx, j.ID, 3)
@@ -507,9 +554,16 @@ func (r *Runner) runParallelLevel(
 		_ = r.jobStore.UpdateStatus(ctx, j.ID, 3)
 		return err
 	}
-	lastIdx := results[len(results)-1].idx
-	lastNodeID := steps[lastIdx].NodeID
-	cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, j.ID, lastNodeID, graphBytes, payloadResults, nil)
+	// Fix B: use the node with the highest index in the batch as CursorNode to ensure
+	// deterministic checkpoint recovery (goroutine completion order is non-deterministic).
+	maxIdx := batch[0]
+	for _, idx := range batch[1:] {
+		if idx > maxIdx {
+			maxIdx = idx
+		}
+	}
+	cursorNodeID := steps[maxIdx].NodeID
+	cp := runtime.NewNodeCheckpoint(agent.ID, sessionID, j.ID, cursorNodeID, graphBytes, payloadResults, nil)
 	cpID, saveErr := r.checkpointStore.Save(ctx, cp)
 	if saveErr != nil {
 		slog.Error("executor: save checkpoint failed", "jobID", j.ID, "error", saveErr)
@@ -624,8 +678,13 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 	payload := NewAgentDAGPayload(j.Goal, agent.ID, sessionID)
 	if len(state.PayloadResults) > 0 {
 		if err := json.Unmarshal(state.PayloadResults, &payload.Results); err != nil {
-			// Log error but continue with empty results to allow replay to proceed
-			// In production, this should be logged via proper logging
+			// Fix G: corrupted payload means we cannot safely replay the job state.
+			// Fail-fast rather than silently continuing with empty results, which would
+			// cause the executor to re-run already-committed side effects.
+			slog.Error("executor: Advance failed to unmarshal payload results",
+				"jobID", jobID, "error", err)
+			_ = r.jobStore.UpdateStatus(ctx, jobID, 3) // statusFailed
+			return false, fmt.Errorf("executor: corrupted payload results for job %s: %w", jobID, err)
 		}
 	}
 	completedSet := state.CompletedNodeIDs
@@ -649,7 +708,12 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 	const statusFailed = 3
 	const statusWaiting = 5
 	if startIndex < 0 || startIndex >= len(steps) {
-		_ = r.jobStore.UpdateStatus(ctx, jobID, statusCompleted)
+		// Session1-4 fix: 写终态事件后再更新 metadata
+		var goal string
+		if j != nil {
+			goal = j.Goal
+		}
+		r.writeTerminalCompleted(ctx, jobID, goal)
 		return true, nil
 	}
 	step := steps[startIndex]
@@ -876,7 +940,6 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 			stateStr = string(resultType)
 		}
 		_ = r.nodeEventSink.AppendNodeFinished(ctx, jobID, step.NodeID, payloadResults, durationMs, stateStr, 1, resultType, reason, effectiveStepID, "")
-		_ = r.nodeEventSink.AppendStepCommitted(ctx, jobID, step.NodeID, effectiveStepID, effectiveStepID, "")
 	}
 	if isStepFailure(resultType) {
 		if resultType == StepResultCompensatableFailure && r.compensationRegistry != nil {
@@ -887,9 +950,16 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 				}
 			}
 		}
-		_ = r.jobStore.UpdateStatus(ctx, jobID, statusFailed)
+		// Session1-4 fix: 写终态事件后再更新 metadata
 		sf := &StepFailure{Type: resultType, Inner: runErr, NodeID: step.NodeID}
+		r.writeTerminalFailed(ctx, jobID, sf.Error(), sf)
 		return false, fmt.Errorf("executor: 节点 %s execution failed (%s): %w", step.NodeID, resultType, sf)
+	}
+	// Fix D: AppendStepCommitted only after confirming the step succeeded (Exactly-Once barrier
+	// must not be written for failed steps — it would corrupt audit data and could mislead
+	// any future code that uses step_committed for replay decisions).
+	if r.nodeEventSink != nil {
+		_ = r.nodeEventSink.AppendStepCommitted(ctx, jobID, step.NodeID, effectiveStepID, effectiveStepID, "")
 	}
 	if r.nodeEventSink != nil {
 		opts := &StateCheckpointOpts{ChangedKeys: ChangedKeysFromState(stateBefore, payloadResults)}
@@ -946,8 +1016,9 @@ func (r *Runner) RunForJob(ctx context.Context, agent *runtime.Agent, j *JobForR
 	// replayCtx：仅从事件流 Replay 进入时非空，含 CompletedCommandIDs/CommandResults，用于命令级跳过与注入
 	var replayCtx *replay.ReplayContext
 
-	// 与 job.JobStatus 对应，避免 executor 依赖 job 包：2=Completed, 3=Failed
+	// 与 job.JobStatus 对应，避免 executor 依赖 job 包：2=Completed, 3=Failed, 5=Waiting
 	const statusFailed = 3
+	const statusWaiting = 5
 	if j.Cursor != "" {
 		cp, loadErr := r.checkpointStore.Load(ctx, j.Cursor)
 		if loadErr != nil || cp == nil {
@@ -989,6 +1060,13 @@ func (r *Runner) RunForJob(ctx context.Context, agent *runtime.Agent, j *JobForR
 		}
 		// 有 replayBuilder 时从 checkpoint 构建 state，走事件驱动循环
 		if r.replayBuilder != nil {
+			// Session1-1 fix: checkpoint 保存失败时，node_finished 事件已写入但 checkpoint 未更新，
+			// 导致 completedSet 缺少该节点 → 合并事件流中的已完成节点，防止 Advance 重复执行。
+			if freshRCtx, _ := r.replayBuilder.BuildFromSnapshot(ctx, j.ID); freshRCtx != nil {
+				for k := range freshRCtx.CompletedNodeIDs {
+					completedSet[k] = struct{}{}
+				}
+			}
 			rc := &replay.ReplayContext{
 				TaskGraphState:           cp.TaskGraphState,
 				CursorNode:               cp.CursorNode,
@@ -1031,6 +1109,12 @@ func (r *Runner) RunForJob(ctx context.Context, agent *runtime.Agent, j *JobForR
 							runtime.ApplyAgentState(agent.Session, &as)
 						}
 					}
+					// Session1-2 fix: 若事件流末尾已是 job_waiting（尚无 wait_completed），
+					// 说明本次调度是重复投递，直接返回 ErrJobWaiting 避免重写 job_waiting 事件。
+					if rctx.Phase == replay.PhaseWaiting {
+						_ = r.jobStore.UpdateStatus(ctx, j.ID, statusWaiting)
+						return ErrJobWaiting
+					}
 					// 仅当事件流已有执行进度（command/node/tool）时才进入 Replay 驱动循环；
 					// 仅有 plan_generated 时应走 fresh execution，允许首次真实执行副作用节点（如 LLM）。
 					if hasReplayProgress(rctx) {
@@ -1047,6 +1131,11 @@ func (r *Runner) RunForJob(ctx context.Context, agent *runtime.Agent, j *JobForR
 							rctx, _ = r.replayBuilder.BuildFromSnapshot(ctx, j.ID)
 							if rctx == nil {
 								break
+							}
+							// Session1-2 fix: Advance 完成一步后若已进入等待状态，退出循环
+							if rctx.Phase == replay.PhaseWaiting {
+								_ = r.jobStore.UpdateStatus(ctx, j.ID, statusWaiting)
+								return ErrJobWaiting
 							}
 							if len(rctx.WorkingMemorySnapshot) > 0 && agent != nil && agent.Session != nil {
 								var as runtime.AgentState
@@ -1095,14 +1184,14 @@ runLoop:
 	}
 	ctx = WithTenantID(ctx, tenantCtx)
 	const statusCompleted = 2 // 对应 job.StatusCompleted
-	const statusWaiting = 5   // 对应 job.StatusWaiting（design/job-state-machine.md）
 	graphBytes, _ := taskGraph.Marshal()
 	runLoopDecisionID := PlanDecisionID(graphBytes)
 	levelGroups, _ := LevelGroups(taskGraph)
 	for {
 		batch := r.nextRunnableBatch(steps, levelGroups, completedSet, j.ID, runLoopDecisionID)
 		if len(batch) == 0 {
-			_ = r.jobStore.UpdateStatus(ctx, j.ID, statusCompleted)
+			// Session1-4 fix: 写终态事件后再更新 metadata
+			r.writeTerminalCompleted(ctx, j.ID, j.Goal)
 			return nil
 		}
 		hasWait := false
@@ -1346,10 +1435,11 @@ runLoop:
 		} else {
 			runCtx = runtime.WithClock(runCtx, func() time.Time { return time.Now() })
 		}
+		// Fix F: use an explicit cancel variable rather than defer, so the timeout context
+		// is released at the end of each iteration (not when RunForJob returns).
+		var stepCancel context.CancelFunc
 		if r.stepTimeout > 0 {
-			var cancel context.CancelFunc
-			runCtx, cancel = context.WithTimeout(runCtx, r.stepTimeout)
-			defer cancel()
+			runCtx, stepCancel = context.WithTimeout(runCtx, r.stepTimeout)
 		}
 		// 2.0 Deterministic Replay：标记 Replay 模式
 		runCtx = determinism.WithReplay(runCtx, replayCtx != nil)
@@ -1358,7 +1448,7 @@ runLoop:
 			runCtx = agenteffects.WithRecordedEffects(runCtx, j.ID, effectiveStepID, replayCtx, r.recordedEffectsRecorder)
 		}
 		runCtx = sdk.WithRuntimeContext(runCtx, newRuntimeContextAdapter(j.ID, effectiveStepID))
-		// Node span for tracing
+		// Node span for tracing; defer is acceptable here since spans close when RunForJob returns.
 		ctx, nodeSpan := tracing.StartNodeSpan(ctx, step.NodeID, step.NodeType)
 		defer nodeSpan.End()
 		var runErr error
@@ -1381,11 +1471,17 @@ runLoop:
 				resumptionBytes, err := marshalJSONForRunner(resumptionCtx, "runloop_signal_wait_resumption")
 				if err != nil {
 					_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
+					if stepCancel != nil {
+						stepCancel()
+					}
 					return err
 				}
 				_ = r.nodeEventSink.AppendJobWaiting(ctx, j.ID, step.NodeID, "signal", waitReason, time.Now().Add(24*time.Hour), correlationKey, resumptionBytes)
 			}
 			_ = r.jobStore.UpdateStatus(ctx, j.ID, statusWaiting)
+			if stepCancel != nil {
+				stepCancel()
+			}
 			return ErrJobWaiting
 		}
 		resultType, reason := ClassifyError(runErr)
@@ -1431,6 +1527,9 @@ runLoop:
 		payloadResults, err := marshalJSONForRunner(payload.Results, "runloop_payload_results")
 		if err != nil {
 			_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
+			if stepCancel != nil {
+				stepCancel()
+			}
 			return err
 		}
 		if runErr != nil && len(payloadResults) == 0 {
@@ -1442,7 +1541,6 @@ runLoop:
 				stateStr = string(resultType)
 			}
 			_ = r.nodeEventSink.AppendNodeFinished(ctx, j.ID, step.NodeID, payloadResults, durationMs, stateStr, 1, resultType, reason, effectiveStepID, "")
-			_ = r.nodeEventSink.AppendStepCommitted(ctx, j.ID, step.NodeID, effectiveStepID, effectiveStepID, "")
 		}
 		// Record node execution metrics
 		status := "success"
@@ -1459,9 +1557,18 @@ runLoop:
 					}
 				}
 			}
-			_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
+			// Session1-4 fix: 写终态事件后再更新 metadata
 			sf := &StepFailure{Type: resultType, Inner: runErr, NodeID: step.NodeID}
+			r.writeTerminalFailed(ctx, j.ID, sf.Error(), sf)
+			if stepCancel != nil {
+				stepCancel()
+			}
 			return fmt.Errorf("executor: 节点 %s execution failed (%s): %w", step.NodeID, resultType, sf)
+		}
+		// Fix D: AppendStepCommitted only after confirming the step succeeded (Exactly-Once
+		// barrier must not be written for failed steps).
+		if r.nodeEventSink != nil {
+			_ = r.nodeEventSink.AppendStepCommitted(ctx, j.ID, step.NodeID, effectiveStepID, effectiveStepID, "")
 		}
 		if r.nodeEventSink != nil {
 			opts := &StateCheckpointOpts{ChangedKeys: ChangedKeysFromState(stateBefore, payloadResults)}
@@ -1515,6 +1622,9 @@ runLoop:
 		if saveErr != nil {
 			slog.Error("executor: save checkpoint failed", "jobID", j.ID, "error", saveErr)
 			_ = r.jobStore.UpdateStatus(ctx, j.ID, statusFailed)
+			if stepCancel != nil {
+				stepCancel()
+			}
 			return fmt.Errorf("executor: save checkpoint failed: %w", saveErr)
 		}
 		if agent.Session != nil {
@@ -1526,6 +1636,11 @@ runLoop:
 		}
 		completedSet[effectiveStepID] = struct{}{}
 		completedSet[step.NodeID] = struct{}{}
+		// Fix F: explicitly cancel the step-scoped timeout context at end of each successful
+		// iteration so timer goroutines are released promptly instead of at RunForJob return.
+		if stepCancel != nil {
+			stepCancel()
+		}
 		continue
 	}
 }

@@ -42,11 +42,13 @@ type SnapshotPayload struct {
 	StateChangesByStep       map[string]json.RawMessage `json:"state_changes_by_step,omitempty"`
 	ApprovedCorrelationKeys  []string                   `json:"approved_correlation_keys,omitempty"`
 	WorkingMemorySnapshot    json.RawMessage            `json:"working_memory_snapshot,omitempty"`
-	Phase                    int                        `json:"phase,omitempty"`
-	RecordedTime             map[string]int64           `json:"recorded_time,omitempty"`
-	RecordedRandom           map[string]json.RawMessage `json:"recorded_random,omitempty"`
-	RecordedUUID             map[string]string          `json:"recorded_uuid,omitempty"`
-	RecordedHTTP             map[string]json.RawMessage `json:"recorded_http,omitempty"`
+	// PendingWaitNode Session1-2: 尚未收到 wait_completed 的 job_waiting 节点 ID
+	PendingWaitNode string                     `json:"pending_wait_node,omitempty"`
+	Phase           int                        `json:"phase,omitempty"`
+	RecordedTime    map[string]int64           `json:"recorded_time,omitempty"`
+	RecordedRandom  map[string]json.RawMessage `json:"recorded_random,omitempty"`
+	RecordedUUID    map[string]string          `json:"recorded_uuid,omitempty"`
+	RecordedHTTP    map[string]json.RawMessage `json:"recorded_http,omitempty"`
 }
 
 // SnapshotStore 快照存储接口，扩展 JobStore

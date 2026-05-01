@@ -16,9 +16,9 @@ package executor
 
 import (
 	"context"
-	"time"
 
 	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
+	"github.com/google/uuid"
 )
 
 // LedgerEventSink 写入 Ledger 原子性事件：ledger_acquired（执行权获取）和 ledger_committed（结果提交）
@@ -94,5 +94,5 @@ func DefaultAtomicCommit(ctx context.Context, ledger InvocationLedger, sink Ledg
 }
 
 func newInvocationID() string {
-	return "inv-" + time.Now().Format("20060102150405.000000000")
+	return "inv-" + uuid.NewString()
 }
