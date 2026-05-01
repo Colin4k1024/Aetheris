@@ -704,7 +704,6 @@ func (r *Runner) Advance(ctx context.Context, jobID string, state *replay.Execut
 		startIndex = i
 		break
 	}
-	const statusCompleted = 2
 	const statusFailed = 3
 	const statusWaiting = 5
 	if startIndex < 0 || startIndex >= len(steps) {
@@ -1183,7 +1182,6 @@ runLoop:
 		tenantCtx = j.TenantID
 	}
 	ctx = WithTenantID(ctx, tenantCtx)
-	const statusCompleted = 2 // 对应 job.StatusCompleted
 	graphBytes, _ := taskGraph.Marshal()
 	runLoopDecisionID := PlanDecisionID(graphBytes)
 	levelGroups, _ := LevelGroups(taskGraph)
