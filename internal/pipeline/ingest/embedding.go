@@ -61,8 +61,8 @@ func (e *DocumentEmbedding) Execute(ctx *common.PipelineContext, input interface
 		return nil, common.NewPipelineError(e.name, "输入类型error", fmt.Errorf("expected *common.Document, got %T", input))
 	}
 
-	// 处理文档
-	embeddedDoc, err := e.ProcessDocument(doc)
+	// 处理文档（传递 caller context 以支持取消）
+	embeddedDoc, err := e.processDocumentCtx(ctx.Context, doc)
 	if err != nil {
 		return nil, common.NewPipelineError(e.name, "vectorize document failed", err)
 	}
@@ -87,15 +87,21 @@ func (e *DocumentEmbedding) Validate(input interface{}) error {
 	return nil
 }
 
-// ProcessDocument 处理文档
+// ProcessDocument 处理文档（实现 IngestStage 接口，使用 context.Background() 作为降级）
+// 若需要传播 caller context，请通过 Execute 调用，它内部走 processDocumentCtx。
 func (e *DocumentEmbedding) ProcessDocument(doc *common.Document) (*common.Document, error) {
+	return e.processDocumentCtx(context.Background(), doc)
+}
+
+// processDocumentCtx 处理文档（内部方法，接受 context）
+func (e *DocumentEmbedding) processDocumentCtx(ctx context.Context, doc *common.Document) (*common.Document, error) {
 	// 检查是否有切片
 	if len(doc.Chunks) == 0 {
 		return nil, common.NewPipelineError(e.name, "文档没有切片", fmt.Errorf("document has no chunks"))
 	}
 
 	// 批量向量化切片
-	if err := e.embedChunks(doc); err != nil {
+	if err := e.embedChunks(ctx, doc); err != nil {
 		return nil, common.NewPipelineError(e.name, "向量化切片failed", err)
 	}
 
@@ -108,7 +114,7 @@ func (e *DocumentEmbedding) ProcessDocument(doc *common.Document) (*common.Docum
 }
 
 // embedChunks 向量化切片
-func (e *DocumentEmbedding) embedChunks(doc *common.Document) error {
+func (e *DocumentEmbedding) embedChunks(ctx context.Context, doc *common.Document) error {
 	chunks := doc.Chunks
 	if len(chunks) == 0 {
 		return nil
@@ -132,7 +138,7 @@ func (e *DocumentEmbedding) embedChunks(doc *common.Document) error {
 			for idx := range chunkChan {
 				chunk := &chunks[idx]
 				// 向量化：Embed(ctx, []string) ([][]float64, error)
-				vecs, err := e.embedder.Embed(context.Background(), []string{chunk.Content})
+				vecs, err := e.embedder.Embed(ctx, []string{chunk.Content})
 				if err != nil {
 					errChan <- fmt.Errorf("vectorize chunk %d failed: %w", idx, err)
 					return

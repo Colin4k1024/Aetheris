@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 )
 
 // VerificationStatus 验证状态
@@ -165,7 +166,7 @@ func (v *ReplayVerifier) Verify(ctx context.Context, jobID string, stateChangesB
 		OverallStatus:    VerificationStatusMatch,
 		Decision:         ReplayDecisionRestoreAndSkip,
 		Results:          []VerificationResult{},
-		VerificationTime: "TODO", // 使用 time.Now().Format(time.RFC3339)
+		VerificationTime: time.Now().UTC().Format(time.RFC3339),
 	}
 
 	// 统计
