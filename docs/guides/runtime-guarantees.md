@@ -635,3 +635,134 @@ Expected:
 - [design/step-contract.md](../design/step-contract.md) — How to write correct steps
 - [design/effect-system.md](../design/effect-system.md) — Effect Store, replay, two-phase commit
 - [design/runtime-contract.md](../design/runtime-contract.md) — Blocking, epoch, attempt_id validation
+
+---
+
+## 场景深化：At-Most-Once 在真实业务中如何落地
+
+下面三个场景展示 At-Most-Once 保证在真实业务环境下的完整工作流，帮助开发者理解「为什么这样设计」以及「怎么验证它确实工作了」。
+
+---
+
+### 场景 A：支付 Agent 崩溃恢复（金融电商）
+
+**业务背景**：电商退款 Agent 需要调用第三方支付 SDK 发起退款，退款金额最高 ¥100,000。
+
+**崩溃时序**：
+
+```
+Worker A 执行 step=refund_execute：
+  T=0ms:   Tool.Execute(PaymentSDK.Refund, idempotency_key="job-abc-refund-1") 开始
+  T=200ms: 第三方支付 SDK 返回成功 {txn_id: "TXN9001", status: "success"}
+  T=201ms: Effect.Put("job-abc-refund-1", {txn_id: "TXN9001"})  ← 持久化结果
+  T=202ms: Worker 进程被 OOM Killer 强杀                         ← 崩溃点
+  T=203ms: EventStore.Append(command_committed) 未执行
+
+Scheduler 等待 30s 租约过期：
+  T=30s:   Reclaim：job 状态重置为 Pending
+
+Worker B 认领：
+  T=30.1s: Replay 已完成步骤
+  T=30.2s: 到达 step=refund_execute
+  T=30.3s: Ledger.Authorize("job-abc-refund-1") → 已存在
+  T=30.4s: Effect Store 查询 → 有结果 {txn_id: "TXN9001"}
+  T=30.5s: catch-up: Append(command_committed) ← 补写事件
+  T=30.6s: 注入结果，继续下一步（发送确认邮件）
+
+最终结果：退款只执行了一次（TXN9001），没有重复扣款。
+```
+
+**如何验证**：
+
+```bash
+# 查看 Ledger 只有一条 committed 记录
+curl http://localhost:8080/api/jobs/job-abc/trace | \
+  jq '[.events[] | select(.type=="tool_invocation_finished")] | length'
+# 预期输出: 1
+
+# 查看 Effect Store 的 catch-up 记录
+curl http://localhost:8080/api/jobs/job-abc/replay | \
+  jq '.events[] | select(.type=="command_committed" and .step=="refund_execute")'
+# 预期: 只有一条，timestamp 在原始崩溃时间之后（catch-up 写入）
+```
+
+---
+
+### 场景 B：供应链询价 Agent 并发调用 30 个供应商（制造业）
+
+**业务背景**：采购 Agent 并发向 30 个供应商发送 RFQ（询价单），每个 API 调用对应一个独立 Step。网络抖动导致部分请求超时，Worker 在重试中途崩溃。
+
+**关键设计**：每个供应商调用使用独立 idempotency_key：
+
+```go
+// Tool 实现示例
+func (t *SendRFQTool) Execute(ctx context.Context, sess *session.Session, input map[string]any, state interface{}) (any, error) {
+    supplierID := input["supplier_id"].(string)
+    
+    // idempotency_key 由 runtime 从 ctx 提供，绑定到 (jobID, stepID)
+    // 相同的 (job, step, supplier) 组合永远只调用一次
+    key := effects.StepIdempotencyKeyForExternal(ctx, sess.JobID, sess.StepID)
+    
+    resp, err := t.rfqClient.SendRFQ(ctx, supplierID, input["rfq"].(RFQPayload), key)
+    if err != nil {
+        return nil, err
+    }
+    return resp, nil
+}
+```
+
+**崩溃恢复后的状态**：
+
+```
+崩溃前已完成：供应商 1-18（StepCompleted 在事件流中）
+崩溃时进行中：供应商 19（Ledger 有 Authorize，Effect Store 有结果）
+崩溃时未开始：供应商 20-30
+
+恢复后：
+- 供应商 1-18：从事件流注入结果，API 不重调
+- 供应商 19：catch-up 补写，API 不重调
+- 供应商 20-30：正常执行，首次调用
+
+结果：30 个供应商各收到且仅收到一份 RFQ。
+```
+
+---
+
+### 场景 C：医疗 AI 诊断报告写入 HIS（医疗）
+
+**业务背景**：AI 分析患者检查数据后，生成结构化诊断建议并写入 HIS 系统。HIS API 本身不提供幂等保证，重复写入会创建两条诊断记录。
+
+**两步提交保护**：
+
+```
+Step=generate_and_write_diagnosis：
+  阶段 1（Effect.Put）：
+    LLM 生成诊断建议 → 内容持久化到 Effect Store
+    key="job-p001-diagnosis-v1"
+    value={diagnosis: "建议复查...", generated_at: "2026-05-07T10:30:00Z"}
+
+  阶段 2（执行写入）：
+    使用 Effect Store 中的内容调用 HIS API
+    HIS.WriteRecord(patient_id="P001", content=effect_value)
+    → 成功
+
+  阶段 3（EventStore.Append）：
+    Append(command_committed, step=generate_and_write_diagnosis)
+
+如果崩溃发生在阶段 2 和 3 之间：
+  恢复时：Effect Store 查询 → 有内容 → catch-up 补写事件
+  HIS API：带同一 idempotency_key 重发（HIS 层通过 key 去重）
+  结果：患者记录唯一，诊断内容一致
+```
+
+---
+
+### 场景间共同规律
+
+| 场景 | 关键保护机制 | 崩溃后恢复路径 |
+|------|------------|-------------|
+| 支付退款 | Ledger + Effect Store | catch-up 注入，不重调支付 SDK |
+| 供应链 RFQ | 独立 idempotency_key per 供应商 | 已完成的 step 注入，未完成的继续 |
+| 医疗 HIS 写入 | 两步提交（先 Effect.Put 再 Append） | Effect Store 有内容，补写事件不重调 |
+
+**核心不变量**：只要 Effect.Put 成功，就算 EventStore.Append 还没执行，恢复路径也能通过 catch-up 保证 Tool 不被重新执行。
