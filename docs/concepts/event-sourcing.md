@@ -298,6 +298,103 @@ agent := &Agent{
 | **Job** | Agent 的一次执行任务 |
 | **Step** | Job 中的单个执行步骤 |
 | **Replay** | 从事件历史重放重建状态 |
+
+---
+
+## 深度：事件溯源如何解决 Agent 的具体问题
+
+### 问题一：不知道「支付到底成功没」
+
+传统场景：支付 API 调用成功，但写数据库之前崩溃了。重启后，数据库里没有记录，Agent 以为没付，**再调一次**。
+
+事件溯源解法：
+```
+事件流（append-only）：
+[1] JobCreated      → job_id=abc
+[2] StepStarted     → step=payment
+[3] ToolCalled      → tool=PaymentAPI, idempotency_key=abc-payment-1
+[4] ToolResult      → result={success:true, txn_id:T001}  ← 崩溃发生在这之后
+[5] StepCompleted   → step=payment  ← 这条还没写
+
+崩溃恢复时：
+Ledger 查询 idempotency_key=abc-payment-1 → 已授权
+Effect Store 查询 abc-payment-1 → 有结果 {success:true, txn_id:T001}
+→ catch-up: 写回 StepCompleted 事件
+→ 注入结果，不重新调用 PaymentAPI
+→ 支付只发生一次
+```
+
+### 问题二：「4 小时的报告跑了一半崩了」
+
+传统场景：无状态重试，从第 1 条数据重新处理，LLM 全部重调，成本翻倍。
+
+事件溯源解法：
+```
+事件流：
+[1] JobCreated
+[2] StepCompleted   → step=process_item_1
+[3] StepCompleted   → step=process_item_2
+...
+[9800] StepCompleted → step=process_item_9800
+[崩溃]
+
+恢复时：
+Scheduler 读取 Checkpoint → cursor=9800
+Runner 从 step_9801 开始
+步骤 1-9800 的 LLM 结果从 Effect Store 注入，不重新调用
+→ 只需跑剩余 200 条，成本和时间是原来的 2%
+```
+
+### 问题三：「审批等了 3 天，上下文丢了」
+
+传统场景：Agent 进程退出，所有内存状态消失，审批通过后只能重跑。
+
+事件溯源解法：
+```
+事件流：
+[1] JobCreated      → goal="退款 ¥500,000"
+[2] StepCompleted   → step=query_order, result={...订单详情...}
+[3] StepCompleted   → step=risk_check,  result={...风控结果...}
+[4] JobParked       → reason="等待人工审批", wait_key="approval-abc"
+[3 天后]
+[5] SignalReceived  → wait_key="approval-abc", approved=true, by=manager@corp.com
+
+恢复时：
+Runner 读取事件流
+步骤 query_order、risk_check 的结果从 Event Store 注入 → 不重新查询
+从 step=execute_refund 继续
+审批决策本身也被记录在事件流中 → 完整审计链
+```
+
+### 问题四：「监管来查，说不清 AI 做了什么」
+
+传统场景：只有 print 日志，无法还原推理链，无法证明 AI 行为合规。
+
+事件溯源解法：
+```bash
+# 导出完整证据包
+aetheris trace job_xyz789 --format evidence-package > audit.json
+
+# audit.json 包含：
+# - 输入：用户请求原文
+# - 每个 ToolCalled 的入参和返回值（精确时间戳）
+# - 每个 LLMGenerated 的 prompt 和 completion
+# - 每个决策节点的状态变更
+# - 最终输出和 Job 完成时间
+# - 操作者信息（由哪个 Worker、哪个 attempt 执行）
+```
+
+---
+
+## 不使用事件溯源会怎样？
+
+| 场景 | 无事件溯源 | 有事件溯源 |
+|------|-----------|-----------|
+| Worker 崩溃后 | 从头开始，或手工恢复 | 从最近 Checkpoint 精确续跑 |
+| API 重复调用 | 无法检测，依赖下游幂等 | Ledger + Effect 双重保护 |
+| 审计要求 | 无法重建，只有碎片日志 | 完整不可变事件链，随时导出 |
+| 生产 bug 调试 | 重跑触发真实 API，有副作用 | Deterministic Replay，零副作用 |
+| 大额操作审批 | 上下文丢失，重新查所有数据 | 精确断点恢复，零数据重查 |
 | **Lease Fencing** | 防止分布式环境下的双跑 |
 
 事件溯源让 Aetheris 成为 **"Temporal for Agents"** — 一个真正可靠、可追溯、可恢复的 AI Agent 运行时。
