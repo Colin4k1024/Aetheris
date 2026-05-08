@@ -608,6 +608,64 @@ func TestAgentsConfig(t *testing.T) {
 	}
 }
 
+func TestAgentsConfig_ExternalHTTP(t *testing.T) {
+	t.Setenv("CUSTOMER_BOT_TOKEN", "secret-token")
+	cfg := AgentsConfig{
+		Agents: map[string]AgentDefConfig{
+			"customer_support_bot": {
+				Type:        "external_http",
+				Description: "Existing customer support agent",
+				External: AgentExternalConfig{
+					URL:      "http://customer-bot:9000/invoke",
+					Timeout:  "120s",
+					TokenEnv: "CUSTOMER_BOT_TOKEN",
+				},
+			},
+		},
+	}
+	if err := ValidateExternalAgents(&cfg); err != nil {
+		t.Fatalf("ValidateExternalAgents returned error: %v", err)
+	}
+	agent := cfg.Agents["customer_support_bot"]
+	if agent.External.URL != "http://customer-bot:9000/invoke" {
+		t.Errorf("expected external URL to round-trip, got %q", agent.External.URL)
+	}
+}
+
+func TestValidateExternalAgents_Errors(t *testing.T) {
+	tests := []struct {
+		name  string
+		agent AgentDefConfig
+	}{
+		{
+			name:  "missing url",
+			agent: AgentDefConfig{Type: "external_http"},
+		},
+		{
+			name: "invalid timeout",
+			agent: AgentDefConfig{Type: "external_http", External: AgentExternalConfig{
+				URL:     "http://customer-bot:9000/invoke",
+				Timeout: "not-a-duration",
+			}},
+		},
+		{
+			name: "missing token env",
+			agent: AgentDefConfig{Type: "external_http", External: AgentExternalConfig{
+				URL:      "http://customer-bot:9000/invoke",
+				TokenEnv: "MISSING_CUSTOMER_BOT_TOKEN",
+			}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := AgentsConfig{Agents: map[string]AgentDefConfig{"agent": tt.agent}}
+			if err := ValidateExternalAgents(&cfg); err == nil {
+				t.Fatalf("expected validation error")
+			}
+		})
+	}
+}
+
 func TestDefaultsConfig(t *testing.T) {
 	cfg := DefaultsConfig{
 		LLM:       "gpt-4",

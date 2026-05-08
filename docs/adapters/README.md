@@ -6,6 +6,7 @@ This page compares available agent adapters and helps you choose one.
 
 | Adapter | Best for | Effort | Checkpoint granularity | Status |
 | ------- | -------- | ------ | ---------------------- | ------ |
+| [External HTTP Agent](external-http-agent.md) | Existing HTTP-service agents in any language | Low | Job/tool-call level | ✅ Stable |
 | [Custom Agent Adapter](custom-agent.md) | Existing imperative/custom agents | Low-Medium | Step-level (TaskGraph-based) | ✅ Stable |
 | [Custom Node Registration](custom-nodes.md) | Extending TaskGraph with built-in/custom node types | Low | Step-level (adapter-based) | ✅ Stable |
 | [Eino Examples](eino-examples.md) | cloudwego/eino-examples patterns (ReAct, DEER, etc.) | Low | Step-level | ✅ Stable |
@@ -28,6 +29,7 @@ Aetheris supports integrating Go-based open-source agent frameworks directly as 
 ## Selection guide
 
 - Pick **Eino Examples Adapter** for cloudwego/eino patterns (ReAct, DEER-Go, Manus, Chain, Graph, Workflow) - especially useful when you want to use local LLMs via Ollama.
+- Pick **External HTTP Agent** when the user already has a running agent service and needs the lowest-cost migration path.
 - Pick **LangChainGo** if you want to use LangChain patterns in Go.
 - Pick **LangGraphGo** if you want to use LangGraph state management patterns.
 - Pick **Google ADK** if you want to use Google's agent development patterns.

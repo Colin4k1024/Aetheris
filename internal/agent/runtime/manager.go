@@ -50,6 +50,24 @@ func (m *Manager) Create(ctx context.Context, name string, session *Session, mem
 	return agent, nil
 }
 
+// Register stores an Agent with a stable ID. It is used for config-defined agents
+// whose public ID must match configs/agents.yaml.
+func (m *Manager) Register(ctx context.Context, id, name string, session *Session, memory MemoryProvider, planner PlannerProvider, tools ToolsProvider) (*Agent, error) {
+	_ = ctx
+	if id == "" {
+		id = "agent-" + uuid.New().String()
+	}
+	if session == nil {
+		session = NewSession("", id)
+	}
+	session.AgentID = id
+	agent := NewAgent(id, name, session, memory, planner, tools)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.agents[id] = agent
+	return agent, nil
+}
+
 // Get 按 ID 获取 Agent
 func (m *Manager) Get(ctx context.Context, id string) (*Agent, error) {
 	m.mu.RLock()

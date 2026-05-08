@@ -608,16 +608,44 @@ func (s *nodeEventSinkImpl) AppendJobCompleted(ctx context.Context, jobID string
 	if s.store == nil {
 		return nil
 	}
-	_, ver, err := s.store.ListEvents(ctx, jobID)
+	events, ver, err := s.store.ListEvents(ctx, jobID)
 	if err != nil {
 		return err
 	}
 	pl := map[string]interface{}{"goal": goal}
+	if answer := extractAnswerFromCommittedEvents(events); answer != "" {
+		pl["answer"] = answer
+		pl["result"] = answer
+	}
 	payload, _ := json.Marshal(pl)
 	_, err = s.store.Append(ctx, jobID, ver, jobstore.JobEvent{
 		JobID: jobID, Type: jobstore.JobCompleted, Payload: payload,
 	})
 	return err
+}
+
+func extractAnswerFromCommittedEvents(events []jobstore.JobEvent) string {
+	for i := len(events) - 1; i >= 0; i-- {
+		if events[i].Type != jobstore.CommandCommitted || len(events[i].Payload) == 0 {
+			continue
+		}
+		var payload struct {
+			Result struct {
+				Output string `json:"output"`
+			} `json:"result"`
+		}
+		if err := json.Unmarshal(events[i].Payload, &payload); err != nil || payload.Result.Output == "" {
+			continue
+		}
+		var out struct {
+			Answer string `json:"answer"`
+		}
+		if err := json.Unmarshal([]byte(payload.Result.Output), &out); err == nil && out.Answer != "" {
+			return out.Answer
+		}
+		return payload.Result.Output
+	}
+	return ""
 }
 
 // AppendJobFailed 实现 NodeEventSink；写入 job_failed 终态事件（Session1-4 fix）

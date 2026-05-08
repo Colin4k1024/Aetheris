@@ -283,6 +283,16 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	// Agent Runtime：agent/tools.Registry（Session 感知）+ Builtin + Planner + Executor + Memory + Agent
 	toolsReg := tools.NewRegistry()
 	tools.RegisterBuiltin(toolsReg, engine, generatorForAgent)
+	var externalAgents map[string]config.AgentExternalConfig
+	if bootstrap.Config != nil && len(bootstrap.Config.Agents.Agents) > 0 {
+		if err := config.ValidateExternalAgents(&bootstrap.Config.Agents); err != nil {
+			return nil, err
+		}
+		externalAgents = collectExternalAgentConfigs(&bootstrap.Config.Agents)
+		if len(externalAgents) > 0 {
+			toolsReg.Register(NewExternalAgentCallTool(externalAgents))
+		}
+	}
 	// MCP Host bridge: register MCP tools as first-class runtime tools.
 	// MCP Host: connect configured MCP servers and dynamically discover tools.
 	mcpMgr := mcp.NewManager(slog.Default())
@@ -384,6 +394,11 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	})
 	agentCreator := NewAgentCreator(agentRuntimeManager, v1Planner, toolsReg)
 	handler.SetAgentRuntime(agentRuntimeManager, agentScheduler, agentCreator)
+	if bootstrap.Config != nil && len(bootstrap.Config.Agents.Agents) > 0 {
+		if err := RegisterConfiguredAgents(context.Background(), agentRuntimeManager, v1Planner, toolsReg, &bootstrap.Config.Agents); err != nil {
+			return nil, err
+		}
+	}
 	// v0.8 Job System：message -> create Job -> Scheduler（并发/重试）-> Worker -> Executor；Checkpoint 支持恢复
 	// Job 元数据存储：postgres 时与 Worker 共享 jobs 表，否则内存（仅 API 进程内）
 	var jobStore job.JobStore
@@ -473,6 +488,10 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
 		resourceVerifier = verifier.NewGitHubVerifier(token)
 	}
+	var agentsConfig *config.AgentsConfig
+	if bootstrap.Config != nil {
+		agentsConfig = &bootstrap.Config.Agents
+	}
 	// Tool 限流器（可选）
 	var toolRateLimiter *agentexec.ToolRateLimiter
 	if bootstrap.Config != nil && len(bootstrap.Config.RateLimits.Tools) > 0 {
@@ -494,7 +513,7 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 		toolRateLimiter = agentexec.NewToolRateLimiter(toolLimiterConfigs, toolDefaults)
 		bootstrap.Logger.Info("Tool 限流已启用", "tools", len(toolLimiterConfigs))
 	}
-	dagCompiler = NewDAGCompilerWithOptions(llmClientForAgent, toolsReg, engine, nodeEventSink, nodeEventSink, invocationStore, effectStore, resourceVerifier, NewAttemptValidator(jobEventStore), toolRateLimiter, nil)
+	dagCompiler = NewDAGCompilerWithOptions(llmClientForAgent, toolsReg, engine, nodeEventSink, nodeEventSink, invocationStore, effectStore, resourceVerifier, NewAttemptValidator(jobEventStore), toolRateLimiter, agentsConfig)
 	dagRunner = NewDAGRunner(dagCompiler)
 	var agentStateStore runtime.AgentStateStore
 	if bootstrap.Config != nil && bootstrap.Config.JobStore.Type == "postgres" && bootstrap.Config.JobStore.DSN != "" {
@@ -679,7 +698,11 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	handler.SetToolsRegistry(toolsReg)
 	// 1.0 Plan 事件化：Job 创建时即生成并持久化 TaskGraph，执行阶段只读
 	if jobEventStore != nil {
-		handler.SetPlanAtJobCreation(PlanGoalForJobFunc(agentRuntimeManager, v1Planner))
+		if bootstrap.Config != nil {
+			handler.SetPlanAtJobCreation(PlanGoalForJobFuncWithExternalAgents(agentRuntimeManager, v1Planner, &bootstrap.Config.Agents))
+		} else {
+			handler.SetPlanAtJobCreation(PlanGoalForJobFunc(agentRuntimeManager, v1Planner))
+		}
 	}
 
 	// 初始化中间件，传入 CORS 配置

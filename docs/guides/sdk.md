@@ -29,6 +29,9 @@ answer, err := agent.Run(ctx, "用户问题")
 - **推荐**：`Submit` 调用 `POST /api/runs`，并保存 `run_id`（可选）+ `job_id`（如业务返回/映射提供）。
 - **状态查询**：`WaitCompleted` 轮询 `GET /api/jobs/:id`（以及按需读取 `GET /api/runs/:id`）。
 - **兼容路径**：如使用 `POST /api/agents/:id/message`，可读取响应内 `runtime_submission` 取得 canonical runtime 映射信息。
+- **低成本接入已有 Agent**：若已有 Agent 是 HTTP 服务，可先配置为 `type: external_http`，SDK 仍按普通 `agentID` 提交；高风险副作用后续再迁移成 Runtime Tool。
+
+`external_http` 是黑盒迁移层：它把外部 Agent 调用纳入 Aetheris Job/Event/Trace，但不自动证明外部 Agent 内部的每个 API 调用都 at-most-once。需要强保证的动作应注册为 Runtime Tool。
 
 ## 示例
 
