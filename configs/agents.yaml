@@ -45,6 +45,15 @@ agents:
       Plan your approach and execute step by step.
       Always verify your results.
 
+  # External HTTP Agent - 黑盒接入已有 Python/JS/Go Agent
+  # customer_support_bot:
+  #   type: "external_http"
+  #   description: "Existing customer support agent"
+  #   external:
+  #     url: "http://customer-bot:9000/invoke"
+  #     timeout: "120s"
+  #     token_env: "CUSTOMER_BOT_TOKEN"
+
   # Chain - 简单链式调用
   conversation:
     type: "chain"

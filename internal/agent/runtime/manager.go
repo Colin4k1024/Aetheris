@@ -16,6 +16,7 @@ package runtime
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/google/uuid"
@@ -46,6 +47,28 @@ func (m *Manager) Create(ctx context.Context, name string, session *Session, mem
 	agent := NewAgent(id, name, session, memory, planner, tools)
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.agents[id] = agent
+	return agent, nil
+}
+
+// Register stores an Agent with a stable ID. It is used for config-defined agents
+// whose public ID must match configs/agents.yaml.
+// It returns an error if an agent with the given ID has already been registered.
+func (m *Manager) Register(ctx context.Context, id, name string, session *Session, memory MemoryProvider, planner PlannerProvider, tools ToolsProvider) (*Agent, error) {
+	_ = ctx
+	if id == "" {
+		id = "agent-" + uuid.New().String()
+	}
+	if session == nil {
+		session = NewSession("", id)
+	}
+	session.AgentID = id
+	agent := NewAgent(id, name, session, memory, planner, tools)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, exists := m.agents[id]; exists {
+		return nil, fmt.Errorf("agent %q is already registered", id)
+	}
 	m.agents[id] = agent
 	return agent, nil
 }

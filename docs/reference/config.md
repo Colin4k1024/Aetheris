@@ -181,7 +181,7 @@ Agent 定义配置文件，由 `AgentFactory` 在启动时加载。路径：`con
 ```yaml
 agents:
   <agent_name>:
-    type: "react"              # Agent 类型：react, deer, manus, chain, graph, workflow
+    type: "react"              # Agent 类型：react, deer, manus, chain, graph, workflow, external_http
     description: "描述"         # Agent 描述
     llm: "default"             # LLM 配置引用
     max_iterations: 10         # ReAct 最大迭代步数
@@ -192,11 +192,24 @@ agents:
       You are a helpful assistant.
 ```
 
+HTTP 黑盒 Agent 使用 `external` 字段：
+
+```yaml
+agents:
+  customer_support_bot:
+    type: "external_http"
+    description: "Existing customer support agent"
+    external:
+      url: "http://customer-bot:9000/invoke"
+      timeout: "120s"
+      token_env: "CUSTOMER_BOT_TOKEN"
+```
+
 ### agents 字段说明
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `type` | string | Yes | Agent 类型。`react` = ReAct 循环；`deer` = 增强推理；`manus` = 自主执行；`chain` = 简单链式；`graph` = DAG；`workflow` = 线性工作流 |
+| `type` | string | Yes | Agent 类型。`react` = ReAct 循环；`deer` = 增强推理；`manus` = 自主执行；`chain` = 简单链式；`graph` = DAG；`workflow` = 线性工作流；`external_http` = HTTP 黑盒 Agent |
 | `description` | string | No | Agent 描述，用于标识 |
 | `llm` | string | No | LLM 配置引用，`"default"` 使用 `model.yaml` 中的默认配置 |
 | `max_iterations` | int | No | ReAct 最大迭代步数，超过则停止。默认 10 |
@@ -205,6 +218,11 @@ agents:
 | `chain_type` | string | No | 当 `type=chain` 时的链类型（如 `conversation`） |
 | `graph_type` | string | No | 当 `type=graph` 时的图类型（如 `directed`） |
 | `workflow_type` | string | No | 当 `type=workflow` 时的工作流类型（如 `linear`） |
+| `external.url` | string | `external_http` required | 外部 Agent HTTP invoke endpoint |
+| `external.timeout` | string | No | 单次调用超时，如 `120s`；默认 120s |
+| `external.token_env` | string | No | Bearer token 来源环境变量；配置后启动时必须存在 |
+
+`external_http` 的可靠性边界是分层的：Aetheris 负责外层 Job、事件、Trace、重试、超时和 `external_agent_call` 工具调用幂等；外部 Agent 内部的支付、写库、发信等副作用需要继续迁移成 Runtime Tool，才获得 Invocation Ledger / Effect Store 的 at-most-once 保证。
 
 ### AgentFactory 加载流程
 
@@ -255,6 +273,7 @@ type AgentDefConfig struct {
     MaxIterations int      `mapstructure:"max_iterations"`
     SystemPrompt  string   `mapstructure:"system_prompt"`
     Tools         []string `mapstructure:"tools"`
+    External      AgentExternalConfig `mapstructure:"external"`
     // ...
 }
 ```

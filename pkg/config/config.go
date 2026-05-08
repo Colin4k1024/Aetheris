@@ -17,9 +17,11 @@ package config
 import (
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -165,16 +167,24 @@ type AgentsConfig struct {
 
 // AgentDefConfig 单个 Agent 的配置
 type AgentDefConfig struct {
-	Type          string         `mapstructure:"type"`           // react, deer, manus, chain, graph, workflow
-	Description   string         `mapstructure:"description"`    // 描述
-	LLM           string         `mapstructure:"llm"`            // 使用的 LLM
-	MaxIterations int            `mapstructure:"max_iterations"` // 最大迭代次数
-	SystemPrompt  string         `mapstructure:"system_prompt"`  // 系统提示词
-	Tools         []string       `mapstructure:"tools"`          // 工具名列表（空 = 全部）
-	ChainType     string         `mapstructure:"chain_type"`     // chain 类型
-	GraphType     string         `mapstructure:"graph_type"`     // graph 类型
-	WorkflowType  string         `mapstructure:"workflow_type"`  // workflow 类型
-	Config        map[string]any `mapstructure:"config"`         // 其他配置
+	Type          string              `mapstructure:"type"`           // react, deer, manus, chain, graph, workflow
+	Description   string              `mapstructure:"description"`    // 描述
+	LLM           string              `mapstructure:"llm"`            // 使用的 LLM
+	MaxIterations int                 `mapstructure:"max_iterations"` // 最大迭代次数
+	SystemPrompt  string              `mapstructure:"system_prompt"`  // 系统提示词
+	Tools         []string            `mapstructure:"tools"`          // 工具名列表（空 = 全部）
+	External      AgentExternalConfig `mapstructure:"external"`       // external_http 黑盒 Agent 接入配置
+	ChainType     string              `mapstructure:"chain_type"`     // chain 类型
+	GraphType     string              `mapstructure:"graph_type"`     // graph 类型
+	WorkflowType  string              `mapstructure:"workflow_type"`  // workflow 类型
+	Config        map[string]any      `mapstructure:"config"`         // 其他配置
+}
+
+// AgentExternalConfig HTTP 黑盒 Agent 的接入配置。
+type AgentExternalConfig struct {
+	URL      string `mapstructure:"url"`
+	Timeout  string `mapstructure:"timeout"`
+	TokenEnv string `mapstructure:"token_env"`
 }
 
 // AgentLLMConfig 默认 LLM 配置（用于本地 Agent）
@@ -552,8 +562,48 @@ func LoadConfig(configPath string) (*Config, error) {
 	if err := replaceEnvVars(&config); err != nil {
 		return nil, err
 	}
+	if err := ValidateExternalAgents(&config.Agents); err != nil {
+		return nil, err
+	}
 
 	return &config, nil
+}
+
+// ValidateExternalAgents validates external_http agent definitions before startup.
+func ValidateExternalAgents(cfg *AgentsConfig) error {
+	if cfg == nil {
+		return nil
+	}
+	for name, agent := range cfg.Agents {
+		if agent.Type != "external_http" {
+			continue
+		}
+		if strings.TrimSpace(agent.External.URL) == "" {
+			return fmt.Errorf("agents.%s.external.url is required", name)
+		}
+		parsed, err := url.Parse(agent.External.URL)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+			return fmt.Errorf("agents.%s.external.url is invalid", name)
+		}
+		if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			return fmt.Errorf("agents.%s.external.url must use http or https scheme", name)
+		}
+		if agent.External.Timeout != "" {
+			d, err := time.ParseDuration(agent.External.Timeout)
+			if err != nil {
+				return fmt.Errorf("agents.%s.external.timeout is invalid: %w", name, err)
+			}
+			if d <= 0 {
+				return fmt.Errorf("agents.%s.external.timeout must be a positive duration", name)
+			}
+		}
+		if agent.External.TokenEnv != "" {
+			if _, ok := os.LookupEnv(agent.External.TokenEnv); !ok {
+				log.Printf("WARNING: agents.%s.external.token_env %q is not set; requests will fail at execution time", name, agent.External.TokenEnv)
+			}
+		}
+	}
+	return nil
 }
 
 func setRuntimeOpsDefaults(v *viper.Viper) {

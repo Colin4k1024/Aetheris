@@ -267,6 +267,9 @@ func loadLocalAgents(adapters map[string]agentexec.NodeAdapter, cfg *config.Agen
 			adapters["local_"+name] = adapter
 			logger.Info("加载本地 Agent: %s (type=manus, max_iterations=%d)", name, maxIterations)
 
+		case "external_http":
+			logger.Info("加载外部 HTTP Agent: %s (type=external_http)", name)
+
 		default:
 			logger.Warn("未知的 agent 类型: %s (type=%s)", name, agentCfg.Type)
 		}

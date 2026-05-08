@@ -22,6 +22,7 @@ import (
 	"github.com/Colin4k1024/Aetheris/v2/internal/agent/planner"
 	"github.com/Colin4k1024/Aetheris/v2/internal/agent/runtime"
 	"github.com/Colin4k1024/Aetheris/v2/internal/agent/tools"
+	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 )
 
 // planGoaler 仅需 PlanGoal，供 Agent 执行 DAG 使用；*planner.LLMPlanner 与 *planner.RulePlanner 均实现此接口
@@ -113,12 +114,56 @@ func (c *agentCreatorImpl) Create(ctx context.Context, name string) (*runtime.Ag
 	return c.manager.Create(ctx, name, sess, memProvider, plannerProvider, toolsProvider)
 }
 
+// RegisterConfiguredAgents registers config-defined agents under stable IDs matching configs/agents.yaml.
+func RegisterConfiguredAgents(ctx context.Context, manager *runtime.Manager, plannerAgent planGoaler, toolsReg *tools.Registry, cfg *config.AgentsConfig) error {
+	if manager == nil || cfg == nil {
+		return nil
+	}
+	for name := range cfg.Agents {
+		existing, _ := manager.Get(ctx, name)
+		if existing != nil {
+			continue
+		}
+		sess := runtime.NewSession("", name)
+		working := memory.NewWorkingSession(sess)
+		episodic := memory.NewEpisodic(1000)
+		composite := memory.NewCompositeMemory(working, episodic)
+		memProvider := &memoryProviderAdapter{m: composite}
+		plannerProvider := &plannerProviderAdapter{p: plannerAgent}
+		toolsProvider := &toolsProviderAdapter{r: toolsReg}
+		if _, err := manager.Register(ctx, name, name, sess, memProvider, plannerProvider, toolsProvider); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // PlanGoalForJobFunc 返回「Job 创建时规划」函数：根据 agentID 与 goal 生成 TaskGraph（1.0 Plan 事件化）
 func PlanGoalForJobFunc(manager *runtime.Manager, p planGoaler) func(context.Context, string, string) (*planner.TaskGraph, error) {
+	return PlanGoalForJobFuncWithExternalAgents(manager, p, nil)
+}
+
+// PlanGoalForJobFuncWithExternalAgents returns a static single-tool plan for external_http agents.
+func PlanGoalForJobFuncWithExternalAgents(manager *runtime.Manager, p planGoaler, cfg *config.AgentsConfig) func(context.Context, string, string) (*planner.TaskGraph, error) {
 	return func(ctx context.Context, agentID, goal string) (*planner.TaskGraph, error) {
 		agent, _ := manager.Get(ctx, agentID)
 		if agent == nil {
 			return nil, fmt.Errorf("agent not found: %s", agentID)
+		}
+		if cfg != nil {
+			if agentCfg, ok := cfg.Agents[agentID]; ok && agentCfg.Type == "external_http" {
+				return &planner.TaskGraph{
+					Nodes: []planner.TaskNode{{
+						ID:       "external_agent_call",
+						Type:     planner.NodeTool,
+						ToolName: ExternalAgentCallToolName,
+						Config: map[string]any{
+							"agent_id": agentID,
+							"message":  goal,
+						},
+					}},
+				}, nil
+			}
 		}
 		var mem memory.Memory = memory.NewCompositeMemory()
 		if agent.Session != nil {
