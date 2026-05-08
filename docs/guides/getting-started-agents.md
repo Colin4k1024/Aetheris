@@ -140,7 +140,7 @@ curl -X POST http://localhost:8080/api/agent/run \
 
 ## Prerequisites
 
-- Go 1.25.7+
+- Go 1.26.1+
 - Aetheris running (see [get-started.md](get-started.md) for setup)
 - Postgres (for production features; memory mode also works but no crash recovery)
 

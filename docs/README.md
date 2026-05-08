@@ -4,7 +4,7 @@ This directory is the entry point for architecture, usage, and API documentation
 
 ## Quick start
 
-Install **Go 1.25.7+**, clone the repo, then run:
+Install **Go 1.26.1+**, clone the repo, then run:
 
 ```bash
 go run ./cmd/api
@@ -23,7 +23,7 @@ Environment variables use `AETHERIS_*` prefix (e.g., `AETHERIS_API_URL`).
 
 ## Version and changes
 
-Recommended **Go 1.25.7+**, aligned with go.mod and CI.
+Recommended **Go 1.26.1+**, aligned with go.mod and CI.
 
 - [CHANGELOG.md](../CHANGELOG.md) — Version history and notable changes (v0.8 persistent runtime, event JobStore, Job/Scheduler/Checkpoint/Steppable, v1 Agent API, TaskGraph execution layer, RulePlanner, planner selection, etc.)
 - [STATUS.md](STATUS.md) — Single source of truth for current release status and post-2.0 evolution policy

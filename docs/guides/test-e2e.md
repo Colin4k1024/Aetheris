@@ -4,7 +4,7 @@ This document describes the full flow: upload → parse → split → index → 
 
 ## Prerequisites
 
-- **Go**: 1.25.7+ (aligned with go.mod and [usage.md](usage.md)).
+- **Go**: 1.26.1+ (aligned with go.mod and [usage.md](usage.md)).
 - **Config**: `configs/model.yaml` is set up; if using OpenAI, set `OPENAI_API_KEY`. Without it the API still starts but query/upload may use placeholders or fail.
 - **Storage**: Default is **memory**; data is lost on restart; for local validation only.
 
