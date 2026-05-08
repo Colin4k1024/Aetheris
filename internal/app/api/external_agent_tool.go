@@ -185,8 +185,16 @@ func (t *externalAgentCallTool) Execute(ctx context.Context, sess *session.Sessi
 		return nil, fmt.Errorf("external_agent_call: upstream returned HTTP %d", resp.StatusCode)
 	}
 
+	// Read at most maxExternalResponseBytes+1 to detect over-size responses.
+	limitedBody, err := io.ReadAll(io.LimitReader(resp.Body, maxExternalResponseBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("external_agent_call: read response: %w", err)
+	}
+	if int64(len(limitedBody)) > maxExternalResponseBytes {
+		return nil, fmt.Errorf("external_agent_call: response exceeds %d MiB limit", maxExternalResponseBytes/(1024*1024))
+	}
 	var out externalAgentResponse
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxExternalResponseBytes)).Decode(&out); err != nil {
+	if err := json.Unmarshal(limitedBody, &out); err != nil {
 		return nil, fmt.Errorf("external_agent_call: decode response: %w", err)
 	}
 	if !out.Final {
