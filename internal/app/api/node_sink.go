@@ -630,11 +630,17 @@ func extractAnswerFromCommittedEvents(events []jobstore.JobEvent) string {
 			continue
 		}
 		var payload struct {
-			Result struct {
+			CommandID string `json:"command_id"`
+			Result    struct {
 				Output string `json:"output"`
 			} `json:"result"`
 		}
 		if err := json.Unmarshal(events[i].Payload, &payload); err != nil || payload.Result.Output == "" {
+			continue
+		}
+		// Only extract answers from external_agent_call tool invocations to avoid
+		// misattributing unrelated tool outputs as the job answer.
+		if payload.CommandID != ExternalAgentCallToolName {
 			continue
 		}
 		var out struct {

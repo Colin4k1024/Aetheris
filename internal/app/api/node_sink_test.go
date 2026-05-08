@@ -40,3 +40,36 @@ func TestAppendJobCompleted_IncludesCommittedAnswer(t *testing.T) {
 		t.Errorf("expected result in job_completed payload, got %v", payload["result"])
 	}
 }
+
+// TestAppendJobCompleted_IgnoresNonExternalCommands verifies that command_committed events
+// from tools other than external_agent_call are not picked up as the job answer.
+func TestAppendJobCompleted_IgnoresNonExternalCommands(t *testing.T) {
+	store := jobstore.NewMemoryStore()
+	sink := &nodeEventSinkImpl{store: store}
+	result, _ := json.Marshal(map[string]any{
+		"done":   true,
+		"output": `{"answer":"should not appear","final":true}`,
+	})
+	// Use a different command_id (not external_agent_call)
+	if err := sink.AppendCommandCommitted(context.Background(), "job-2", "some_other_tool", "some_other_tool", result, ""); err != nil {
+		t.Fatalf("AppendCommandCommitted returned error: %v", err)
+	}
+	if err := sink.AppendJobCompleted(context.Background(), "job-2", "goal"); err != nil {
+		t.Fatalf("AppendJobCompleted returned error: %v", err)
+	}
+	events, _, err := store.ListEvents(context.Background(), "job-2")
+	if err != nil {
+		t.Fatalf("ListEvents returned error: %v", err)
+	}
+	last := events[len(events)-1]
+	if last.Type != jobstore.JobCompleted {
+		t.Fatalf("expected last event job_completed, got %s", last.Type)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(last.Payload, &payload); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	if _, ok := payload["answer"]; ok {
+		t.Errorf("expected no answer in job_completed payload for non-external command, got %v", payload["answer"])
+	}
+}

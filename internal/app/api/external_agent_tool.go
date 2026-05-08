@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -17,6 +18,9 @@ import (
 )
 
 const ExternalAgentCallToolName = "external_agent_call"
+
+// maxExternalResponseBytes caps the external agent response body to prevent memory exhaustion.
+const maxExternalResponseBytes = 10 * 1024 * 1024 // 10 MiB
 
 type externalAgentRequest struct {
 	Message   string         `json:"message"`
@@ -182,8 +186,11 @@ func (t *externalAgentCallTool) Execute(ctx context.Context, sess *session.Sessi
 	}
 
 	var out externalAgentResponse
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxExternalResponseBytes)).Decode(&out); err != nil {
 		return nil, fmt.Errorf("external_agent_call: decode response: %w", err)
+	}
+	if !out.Final {
+		return nil, fmt.Errorf("external_agent_call: upstream returned final=false; streaming is not supported")
 	}
 	if out.Metadata == nil {
 		out.Metadata = make(map[string]any)

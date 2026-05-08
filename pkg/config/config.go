@@ -585,14 +585,21 @@ func ValidateExternalAgents(cfg *AgentsConfig) error {
 		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 			return fmt.Errorf("agents.%s.external.url is invalid", name)
 		}
+		if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			return fmt.Errorf("agents.%s.external.url must use http or https scheme", name)
+		}
 		if agent.External.Timeout != "" {
-			if _, err := time.ParseDuration(agent.External.Timeout); err != nil {
+			d, err := time.ParseDuration(agent.External.Timeout)
+			if err != nil {
 				return fmt.Errorf("agents.%s.external.timeout is invalid: %w", name, err)
+			}
+			if d <= 0 {
+				return fmt.Errorf("agents.%s.external.timeout must be a positive duration", name)
 			}
 		}
 		if agent.External.TokenEnv != "" {
 			if _, ok := os.LookupEnv(agent.External.TokenEnv); !ok {
-				return fmt.Errorf("agents.%s.external.token_env %q is not set", name, agent.External.TokenEnv)
+				log.Printf("WARNING: agents.%s.external.token_env %q is not set; requests will fail at execution time", name, agent.External.TokenEnv)
 			}
 		}
 	}

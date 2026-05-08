@@ -649,10 +649,29 @@ func TestValidateExternalAgents_Errors(t *testing.T) {
 			}},
 		},
 		{
-			name: "missing token env",
+			name: "non-positive timeout",
 			agent: AgentDefConfig{Type: "external_http", External: AgentExternalConfig{
-				URL:      "http://customer-bot:9000/invoke",
-				TokenEnv: "MISSING_CUSTOMER_BOT_TOKEN",
+				URL:     "http://customer-bot:9000/invoke",
+				Timeout: "-1s",
+			}},
+		},
+		{
+			name: "zero timeout",
+			agent: AgentDefConfig{Type: "external_http", External: AgentExternalConfig{
+				URL:     "http://customer-bot:9000/invoke",
+				Timeout: "0s",
+			}},
+		},
+		{
+			name: "non-http scheme",
+			agent: AgentDefConfig{Type: "external_http", External: AgentExternalConfig{
+				URL: "ftp://customer-bot:9000/invoke",
+			}},
+		},
+		{
+			name: "file scheme",
+			agent: AgentDefConfig{Type: "external_http", External: AgentExternalConfig{
+				URL: "file:///etc/passwd",
 			}},
 		},
 	}
@@ -663,6 +682,19 @@ func TestValidateExternalAgents_Errors(t *testing.T) {
 				t.Fatalf("expected validation error")
 			}
 		})
+	}
+}
+
+func TestValidateExternalAgents_MissingTokenEnv_Warning(t *testing.T) {
+	// A missing token_env should no longer be a hard error at startup;
+	// it logs a warning and the actual failure happens at execution time.
+	agent := AgentDefConfig{Type: "external_http", External: AgentExternalConfig{
+		URL:      "http://customer-bot:9000/invoke",
+		TokenEnv: "MISSING_CUSTOMER_BOT_TOKEN",
+	}}
+	cfg := AgentsConfig{Agents: map[string]AgentDefConfig{"agent": agent}}
+	if err := ValidateExternalAgents(&cfg); err != nil {
+		t.Fatalf("expected no error for missing token_env, got: %v", err)
 	}
 }
 
