@@ -4,7 +4,7 @@ This document summarizes the deployment options and prerequisites for Aetheris v
 
 ## Prerequisites
 
-- **Go**: 1.25.7+ (aligned with [go.mod](../go.mod) and CI).
+- **Go**: 1.26.1+ (aligned with [go.mod](../go.mod) and CI).
 - **Postgres** (for jobstore): If using `jobstore.type=postgres`, prepare the database and apply the schema. Schema: [internal/runtime/jobstore/schema.sql](../internal/runtime/jobstore/schema.sql); Compose can mount it for init.
 - **Docker** (for containerized deployment): Docker 20.10+
 

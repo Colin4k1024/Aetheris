@@ -1,4 +1,6 @@
-# Aetheris Current Status & Focus (2026-02)
+# Aetheris Historical Status & Focus (2026-02 Snapshot)
+
+> Historical snapshot only. For current release decisions, use [../STATUS.md](../STATUS.md) as the authoritative source.
 
 ## 战略定位
 
@@ -9,7 +11,7 @@
 
 ---
 
-## 当前实际状态（诚实评估）
+## 2026-02 实际状态快照（历史记录）
 
 ### ✅ 已稳定实现（Production Ready）
 

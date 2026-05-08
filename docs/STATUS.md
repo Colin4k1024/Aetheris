@@ -1,8 +1,8 @@
 # Aetheris Status (Single Source of Truth)
 
-> Last updated: 2026-03-05
+> Last updated: 2026-05-08
 > Scope: repository status, release lane, and post-2.0 evolution policy.
-> Current Version: **v2.3.0+**
+> Current Version: **v2.5.3**
 
 ## 1. Purpose
 
@@ -97,4 +97,3 @@ To avoid roadmap confusion:
 1. Harden 2.x gates in CI/release pipeline (make P0 gates non-optional for release jobs).
 2. Close multi-tenant operational gaps (isolation tests, authz drills, runbook evidence).
 3. Productize exactly one 3.0 slice first (recommended: signature flow end-to-end).
-

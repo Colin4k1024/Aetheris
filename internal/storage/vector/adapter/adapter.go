@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package adapter provides vector store adapters for Milvus and Pinecone
+// Package adapter contains prototype placeholders for Milvus and Pinecone vector stores.
+//
+// These types intentionally satisfy the vector.Store shape for design exploration, but they
+// are not wired into internal/storage/vector.NewStore and return explicit "not implemented"
+// errors until real client dependencies and integration tests are added.
 package adapter
 
 import (

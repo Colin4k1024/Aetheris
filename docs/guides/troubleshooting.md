@@ -331,7 +331,7 @@ curl http://localhost:8080/api/system/workers
 
 - 使用更快的 embedding 模型
 - 调整批量大小
-- 使用专用向量数据库 (Milvus, Pinecone 等)
+- 使用专用向量数据库（需要通过 eino-ext 或自定义 `vector.Store` 接入；当前内置 core store 只支持 `memory`）
 
 ---
 
@@ -345,7 +345,8 @@ curl http://localhost:8080/api/system/workers
 
 **解决方案**:
 
-配置持久化存储:
+配置持久化元数据存储，并为向量数据选择已接入的持久化后端。当前内置 core vector store 只支持 `memory`，
+Milvus/Pinecone 仍是 prototype 占位实现，不能直接作为生产持久化配置使用。
 
 ```yaml
 # configs/api.yaml
@@ -354,7 +355,7 @@ storage:
     type: "postgres"
     dsn: "postgres://user:pass@host:5432/db"
   vector:
-    type: "milvus"
+    type: "memory"
     collection: "aetheris_docs"
 ```
 

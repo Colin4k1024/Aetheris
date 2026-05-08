@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Go 1.25.7+
+- Go 1.26.1+
 - PostgreSQL 15+
 - Docker & Docker Compose (optional)
 - Prometheus & Grafana (monitoring)
