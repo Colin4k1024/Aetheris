@@ -78,11 +78,13 @@ In terminal 3, check that the API is up:
 curl http://localhost:8080/api/health
 ```
 
-Expected shape:
+Expected shape (includes at least these fields):
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "timestamp": 1710000000,
+  "service": "api-service"
 }
 ```
 
