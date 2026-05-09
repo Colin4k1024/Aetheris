@@ -210,7 +210,10 @@ func serverHertz() *server.Hertz {
 
 func postAgentMessage(t *testing.T, h *server.Hertz, agentID, message, idempotencyKey string) string {
 	t.Helper()
-	body, _ := json.Marshal(map[string]string{"message": message})
+	body, err := json.Marshal(map[string]string{"message": message})
+	if err != nil {
+		t.Fatalf("marshal agent message request: %v", err)
+	}
 	w := ut.PerformRequest(
 		h.Engine,
 		"POST",
