@@ -1,136 +1,49 @@
 # Examples
 
-This page briefly describes each example under [examples/](../examples/) and how to run it.
+This page helps you choose the right example after the main quickstart.
 
-## basic_agent
+If this is your first time running Aetheris, start with [quickstart.md](quickstart.md), not the examples directory. The examples are for learning specific patterns after you have already submitted one job and inspected its trace.
 
-Uses **eino-ext** OpenAI ChatModel and **ChatModelAgent** to run one in-process conversation. Demonstrates eino ADK agent usage.
+## Recommended After Quickstart
 
-**Run**: Set `OPENAI_API_KEY`.
+| Example | Use it for | Run shape |
+| ------- | ---------- | --------- |
+| [workflow](../../examples/workflow/) | Pure Eino DAG workflow without an agent | `go run ./examples/workflow` |
+| [basic_agent](../../examples/basic_agent/) | Minimal Eino ChatModelAgent | Requires `OPENAI_API_KEY` |
+| [eino_agent_with_tools](../../examples/eino_agent_with_tools/) | Eino agent calling tools | Requires `OPENAI_API_KEY` |
+| [human_approval_agent](../../examples/human_approval_agent/) | Human-in-the-loop approval flow | Requires model configuration |
 
-```bash
-OPENAI_API_KEY=sk-xxx go run ./examples/basic_agent
-```
+## Compatibility / Legacy
 
-Does not require a running API server.
+These remain useful for understanding older or lower-level APIs, but they are not the preferred onboarding path.
 
----
+| Example | Notes |
+| ------- | ----- |
+| [simple_chat_agent](../../examples/simple_chat_agent/) | Uses the older in-process Aetheris agent API. |
+| [sdk_agent](../../examples/sdk_agent/) | Demonstrates SDK-style usage rather than the runtime-first HTTP path. |
 
-## simple_chat_agent
+## Advanced / Experimental Patterns
 
-Minimal Aetheris agent example: no HTTP, calls `pkg/agent` `Agent.Run` for one turn. Shows checkpointed execution in the Aetheris runtime.
+Use these when you are exploring patterns, not when trying to validate the core runtime.
 
-**Run**:
+| Example | Pattern |
+| ------- | ------- |
+| [streaming](../../examples/streaming/) | Streaming response handling |
+| [tool](../../examples/tool/) | Standalone tool-calling agent |
+| [skill_agent](../../examples/skill_agent/) | Skill discovery and execution |
+| [supervisor_agent](../../examples/supervisor_agent/) | Supervisor and sub-agent coordination |
+| [plan_execute_agent](../../examples/plan_execute_agent/) | Plan-then-execute agent loop |
+| [multi_agent_collaboration](../../examples/multi_agent_collaboration/) | Multi-agent collaboration |
+| [mcp-gateway](../../examples/mcp-gateway/) | MCP gateway integration |
+| [ai-customer-bot](../../examples/ai-customer-bot/) | Larger customer-service scenario |
+| [ollama](../../examples/ollama/) | Local model setup experiments |
 
-```bash
-OPENAI_API_KEY=sk-xxx go run ./examples/simple_chat_agent
-```
+## API-Based Flow
 
-Does not require a running API server.
+Most examples are standalone Go programs. They do not require `go run ./cmd/api`, and they do not create Aetheris jobs over HTTP.
 
----
+For the runtime path that creates jobs and traces, use:
 
-## streaming
-
-Uses eino ChatModel + ChatModelAgent with **streaming** output. Demonstrates streaming response handling.
-
-**Run**: Set `OPENAI_API_KEY`.
-
-```bash
-OPENAI_API_KEY=sk-xxx go run ./examples/streaming
-```
-
-Does not require a running API server.
-
----
-
-## tool
-
-Registers **tools** in eino; the agent calls them during the conversation. Shows how to define tools and have the agent use them.
-
-**Run**: Set `OPENAI_API_KEY`.
-
-```bash
-OPENAI_API_KEY=sk-xxx go run ./examples/tool
-```
-
-Does not require a running API server.
-
----
-
-## workflow
-
-Uses **eino compose** to build a DAG (Graph), define input/output types and nodes, and run it. Demonstrates a pure DAG workflow (no agent).
-
-**Run**:
-
-```bash
-go run ./examples/workflow
-```
-
-Does not require the API or external model services.
-
----
-
-## Using with the API
-
-These examples are **standalone processes** using eino / pkg/agent and do not need `go run ./cmd/api`. To create agents, send messages, and query jobs over HTTP, use the flows in [usage.md](usage.md) or the CLI ([cli.md](cli.md)) and start the API first (default http://localhost:8080).
-
----
-
-## skill_agent
-
-Demonstrates **eino Skill capability** - a folder containing instructions, scripts, and resources that Agents can discover and use on-demand.
-
-Features:
-- Skill directory structure with SKILL.md
-- Progressive loading mechanism (Discovery → Activation → Execution)
-- Three context modes: inline, fork, isolate
-- YAML frontmatter parsing for skill metadata
-
-**Run**:
-
-```bash
-go run ./examples/skill_agent
-```
-
-See [examples/skill_agent/README.md](../../examples/skill_agent/README.md) for details.
-
----
-
-## supervisor_agent
-
-Demonstrates the **Supervisor Agent** pattern - a multi-agent architecture where a supervisory agent coordinates specialized sub-agents.
-
-Architecture:
-- Supervisor analyzes requests and delegates to appropriate sub-agents
-- Sub-agents: Researcher, Writer, Coder (extensible)
-- Task delegation workflow
-
-**Run**:
-
-```bash
-go run ./examples/supervisor_agent
-```
-
-See [examples/supervisor_agent/README.md](../../examples/supervisor_agent/README.md) for details.
-
----
-
-## plan_execute_agent
-
-Demonstrates the **Plan-Execute Agent** pattern - a two-phase agent that plans before executing.
-
-Features:
-- Plan Phase: Analyze task and create execution plan
-- Execute Phase: Execute steps according to plan
-- Dynamic plan adjustment during execution
-- Step-by-step progress tracking
-
-**Run**:
-
-```bash
-go run ./examples/plan_execute_agent
-```
-
-See [examples/plan_execute_agent/README.md](../../examples/plan_execute_agent/README.md) for details.
+- [quickstart.md](quickstart.md)
+- [../adapters/external-http-agent.md](../adapters/external-http-agent.md)
+- [../reference/api.md](../reference/api.md)

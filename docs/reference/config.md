@@ -3,8 +3,31 @@
 This document describes the config files under `configs/` for deployment and troubleshooting:
 
 - [configs/api.yaml](../configs/api.yaml) — API service
+- [configs/api.embedded.yaml](../configs/api.embedded.yaml) — local embedded API service
 - [configs/model.yaml](../configs/model.yaml) — Models (LLM / Embedding / Vision)
 - [configs/worker.yaml](../configs/worker.yaml) — Worker service
+- [configs/worker.embedded.yaml](../configs/worker.embedded.yaml) — local embedded Worker service
+
+## First-run config path
+
+For local onboarding, prefer [guides/quickstart.md](../guides/quickstart.md). It creates a temporary embedded config and registers an `external_http` agent there.
+
+Agent definitions must be present in the active runtime config loaded by the process. The standalone [configs/agents.yaml](../configs/agents.yaml) file is a reference for available fields, not the current quickstart entrypoint.
+
+Minimal shape:
+
+```yaml
+agents:
+  agents:
+    customer_support_bot:
+      type: "external_http"
+      description: "Existing customer support agent"
+      external:
+        url: "http://localhost:9000/invoke"
+        timeout: "120s"
+```
+
+For API-only embedded mode, add the block to the API config. For split API/Worker deployments, keep the same agent definition available to the process that executes jobs.
 
 ## api.yaml
 

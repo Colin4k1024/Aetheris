@@ -1,5 +1,7 @@
 # Getting Started: Eino-first + Aetheris Runtime
 
+> **入口提示**：这是 Eino、自定义工具和高级 Agent authoring 指南，不是新手第一入口。已有 Python、JavaScript、Go 或其他 HTTP Agent 要先接入 Aetheris，请优先读 [../adapters/external-http-agent.md](../adapters/external-http-agent.md)；第一次本地跑通请先读 [quickstart.md](quickstart.md)。
+
 This guide walks you through the official path: build your agent with **Eino**, then run it on **Aetheris runtime** for durability, replay, and auditability.
 
 > **推荐路径**：使用 `configs/agents.yaml` + `AgentFactory` 配置驱动创建 Agent（见下方「快速开始：配置驱动 Agent」）。手动 Planner + Executor 路径仍可使用，适用于需要完全自定义 TaskGraph 的高级场景。
