@@ -46,6 +46,18 @@ agent:
     enabled: true
     checkpoint_store: "memory"
 
+# Agent definitions live in the active runtime config.
+# For a quick external HTTP agent test, copy this file and uncomment:
+#
+# agents:
+#   agents:
+#     quickstart_http:
+#       type: "external_http"
+#       description: "Local quickstart HTTP agent"
+#       external:
+#         url: "http://127.0.0.1:9000/invoke"
+#         timeout: "30s"
+
 storage:
   metadata:
     type: "memory"

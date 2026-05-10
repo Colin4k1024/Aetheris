@@ -1,162 +1,194 @@
-# Quickstart — 5 分钟入门 Aetheris
+# Quickstart
 
-> 本指南帮助你快速启动 Aetheris Runtime 并运行第一个 Agent。  
-> 内嵌模式（Embedded）无需 Docker 或外部数据库，适合本地快速体验。
+This guide gets Aetheris running locally and submits one agent job through the simplest supported path: a tiny HTTP agent wrapped by Aetheris.
 
-## 前置条件
+Embedded mode uses local stores and does not require Docker, PostgreSQL, or Redis.
 
-- **Go 1.21+**（推荐 Go 1.26）
-- **Git**
-- 可选：OpenAI / Ollama / 任何兼容 OpenAI API 的模型服务（用于 LLM 调用）
+## Requirements
 
----
+- Go 1.26.1+
+- Git
+- Python 3 for the tiny mock HTTP agent below
 
-## 步骤 1: 克隆并构建
+## 1. Start A Tiny HTTP Agent
+
+In terminal 1, run a local mock agent:
+
+```bash
+python3 -c '
+import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class Handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        length = int(self.headers.get("content-length", "0"))
+        payload = json.loads(self.rfile.read(length) or b"{}")
+        body = {
+            "answer": "Aetheris received: " + payload.get("message", ""),
+            "final": True,
+            "metadata": {"mock": True},
+        }
+        encoded = json.dumps(body).encode()
+        self.send_response(200)
+        self.send_header("content-type", "application/json")
+        self.send_header("content-length", str(len(encoded)))
+        self.end_headers()
+        self.wfile.write(encoded)
+
+HTTPServer(("127.0.0.1", 9000), Handler).serve_forever()
+'
+```
+
+## 2. Create A Quickstart Runtime Config
+
+In terminal 2, clone the repo and create a temporary embedded config that registers the mock agent:
 
 ```bash
 git clone https://github.com/Colin4k1024/Aetheris.git
 cd Aetheris
+
 go mod download
-make build
+cp configs/api.embedded.yaml /tmp/aetheris-api.quickstart.yaml
+cat >> /tmp/aetheris-api.quickstart.yaml <<'YAML'
+
+agents:
+  agents:
+    quickstart_http:
+      type: "external_http"
+      description: "Quickstart mock HTTP agent"
+      external:
+        url: "http://127.0.0.1:9000/invoke"
+        timeout: "30s"
+YAML
 ```
 
-构建产物在 `bin/`：`api`、`worker`、`aetheris`（CLI）。
+## 3. Start Aetheris
 
----
-
-## 步骤 2: 以内嵌模式启动 API（无需 Docker）
-
-内嵌模式使用本地 SQLite 作为 Job Store，无需外部依赖：
+For the smallest local loop, start only the API. In embedded mode, the API process can execute jobs locally.
 
 ```bash
-# 终端 1：启动 API
-CONFIG_PATH=configs/api.embedded.yaml go run ./cmd/api
+API_CONFIG_PATH=/tmp/aetheris-api.quickstart.yaml \
+MODEL_CONFIG_PATH=configs/model.yaml \
+go run ./cmd/api
 ```
 
+In terminal 3, check that the API is up:
+
 ```bash
-# 终端 2：健康检查
 curl http://localhost:8080/api/health
 ```
 
-预期输出：
+Expected shape (includes at least these fields):
+
 ```json
-{"status":"ok","version":"2.3.0"}
+{
+  "status": "ok",
+  "timestamp": 1710000000,
+  "service": "api-service"
+}
 ```
 
-若想同时启动 Worker（Agent 任务执行器）：
+## 4. Submit A Job
+
+Submit a message to the `quickstart_http` agent:
 
 ```bash
-# 终端 3：启动 Worker
-CONFIG_PATH=configs/worker.embedded.yaml go run ./cmd/worker
-```
-
----
-
-## 步骤 3: 运行内置示例
-
-### 最简单的 Agent（chat 示例）
-
-```bash
-cd examples/basic_agent
-OPENAI_API_KEY=your-key-here \
-OPENAI_BASE_URL=https://api.openai.com/v1 \
-go run main.go
-```
-
-> 使用 Ollama 本地模型：
-> ```bash
-> OPENAI_API_KEY=ollama \
-> OPENAI_BASE_URL=http://localhost:11434/v1 \
-> go run main.go
-> ```
-
-### 带工具调用的 Agent
-
-```bash
-cd examples/eino_agent_with_tools
-OPENAI_API_KEY=your-key-here go run main.go
-```
-
-### Human-in-the-Loop（人工审批）
-
-```bash
-cd examples/human_approval_agent
-OPENAI_API_KEY=your-key-here go run main.go
-```
-
----
-
-## 步骤 4: 通过 HTTP API 创建并运行 Agent Job
-
-```bash
-# 创建一个 Agent Job
-curl -X POST http://localhost:8080/api/v1/agents \
+curl -X POST http://localhost:8080/api/agents/quickstart_http/message \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "code-reviewer",
-    "system_prompt": "你是一个专业的代码审查助手，检查代码的潜在问题和最佳实践。"
-  }'
+  -H "Idempotency-Key: quickstart-1" \
+  -d '{"message":"Say hello from Aetheris"}'
+```
 
-# 提交任务
-curl -X POST http://localhost:8080/api/v1/agents/code-reviewer/run \
+The response includes a `job_id`:
+
+```json
+{
+  "status": "accepted",
+  "agent_id": "quickstart_http",
+  "job_id": "..."
+}
+```
+
+## 5. Inspect The Job
+
+Replace `<job_id>` with the value returned above.
+
+```bash
+curl http://localhost:8080/api/jobs/<job_id>
+curl http://localhost:8080/api/jobs/<job_id>/events
+curl http://localhost:8080/api/jobs/<job_id>/trace
+```
+
+Open the trace page in a browser:
+
+```text
+http://localhost:8080/api/jobs/<job_id>/trace/page
+```
+
+## 6. Connect Your Real HTTP Agent
+
+If you already have an agent in Python, JavaScript, Go, or another runtime, expose one HTTP endpoint and register it as `external_http`.
+
+Add this under the top-level `agents` field in the active runtime config:
+
+```yaml
+agents:
+  agents:
+    customer_support_bot:
+      type: "external_http"
+      description: "Existing customer support agent"
+      external:
+        url: "http://localhost:9000/invoke"
+        timeout: "120s"
+        token_env: "CUSTOMER_BOT_TOKEN"
+```
+
+Your service should accept:
+
+```json
+{
+  "message": "user request",
+  "session_id": "session id",
+  "metadata": {
+    "agent_id": "customer_support_bot",
+    "job_id": "job id",
+    "idempotency_key": "stable key"
+  }
+}
+```
+
+And return:
+
+```json
+{
+  "answer": "final response",
+  "final": true,
+  "metadata": {}
+}
+```
+
+Restart Aetheris after changing config.
+
+Submit to the external agent:
+
+```bash
+curl -X POST http://localhost:8080/api/agents/customer_support_bot/message \
   -H "Content-Type: application/json" \
-  -d '{
-    "user_message": "请审查这段代码：\n\ndef fib(n):\n    return fib(n-1) + fib(n-2)"
-  }'
+  -H "Idempotency-Key: customer-support-demo-1" \
+  -d '{"message":"Check order status for order-123"}'
 ```
 
----
+More detail: [../adapters/external-http-agent.md](../adapters/external-http-agent.md)
 
-## 步骤 5: 体验崩溃恢复（可选）
+## 7. Stop The Runtime
 
-这是 Aetheris 的核心能力——任务在 Worker 崩溃后自动恢复：
+Press `Ctrl-C` in the Aetheris terminal and the mock-agent terminal.
 
-```bash
-# 1. 提交一个长时间运行的任务（先在步骤 3 的 Agent 上提交）
-./bin/aetheris jobs list      # 获取 job_id
+## Next Steps
 
-# 2. 强制杀死 Worker（模拟崩溃）
-kill $(pgrep -f "cmd/worker")
-
-# 3. 重新启动 Worker
-CONFIG_PATH=configs/worker.embedded.yaml go run ./cmd/worker
-
-# 4. 观察任务自动恢复
-./bin/aetheris trace <job_id>
-```
-
----
-
-## 步骤 6: 查看执行事件流
-
-```bash
-# 列出所有 Job
-./bin/aetheris jobs list
-
-# 查看某个 Job 的完整事件溯源历史
-./bin/aetheris trace <job_id>
-```
-
----
-
-## 使用完整 PostgreSQL 模式
-
-若需要完整的持久化和多 Worker 能力：
-
-```bash
-# 需要设置 API_MIDDLEWARE_JWT_KEY（任意字符串）
-cp deployments/compose/.env.example deployments/compose/.env
-# 编辑 .env，至少填写 API_MIDDLEWARE_JWT_KEY
-
-docker compose -f deployments/compose/docker-compose.yml up -d
-curl http://localhost:8080/api/health
-```
-
----
-
-## 下一步
-
-- [MCP Gateway 集成](../mcp/integration.md) — 用 MCP 工具扩展 Agent 能力
-- [事件溯源设计](../../design/core.md) — 深入理解 Aetheris 核心原理
-- [Human-in-the-Loop 示例](../../examples/human_approval_agent/) — 构建需要人工审批的 Agent
-- [多 Agent 协作示例](../../examples/multi_agent_collaboration/) — Supervisor + Worker 模式
+| Goal | Read |
+| ---- | ---- |
+| Existing HTTP agent intake | [../adapters/external-http-agent.md](../adapters/external-http-agent.md) |
+| Eino examples | [../adapters/eino-examples.md](../adapters/eino-examples.md) |
+| Runtime guarantees | [runtime-guarantees.md](runtime-guarantees.md) |
+| Docker Compose deployment | [deployment.md](deployment.md) |

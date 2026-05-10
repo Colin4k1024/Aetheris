@@ -1,5 +1,7 @@
 # Get Started — 核心功能完整测试指南
 
+> **入口提示**：这是一份完整功能测试指南，不是新手 quickstart。第一次使用请先读 [quickstart.md](quickstart.md)，按 `external_http -> job/events/trace` 的最短路径跑通一个 Agent Job；本文适合后续验证 RAG、完整运行时、崩溃恢复、多 Worker、Trace、取消等能力。
+
 > **版本提示**：本文档适用于 **v2.3.0+**，包含性能优化、规模化特性与本地开发模式。
 
 本文档帮助你在本地快速跑通 Aetheris 的主要能力，并按需完成「完整运行时」测试（崩溃恢复、多 Worker、Trace、取消等）。

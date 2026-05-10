@@ -2,6 +2,8 @@
 
 [English](#overview) | [中文](#概述)
 
+> **入口提示 / Start here**：这份双语文档保留了较多历史说明和旧示例，不再作为新手主入口。第一次使用请先读根目录 [README.md](../README.md) 和 [guides/quickstart.md](./guides/quickstart.md)。已有 HTTP Agent 接入请读 [adapters/external-http-agent.md](./adapters/external-http-agent.md)。本文中的旧 API 示例仅作历史背景，后续会逐步收敛。
+
 ---
 
 # Overview
@@ -156,16 +158,12 @@ go run ./cmd/api
 
 ### Run Your First Agent / 运行第一个 Agent
 
-```bash
-# Using CLI
-./bin/aetheris chat --system "你是一个代码审查助手" \
-  --message "请审查以下 Python 代码:\n\ndef add(a, b):\n    return a + b"
+For the current first-run path, use the HTTP-agent quickstart:
 
-# Using HTTP API
-curl -X POST http://localhost:8080/api/v1/agents/code-reviewer/run \
-  -H "Content-Type: application/json" \
-  -d '{"user_message": "请审查这段 Python 代码..."}'
-```
+- [guides/quickstart.md](./guides/quickstart.md)
+- [adapters/external-http-agent.md](./adapters/external-http-agent.md)
+
+The older CLI and API examples in historical docs are compatibility material, not the recommended onboarding path.
 
 ### Monitor Execution / 监控执行
 
@@ -186,15 +184,13 @@ curl -X POST http://localhost:8080/api/v1/agents/code-reviewer/run \
 
 ### Create and Run Agent / 创建并运行 Agent
 
+Use the current agent facade for configured agents:
+
 ```bash
-# Create agent
-curl -X POST http://localhost:8080/api/v1/agents \
+curl -X POST http://localhost:8080/api/agents/<agent_id>/message \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "code-reviewer",
-    "model": "qwen-plus",
-    "system_prompt": "你是一个专业的代码审查助手"
-  }'
+  -H "Idempotency-Key: demo-message-1" \
+  -d '{"message":"请处理这个任务"}'
 ```
 
 ### Signal (Human Approval) / 信号通知（人工审批）
@@ -499,16 +495,12 @@ go run ./cmd/api
 
 ### 运行第一个 Agent
 
-```bash
-# 使用 CLI
-./bin/aetheris chat --system "你是一个代码审查助手" \
-  --message "请审查以下 Python 代码:\n\ndef add(a, b):\n    return a + b"
+当前推荐的第一条路径是 HTTP Agent quickstart：
 
-# 使用 HTTP API
-curl -X POST http://localhost:8080/api/v1/agents/code-reviewer/run \
-  -H "Content-Type: application/json" \
-  -d '{"user_message": "请审查这段 Python 代码..."}'
-```
+- [guides/quickstart.md](./guides/quickstart.md)
+- [adapters/external-http-agent.md](./adapters/external-http-agent.md)
+
+旧 CLI 与旧 API 示例仅保留在历史/兼容文档中，不作为新手入口。
 
 ### 监控执行
 
@@ -529,14 +521,13 @@ curl -X POST http://localhost:8080/api/v1/agents/code-reviewer/run \
 
 ### 创建并运行 Agent
 
+对已配置的 Agent，使用当前兼容 facade 提交消息并创建 Job：
+
 ```bash
-curl -X POST http://localhost:8080/api/v1/agents \
+curl -X POST http://localhost:8080/api/agents/<agent_id>/message \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "code-reviewer",
-    "model": "qwen-plus",
-    "system_prompt": "你是一个专业的代码审查助手"
-  }'
+  -H "Idempotency-Key: demo-message-1" \
+  -d '{"message":"请处理这个任务"}'
 ```
 
 ### 信号通知（人工审批）

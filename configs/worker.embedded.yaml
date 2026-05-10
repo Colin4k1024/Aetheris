@@ -25,6 +25,12 @@ checkpoint_store:
   type: "embedded"
   dsn: "./data/embedded"
 
+# In split API/Worker mode, keep the same external_http agent definitions
+# available to both API and Worker processes: the API needs them to accept
+# /api/agents/:id/message and the Worker needs them to execute jobs. For
+# API-only embedded quickstarts, putting the block in api.embedded.yaml is
+# enough because the API runs the local scheduler.
+
 storage:
   metadata:
     type: "memory"

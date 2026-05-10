@@ -4,15 +4,18 @@
 
 ## Configure
 
+Add the agent under the top-level `agents` field in the active runtime config. For embedded API-only development, that is usually `configs/api.embedded.yaml`; for split API/Worker deployments, load the same agent definition into both the API and Worker configs (or mount a shared config into both) so the API can accept `POST /api/agents/:id/message` and the Worker can execute the job.
+
 ```yaml
 agents:
-  customer_support_bot:
-    type: external_http
-    description: Existing customer support agent
-    external:
-      url: "http://customer-bot:9000/invoke"
-      timeout: "120s"
-      token_env: "CUSTOMER_BOT_TOKEN"
+  agents:
+    customer_support_bot:
+      type: external_http
+      description: Existing customer support agent
+      external:
+        url: "http://customer-bot:9000/invoke"
+        timeout: "120s"
+        token_env: "CUSTOMER_BOT_TOKEN"
 ```
 
 If `token_env` is set, the environment variable must exist at startup. Aetheris forwards it as `Authorization: Bearer <token>`.
