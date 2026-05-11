@@ -1,0 +1,48 @@
+name: Homepage Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/homepage-pages.yml
+      - internal/api/http/homepage.go
+      - internal/api/http/static/homepage/**
+  workflow_dispatch:
+
+concurrency:
+  group: homepage-pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    name: Build homepage artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload homepage artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: internal/api/http/static/homepage
+
+  deploy:
+    name: Deploy homepage
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
