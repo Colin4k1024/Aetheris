@@ -24,10 +24,10 @@ Usage::
 
 from __future__ import annotations
 
+import http.server
 import json
 import threading
-import http.server
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 __all__ = ["AetherisLangChainAdapter", "serve"]
 
@@ -97,29 +97,18 @@ class AetherisLangChainAdapter:
         """
         message = envelope.get("message", "")
         metadata = envelope.get("metadata", {})
+        result = self._runnable.invoke({self._input_key: message})
 
-        try:
-            result = self._runnable.invoke({self._input_key: message})
+        if isinstance(result, dict):
+            answer = result.get(self._output_key, str(result))
+        else:
+            answer = str(result)
 
-            if isinstance(result, dict):
-                answer = result.get(self._output_key, str(result))
-            else:
-                answer = str(result)
-
-            return {
-                "answer": answer,
-                "final": True,
-                "metadata": {"job_id": metadata.get("job_id", "")},
-            }
-
-        except Exception as exc:
-            # Return a structured error so Aetheris can mark the job failed
-            return {
-                "answer": f"Error: {exc}",
-                "final": True,
-                "error": str(exc),
-                "metadata": {"job_id": metadata.get("job_id", "")},
-            }
+        return {
+            "answer": answer,
+            "final": True,
+            "metadata": {"job_id": metadata.get("job_id", "")},
+        }
 
     def __call__(self, envelope: Dict[str, Any]) -> Dict[str, Any]:
         return self.invoke(envelope)
@@ -141,10 +130,19 @@ class _AdapterHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(400, "Invalid JSON")
             return
 
-        result = self.adapter.invoke(envelope)
+        try:
+            result = self.adapter.invoke(envelope)
+            status = 200
+        except Exception as exc:
+            result = {
+                "error": str(exc),
+                "final": False,
+                "metadata": {},
+            }
+            status = 502
 
         body = json.dumps(result).encode()
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -178,11 +176,12 @@ def serve(
 
         # configs/api.embedded.yaml
         agents:
-          my_langchain_agent:
-            type: "external_http"
-            external:
-              url: "http://localhost:9000"
-              timeout: "120s"
+          agents:
+            my_langchain_agent:
+              type: "external_http"
+              external:
+                url: "http://localhost:9000"
+                timeout: "120s"
 
     Then submit jobs via the Aetheris API or Python SDK::
 
@@ -232,11 +231,12 @@ def serve(
         print(f"[aetheris] LangChain agent listening on http://localhost:{port}")
         print(f"[aetheris] Add to runtime config:")
         print(f"[aetheris]   agents:")
-        print(f"[aetheris]     my_agent:")
-        print(f"[aetheris]       type: external_http")
-        print(f"[aetheris]       external:")
-        print(f"[aetheris]         url: http://localhost:{port}")
-        print(f"[aetheris]         timeout: 120s")
+        print(f"[aetheris]     agents:")
+        print(f"[aetheris]       my_agent:")
+        print(f"[aetheris]         type: external_http")
+        print(f"[aetheris]         external:")
+        print(f"[aetheris]           url: http://localhost:{port}")
+        print(f"[aetheris]           timeout: 120s")
         print()
         try:
             server.serve_forever()

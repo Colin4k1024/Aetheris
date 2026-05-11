@@ -64,11 +64,12 @@ Then add it to your Aetheris config:
 ```yaml
 # configs/api.embedded.yaml
 agents:
-  my_langchain_agent:
-    type: "external_http"
-    external:
-      url: "http://localhost:9000"
-      timeout: "120s"
+  agents:
+    my_langchain_agent:
+      type: "external_http"
+      external:
+        url: "http://localhost:9000"
+        timeout: "120s"
 ```
 
 Submit and monitor from Python:
@@ -169,10 +170,8 @@ pip install aetheris[langchain]   # include langchain for integrations
 - [Aetheris GitHub](https://github.com/Colin4k1024/Aetheris)
 - [Quickstart guide](https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/quickstart.md)
 - [LangChain integration](https://github.com/Colin4k1024/Aetheris/blob/main/docs/adapters/langchain.md)
-- [Crash recovery demo](https://github.com/Colin4k1024/Aetheris/blob/main/examples/crash_recovery/)
+- [External HTTP batch demo](https://github.com/Colin4k1024/Aetheris/blob/main/examples/crash_recovery/)
 - [API reference](https://github.com/Colin4k1024/Aetheris/blob/main/docs/reference/api.md)
-    return str(result.output)
-```
 
 ## Development
 

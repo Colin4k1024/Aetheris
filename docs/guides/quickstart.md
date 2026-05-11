@@ -208,9 +208,9 @@ serve(executor, port=9000)
 
 Full guide: [../adapters/langchain.md](../adapters/langchain.md)
 
-## 9. Run The Crash Recovery Demo (Optional)
+## 9. Explore The External HTTP Boundary Demo (Optional)
 
-See the end-to-end crash recovery walkthrough in [../../examples/crash_recovery/README.md](../../examples/crash_recovery/README.md).
+See the end-to-end external_http boundary walkthrough in [../../examples/crash_recovery/README.md](../../examples/crash_recovery/README.md).
 
 ## 10. Stop The Runtime
 
@@ -220,7 +220,7 @@ Press `Ctrl-C` in the Aetheris terminal and the mock-agent terminal.
 
 | Goal | Resource |
 |------|----------|
-| Crash recovery demo | [examples/crash_recovery/](../../examples/crash_recovery/) |
+| External HTTP batch demo | [examples/crash_recovery/](../../examples/crash_recovery/) |
 | LangChain integration | [../adapters/langchain.md](../adapters/langchain.md) |
 | Connect any HTTP agent | [../adapters/external-http-agent.md](../adapters/external-http-agent.md) |
 | Runtime guarantees | [runtime-guarantees.md](runtime-guarantees.md) |

@@ -131,10 +131,11 @@ serve(agent, port=9000)   # Aetheris will call this endpoint durably
 ```yaml
 # Add to configs/api.embedded.yaml
 agents:
-  my_agent:
-    type: "external_http"
-    external:
-      url: "http://your-agent:9000/invoke"
+  agents:
+    my_agent:
+      type: "external_http"
+      external:
+        url: "http://your-agent:9000/invoke"
 ```
 
 Your agent receives a job envelope with `message`, `job_id`, and `idempotency_key`. It returns `{"answer": "...", "final": true}`.
@@ -189,20 +190,20 @@ The runtime is event-sourced: every state transition is an append-only event. Th
 
 ---
 
-## Run the crash recovery demo
+## Explore the external_http batch demo
 
-See it working in 2 minutes:
+See the current black-box adapter boundary in 2 minutes:
 
 ```bash
 cd examples/crash_recovery
-pip install aetheris requests
+pip install aetheris
 python demo.py
-# Processing records... [kill the process with Ctrl+C]
-# python demo.py --resume
-# Resumed from record 847. Zero duplicates.
+# Starts a local external_http demo agent and submits one durable batch job
 ```
 
-→ [Crash recovery example](examples/crash_recovery/)
+The example shows durable submission and trace visibility around one external HTTP call. For true per-step checkpoint resume inside the work itself, use native Aetheris tools/workflows instead of a single `external_http` call.
+
+→ [External HTTP batch demo](examples/crash_recovery/)
 
 ---
 

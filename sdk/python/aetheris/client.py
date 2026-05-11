@@ -245,7 +245,7 @@ class AetherisClient:
         """Submit a message to an agent, creating a durable job.
 
         Args:
-            agent_id: Agent identifier (must exist in agents.yaml).
+            agent_id: Agent identifier (must exist in the active runtime config).
             message: The goal or prompt to deliver.
             idempotency_key: Optional deduplication key; re-submitting the
                 same key returns the existing job without creating a duplicate.

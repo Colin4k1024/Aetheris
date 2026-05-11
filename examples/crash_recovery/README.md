@@ -1,33 +1,16 @@
-# Crash Recovery Demo
+# External HTTP Batch Demo
 
-This demo shows Aetheris crash recovery in action.
+This example shows the **reliability boundary** of the `external_http` adapter.
 
-A simulated agent processes 1,000 records one by one. You can kill the process at any point, restart it, and it will **resume from the last completed record** — not from the beginning.
+It runs a slow batch processor behind Aetheris, submits the work as a durable job, and then polls the job/event APIs while the external service finishes the batch. Because this path is a single black-box HTTP call, Aetheris tracks the **outer job** and its event trail, but it does **not** checkpoint or resume individual records inside the external service.
 
-## What you'll see
-
-```
-[Aetheris] Submitting batch job... (job_id: abc-123)
-Processing record   1/1000  ✓
-Processing record   2/1000  ✓
-...
-Processing record 847/1000  ✓
-^C   <── kill here
-
-[restart]
-[Aetheris] Job abc-123 is RUNNING, last checkpoint: record 847
-Resuming from record 848...
-Processing record 848/1000  ✓
-...
-Processing record 1000/1000 ✓
-[Aetheris] Done. 1000 records processed. 0 duplicates.
-```
+If you need true per-step checkpoint/replay semantics for each record, move that work into Aetheris Runtime Tools or a native workflow instead of a single `external_http` call.
 
 ## Requirements
 
 - Aetheris running in embedded mode (`make run-embedded` from repo root)
 - Python 3.9+
-- `pip install requests` (or `pip install aetheris[requests]` for the SDK)
+- `pip install aetheris` (or `pip install requests` if you only want the no-SDK demo path)
 
 ## Run it
 
@@ -40,26 +23,17 @@ make run-embedded
 **Terminal 2 — run the demo:**
 ```bash
 cd examples/crash_recovery
-pip install requests
+pip install aetheris
 python demo.py
 ```
-
-Interrupt with `Ctrl+C` at any point, then restart:
-```bash
-python demo.py
-```
-
-The demo automatically detects and resumes in-progress jobs.
 
 ## How it works
 
-The demo registers a lightweight HTTP agent with Aetheris (`batch_processor`).
-Each record is processed as a separate tool invocation tracked by the Invocation Ledger.
+The demo uses the `crash_demo_batch_processor` entry in `configs/api.embedded.yaml`.
+The local Python process starts a tiny HTTP server on `:9001`, Aetheris sends one `external_http` invocation to that server, and the demo prints:
 
-When the process is killed:
-- Aetheris detects the worker heartbeat has stopped
-- The lease is released after the timeout
-- The next worker (or restart) picks up the job from the last checkpoint
-- Already-completed steps return cached results from the Ledger — no re-execution
+- local batch progress from inside the external service
+- the Aetheris job status
+- the number of events recorded for the job
 
-This is the `at-most-once` guarantee in practice.
+This demonstrates what Aetheris sees for black-box agents today: durable submission, job state, retries, and event/trace visibility around the outer call.

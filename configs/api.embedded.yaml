@@ -47,7 +47,9 @@ agent:
     checkpoint_store: "memory"
 
 # Agent definitions for embedded mode.
-# The crash recovery demo requires the crash_demo_batch_processor agent below.
+# The crash_demo_batch_processor entry below is an optional external_http batch
+# demo used by examples/crash_recovery/demo.py. It demonstrates the outer-call
+# durability boundary of external_http, not per-record checkpoint resume.
 # In split API/Worker deployments, load the same external_http agent definitions
 # into both configs (or mount a shared config) so the API can accept
 # /api/agents/:id/message and the Worker can execute the job.
@@ -59,7 +61,7 @@ agents:
     # Start the demo agent by running: python examples/crash_recovery/demo.py
     crash_demo_batch_processor:
       type: "external_http"
-      description: "Batch processor agent for crash recovery demo"
+      description: "Batch processor agent for external_http boundary demo"
       external:
         url: "http://127.0.0.1:9001/invoke"
         timeout: "60s"
