@@ -1,153 +1,176 @@
 # Aetheris Python SDK
 
-Python client for the [Aetheris](https://github.com/Colin4k1024/Aetheris) durable agent execution runtime.
-
-Aetheris gives your AI agents **at-most-once tool execution**, **crash recovery**, and **human-in-the-loop** support — this SDK lets you submit and monitor jobs from any Python application.
-
-## Installation
+Give your AI agents **crash recovery**, **at-most-once tool execution**, and **human-in-the-loop** support — without changing a line of your agent code.
 
 ```bash
-pip install aetheris[requests]   # use requests (recommended)
-# or
-pip install aetheris[httpx]      # use httpx (async-compatible)
+pip install aetheris
 ```
 
-## Quick start
+---
 
-First, start the Aetheris server (embedded mode, no Docker needed):
+## The problem this solves
+
+Your LangChain / AutoGen / any Python agent fails halfway through a task. What happens?
+
+- **Without Aetheris:** Start over. Re-run every LLM call. Risk duplicate API calls.  
+- **With Aetheris:** Resume from the last checkpoint. Zero duplicates. Zero wasted tokens.
+
+---
+
+## Quickstart
+
+**Step 1:** Start Aetheris (no Docker needed):
 
 ```bash
 git clone https://github.com/Colin4k1024/Aetheris
-cd Aetheris
-make build
-CONFIG_PATH=configs/api.embedded.yaml ./bin/api
+cd Aetheris && make run-embedded
 ```
 
-Then, in Python:
+**Step 2:** Submit a job from Python:
 
 ```python
 from aetheris import AetherisClient
 
 client = AetherisClient("http://localhost:8080")
-
-# Submit a goal to an agent defined in configs/agents.yaml
-job = client.run("my-agent", "Summarise the Q3 earnings report")
-print(f"Job submitted: {job.id}  (status={job.status.value})")
-
-# Block until it completes (polls every 2 s, timeout 5 min)
+job = client.run("my-agent", "Summarize the Q3 earnings report")
 result = job.wait(timeout=120)
-print("Output:", result.output)
+print(result.output)
 ```
+
+---
+
+## LangChain integration
+
+Make any LangChain agent durable in minutes:
+
+```python
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_react_agent, AgentExecutor
+from langchain import hub
+from aetheris.integrations.langchain import serve
+
+# Build your agent as usual
+llm = ChatOpenAI(model="gpt-4o-mini")
+prompt = hub.pull("hwchase17/react")
+agent = create_react_agent(llm, tools=[], prompt=prompt)
+executor = AgentExecutor(agent=agent, tools=[])
+
+# Expose it as a durable Aetheris endpoint — one line
+serve(executor)  # listens on :9000, blocks until Ctrl+C
+```
+
+Then add it to your Aetheris config:
+
+```yaml
+# configs/api.embedded.yaml
+agents:
+  my_langchain_agent:
+    type: "external_http"
+    external:
+      url: "http://localhost:9000"
+      timeout: "120s"
+```
+
+Submit and monitor from Python:
+
+```python
+from aetheris import AetherisClient
+
+client = AetherisClient()
+job = client.run("my_langchain_agent", "Explain quantum entanglement simply")
+print(job.wait().output)
+```
+
+---
+
+## Human-in-the-loop
+
+```python
+from aetheris import AetherisClient
+
+client = AetherisClient()
+job = client.run("refund-agent", "Process refund for order #12345")
+
+# The agent parks itself waiting for approval
+while not job.is_terminal:
+    job = client.get_job(job.id)
+    if job.is_waiting:
+        print("Waiting for human approval…")
+        job.signal({"approved": True, "reviewer": "alice@example.com"})
+        break
+    import time; time.sleep(2)
+
+result = job.wait()
+print(result.output)
+```
+
+---
+
+## Idempotent submission
+
+Safe to call multiple times — returns the existing job, never creates a duplicate:
+
+```python
+job = client.run(
+    "invoice-agent",
+    "Generate invoice for customer C-999",
+    idempotency_key="invoice-C-999-2024-Q4",   # stable key
+)
+```
+
+---
 
 ## API reference
 
-### `AetherisClient(base_url, *, token=None, timeout=30.0)`
+### `AetherisClient(base_url="http://localhost:8080", *, token=None, timeout=30.0)`
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `base_url` | `str` | `"http://localhost:8080"` | Aetheris API server URL |
-| `token` | `str \| None` | `None` | JWT bearer token (required when server auth is enabled) |
-| `timeout` | `float` | `30.0` | HTTP request timeout in seconds |
-
-#### `client.run(agent_id, message, *, idempotency_key=None) → Job`
-
-Submit a message to an agent. Creates a durable job and returns immediately.
-
-- **`agent_id`** — must match a key in `configs/agents.yaml`
-- **`idempotency_key`** — re-submitting the same key returns the existing job without creating a duplicate (safe to retry on network error)
-
-#### `client.get_job(job_id) → Job`
-
-Fetch the current state of a job by ID.
-
-#### `client.list_jobs(agent_id, *, status=None, limit=20) → list[Job]`
-
-List jobs for a given agent. Optional `status` filter: `"pending"`, `"running"`, `"completed"`, `"failed"`, `"waiting"`.
-
-#### `client.signal_job(job_id, payload, *, correlation_key="") → None`
-
-Send a signal to a **WAITING** (human-in-the-loop) job.
-
-#### `client.health() → bool`
-
-Returns `True` if the server is reachable and healthy.
+| Method | Description |
+|--------|-------------|
+| `client.run(agent_id, message, *, idempotency_key=None) → Job` | Submit a message; returns immediately |
+| `client.get_job(job_id) → Job` | Fetch current job state |
+| `client.list_jobs(agent_id, *, status=None, limit=20) → list[Job]` | List jobs for an agent |
+| `client.signal_job(job_id, payload, *, correlation_key="")` | Resume a waiting job |
+| `client.health() → bool` | Server reachability check |
 
 ### `Job`
 
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| `id` | `str` | Job ID |
-| `agent_id` | `str` | Agent identifier |
-| `status` | `JobStatus` | Current status |
-| `goal` | `str` | The original message |
-| `output` | `Any` | Output payload when `status == COMPLETED` |
-| `raw` | `dict` | Full raw API response |
-
-#### `job.wait(*, timeout=300.0, poll_interval=2.0) → Job`
-
-Block until the job reaches a terminal state. Raises `JobFailedError` on failure, `TimeoutError` if the deadline is exceeded.
-
-#### `job.signal(payload, *, correlation_key="") → None`
-
-Shorthand for `client.signal_job(job.id, payload, ...)`.
+| Attribute | Description |
+|-----------|-------------|
+| `job.id` | Job ID |
+| `job.status` | `JobStatus` enum: `pending / running / completed / failed / waiting` |
+| `job.output` | Output when completed |
+| `job.is_terminal` | `True` when status is completed/failed/cancelled |
+| `job.is_waiting` | `True` when parked for human input |
+| `job.wait(timeout=300, poll_interval=2)` | Block until terminal; raises on failure |
+| `job.signal(payload, *, correlation_key="")` | Resume from waiting state |
 
 ### Exceptions
 
 | Exception | When raised |
 |-----------|-------------|
-| `AetherisError` | Base exception for all SDK errors |
-| `JobFailedError` | Job ended in `failed` or `cancelled` state |
+| `AetherisError` | Base SDK exception |
+| `JobFailedError` | Job ended in failed/cancelled state |
 | `TimeoutError` | `job.wait()` exceeded the timeout |
 
-## Human-in-the-loop example
+---
 
-```python
-from aetheris import AetherisClient, JobStatus
+## Installation options
 
-client = AetherisClient("http://localhost:8080")
-
-job = client.run("refund-agent", "Process refund for order #12345")
-
-# Poll manually to detect the waiting state
-while not job.is_terminal:
-    job = client.get_job(job.id)
-    if job.is_waiting:
-        print("Agent is waiting for human approval…")
-        # Approve the action
-        job.signal({"approved": True, "reviewer": "alice@example.com"})
-    else:
-        import time; time.sleep(2)
-
-print("Final status:", job.status.value)
+```bash
+pip install aetheris              # requests included (recommended)
+pip install aetheris[httpx]       # use httpx instead
+pip install aetheris[langchain]   # include langchain for integrations
 ```
 
-## Idempotent submission
+---
 
-```python
-# Safe to call multiple times — second call returns the existing job
-job = client.run(
-    "invoice-agent",
-    "Generate invoice for customer C-999",
-    idempotency_key="invoice-C-999-2024-Q4",
-)
-```
+## Resources
 
-## Integration with LangChain / AutoGen
-
-Use Aetheris as a durable execution layer underneath your orchestration framework:
-
-```python
-# LangChain tool example
-from langchain.tools import tool
-from aetheris import AetherisClient
-
-_client = AetherisClient("http://localhost:8080")
-
-@tool
-def run_durable_agent(agent_id: str, goal: str) -> str:
-    """Run an Aetheris agent with at-most-once execution guarantees."""
-    job = _client.run(agent_id, goal)
-    result = job.wait(timeout=300)
+- [Aetheris GitHub](https://github.com/Colin4k1024/Aetheris)
+- [Quickstart guide](https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/quickstart.md)
+- [LangChain integration](https://github.com/Colin4k1024/Aetheris/blob/main/docs/adapters/langchain.md)
+- [Crash recovery demo](https://github.com/Colin4k1024/Aetheris/blob/main/examples/crash_recovery/)
+- [API reference](https://github.com/Colin4k1024/Aetheris/blob/main/docs/reference/api.md)
     return str(result.output)
 ```
 

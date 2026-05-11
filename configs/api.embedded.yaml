@@ -46,17 +46,28 @@ agent:
     enabled: true
     checkpoint_store: "memory"
 
-# Agent definitions live in the active runtime config.
-# For a quick external HTTP agent test, copy this file and uncomment:
+# Agent definitions for embedded mode.
+# The crash recovery demo requires the crash_demo_batch_processor agent below.
+# For a quick external HTTP agent test, add entries under agents.agents:
 #
-# agents:
-#   agents:
-#     quickstart_http:
-#       type: "external_http"
-#       description: "Local quickstart HTTP agent"
-#       external:
-#         url: "http://127.0.0.1:9000/invoke"
-#         timeout: "30s"
+agents:
+  agents:
+    # Used by examples/crash_recovery/demo.py
+    # Start the demo agent by running: python examples/crash_recovery/demo.py
+    crash_demo_batch_processor:
+      type: "external_http"
+      description: "Batch processor agent for crash recovery demo"
+      external:
+        url: "http://127.0.0.1:9001/invoke"
+        timeout: "60s"
+
+    # Generic quickstart HTTP agent — replace url with your own service
+    # quickstart_http:
+    #   type: "external_http"
+    #   description: "Local quickstart HTTP agent"
+    #   external:
+    #     url: "http://127.0.0.1:9000/invoke"
+    #     timeout: "30s"
 
 storage:
   metadata:
