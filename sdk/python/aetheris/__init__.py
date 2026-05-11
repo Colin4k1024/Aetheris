@@ -19,7 +19,13 @@ Usage::
 
 """
 
-from .client import AetherisClient, Job, JobStatus, AetherisError
+from .client import AetherisClient, Job, JobStatus, AetherisError, JobFailedError
 
-__all__ = ["AetherisClient", "Job", "JobStatus", "AetherisError"]
+__all__ = [
+    "AetherisClient",
+    "Job",
+    "JobStatus",
+    "AetherisError",
+    "JobFailedError",
+]
 __version__ = "0.1.0"

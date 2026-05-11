@@ -125,7 +125,21 @@ Open the trace page in a browser:
 http://localhost:8080/api/jobs/<job_id>/trace/page
 ```
 
-## 6. Connect Your Real HTTP Agent
+## 6. Use The Python SDK (Optional)
+
+```bash
+pip install aetheris
+```
+
+```python
+from aetheris import AetherisClient
+
+client = AetherisClient("http://localhost:8080")
+job = client.run("quickstart_http", "Say hello from the Python SDK", idempotency_key="sdk-quickstart-1")
+print(job.wait(timeout=60).output)
+```
+
+## 7. Connect Your Real HTTP Agent
 
 If you already have an agent in Python, JavaScript, Go, or another runtime, expose one HTTP endpoint and register it as `external_http`.
 
@@ -167,28 +181,47 @@ And return:
 }
 ```
 
+For split API/Worker deployments, keep the same agent definition available to both the API and Worker configs so the API can accept `/api/agents/:id/message` and the Worker can execute the job.
+
 Restart Aetheris after changing config.
-
-Submit to the external agent:
-
-```bash
-curl -X POST http://localhost:8080/api/agents/customer_support_bot/message \
-  -H "Content-Type: application/json" \
-  -H "Idempotency-Key: customer-support-demo-1" \
-  -d '{"message":"Check order status for order-123"}'
-```
 
 More detail: [../adapters/external-http-agent.md](../adapters/external-http-agent.md)
 
-## 7. Stop The Runtime
+## 8. Connect Your LangChain Agent (Optional)
+
+```bash
+pip install aetheris[langchain] langchain-openai
+```
+
+```python
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_react_agent, AgentExecutor
+from langchain import hub
+from aetheris.integrations.langchain import serve
+
+llm = ChatOpenAI(model="gpt-4o-mini")
+agent = create_react_agent(llm, tools=[], prompt=hub.pull("hwchase17/react"))
+executor = AgentExecutor(agent=agent, tools=[])
+
+serve(executor, port=9000)
+```
+
+Full guide: [../adapters/langchain.md](../adapters/langchain.md)
+
+## 9. Explore The External HTTP Boundary Demo (Optional)
+
+See the end-to-end external_http boundary walkthrough in [../../examples/crash_recovery/README.md](../../examples/crash_recovery/README.md).
+
+## 10. Stop The Runtime
 
 Press `Ctrl-C` in the Aetheris terminal and the mock-agent terminal.
 
-## Next Steps
+## Next steps
 
-| Goal | Read |
-| ---- | ---- |
-| Existing HTTP agent intake | [../adapters/external-http-agent.md](../adapters/external-http-agent.md) |
-| Eino examples | [../adapters/eino-examples.md](../adapters/eino-examples.md) |
+| Goal | Resource |
+|------|----------|
+| External HTTP batch demo | [examples/crash_recovery/](../../examples/crash_recovery/) |
+| LangChain integration | [../adapters/langchain.md](../adapters/langchain.md) |
+| Connect any HTTP agent | [../adapters/external-http-agent.md](../adapters/external-http-agent.md) |
 | Runtime guarantees | [runtime-guarantees.md](runtime-guarantees.md) |
 | Docker Compose deployment | [deployment.md](deployment.md) |
