@@ -48,6 +48,9 @@ agent:
 
 # Agent definitions for embedded mode.
 # The crash recovery demo requires the crash_demo_batch_processor agent below.
+# In split API/Worker deployments, load the same external_http agent definitions
+# into both configs (or mount a shared config) so the API can accept
+# /api/agents/:id/message and the Worker can execute the job.
 # For a quick external HTTP agent test, add entries under agents.agents:
 #
 agents:

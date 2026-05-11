@@ -1,75 +1,90 @@
 # Quickstart
 
-Get Aetheris running locally in under 5 minutes. No Docker, no PostgreSQL, no Redis — embedded mode uses local stores.
+This guide gets Aetheris running locally and submits one agent job through the simplest supported path: a tiny HTTP agent wrapped by Aetheris.
+
+Embedded mode uses local stores and does not require Docker, PostgreSQL, or Redis.
 
 ## Requirements
 
 - Go 1.26.1+
 - Git
-- Python 3.8+ (for the SDK and demo examples)
+- Python 3 for the tiny mock HTTP agent below
 
----
+## 1. Start A Tiny HTTP Agent
 
-## Step 1 — Clone and build
+In terminal 1, run a local mock agent:
+
+```bash
+python3 -c '
+import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class Handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        length = int(self.headers.get("content-length", "0"))
+        payload = json.loads(self.rfile.read(length) or b"{}")
+        body = {
+            "answer": "Aetheris received: " + payload.get("message", ""),
+            "final": True,
+            "metadata": {"mock": True},
+        }
+        encoded = json.dumps(body).encode()
+        self.send_response(200)
+        self.send_header("content-type", "application/json")
+        self.send_header("content-length", str(len(encoded)))
+        self.end_headers()
+        self.wfile.write(encoded)
+
+HTTPServer(("127.0.0.1", 9000), Handler).serve_forever()
+'
+```
+
+## 2. Create A Quickstart Runtime Config
+
+In terminal 2, clone the repo and create a temporary embedded config that registers the mock agent:
 
 ```bash
 git clone https://github.com/Colin4k1024/Aetheris.git
 cd Aetheris
-make build
+
+go mod download
+cp configs/api.embedded.yaml /tmp/aetheris-api.quickstart.yaml
+cat >> /tmp/aetheris-api.quickstart.yaml <<'YAML'
+
+agents:
+  agents:
+    quickstart_http:
+      type: "external_http"
+      description: "Quickstart mock HTTP agent"
+      external:
+        url: "http://127.0.0.1:9000/invoke"
+        timeout: "30s"
+YAML
 ```
 
-## Step 2 — Start a mock agent
+## 3. Start Aetheris
 
-In **terminal 1**, run a one-liner mock agent (pure Python stdlib):
+For the smallest local loop, start only the API. In embedded mode, the API process can execute jobs locally.
 
 ```bash
-python3 -c '
-import json, sys
-from http.server import BaseHTTPRequestHandler, HTTPServer
-
-class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a): pass  # silence logs
-    def do_POST(self):
-        n = int(self.headers.get("content-length", 0))
-        payload = json.loads(self.rfile.read(n) or b"{}")
-        body = json.dumps({
-            "answer": "Echo: " + payload.get("message", ""),
-            "final": True,
-            "metadata": {},
-        }).encode()
-        self.send_response(200)
-        self.send_header("content-type", "application/json")
-        self.send_header("content-length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-print("Mock agent on :9001", flush=True)
-HTTPServer(("127.0.0.1", 9001), Handler).serve_forever()
-'
+API_CONFIG_PATH=/tmp/aetheris-api.quickstart.yaml \
+MODEL_CONFIG_PATH=configs/model.yaml \
+go run ./cmd/api
 ```
 
-## Step 3 — Start Aetheris
-
-In **terminal 2**:
-
-```bash
-make run-embedded
-```
-
-This starts API (`:8080`) + Worker in background using embedded SQLite. Verify:
+In terminal 3, check that the API is up:
 
 ```bash
 curl http://localhost:8080/api/health
-# → {"status":"ok"}
 ```
 
-The embedded config (`configs/api.embedded.yaml`) already registers a `crash_demo_batch_processor` agent. To add your own agent, append to that file or create a copy.
-
-Expected shape:
+Expected shape (includes at least these fields):
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "timestamp": 1710000000,
+  "service": "api-service"
 }
 ```
 
@@ -77,42 +92,40 @@ Expected shape:
 
 Submit a message to the `quickstart_http` agent:
 
-## Step 4 — Submit a job via REST
-
-In **terminal 2** (or a new one):
-
 ```bash
-curl -X POST http://localhost:8080/api/agents/crash_demo_batch_processor/message \
+curl -X POST http://localhost:8080/api/agents/quickstart_http/message \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: quickstart-1" \
-  -d '{"message":"Process my first durable job"}'
+  -d '{"message":"Say hello from Aetheris"}'
 ```
 
-Response:
+The response includes a `job_id`:
 
 ```json
 {
   "status": "accepted",
-  "agent_id": "crash_demo_batch_processor",
-  "job_id": "job_abc123"
+  "agent_id": "quickstart_http",
+  "job_id": "..."
 }
 ```
 
-## Step 5 — Inspect the job
+## 5. Inspect The Job
+
+Replace `<job_id>` with the value returned above.
 
 ```bash
-JOB_ID="job_abc123"   # replace with your actual job_id
-
-# Status
-curl http://localhost:8080/api/jobs/$JOB_ID
-
-# Full event trace (audit log)
-curl http://localhost:8080/api/jobs/$JOB_ID/trace
+curl http://localhost:8080/api/jobs/<job_id>
+curl http://localhost:8080/api/jobs/<job_id>/events
+curl http://localhost:8080/api/jobs/<job_id>/trace
 ```
 
----
+Open the trace page in a browser:
 
-## Step 6 — Use the Python SDK (optional)
+```text
+http://localhost:8080/api/jobs/<job_id>/trace/page
+```
+
+## 6. Use The Python SDK (Optional)
 
 ```bash
 pip install aetheris
@@ -122,20 +135,59 @@ pip install aetheris
 from aetheris import AetherisClient
 
 client = AetherisClient("http://localhost:8080")
-
-# Submit — returns immediately
-job = client.run("crash_demo_batch_processor", "Process my second durable job",
-                 idempotency_key="sdk-quickstart-1")
-print(f"Job: {job.id} | Status: {job.status.value}")
-
-# Block until done (polls every 2s, timeout 60s)
-result = job.wait(timeout=60)
-print("Output:", result.output)
+job = client.run("quickstart_http", "Say hello from the Python SDK", idempotency_key="sdk-quickstart-1")
+print(job.wait(timeout=60).output)
 ```
 
----
+## 7. Connect Your Real HTTP Agent
 
-## Step 7 — Connect your LangChain agent (optional)
+If you already have an agent in Python, JavaScript, Go, or another runtime, expose one HTTP endpoint and register it as `external_http`.
+
+Add this under the top-level `agents` field in the active runtime config:
+
+```yaml
+agents:
+  agents:
+    customer_support_bot:
+      type: "external_http"
+      description: "Existing customer support agent"
+      external:
+        url: "http://localhost:9000/invoke"
+        timeout: "120s"
+        token_env: "CUSTOMER_BOT_TOKEN"
+```
+
+Your service should accept:
+
+```json
+{
+  "message": "user request",
+  "session_id": "session id",
+  "metadata": {
+    "agent_id": "customer_support_bot",
+    "job_id": "job id",
+    "idempotency_key": "stable key"
+  }
+}
+```
+
+And return:
+
+```json
+{
+  "answer": "final response",
+  "final": true,
+  "metadata": {}
+}
+```
+
+For split API/Worker deployments, keep the same agent definition available to both the API and Worker configs so the API can accept `/api/agents/:id/message` and the Worker can execute the job.
+
+Restart Aetheris after changing config.
+
+More detail: [../adapters/external-http-agent.md](../adapters/external-http-agent.md)
+
+## 8. Connect Your LangChain Agent (Optional)
 
 ```bash
 pip install aetheris[langchain] langchain-openai
@@ -151,32 +203,18 @@ llm = ChatOpenAI(model="gpt-4o-mini")
 agent = create_react_agent(llm, tools=[], prompt=hub.pull("hwchase17/react"))
 executor = AgentExecutor(agent=agent, tools=[])
 
-serve(executor, port=9000)   # makes your agent durable; blocks until Ctrl+C
-```
-
-Register in `configs/api.embedded.yaml`:
-
-```yaml
-agents:
-  agents:
-    my_langchain_agent:
-      type: "external_http"
-      external:
-        url: "http://localhost:9000"
-        timeout: "120s"
+serve(executor, port=9000)
 ```
 
 Full guide: [../adapters/langchain.md](../adapters/langchain.md)
 
----
+## 9. Run The Crash Recovery Demo (Optional)
 
-## Step 8 — Stop Aetheris
+See the end-to-end crash recovery walkthrough in [../../examples/crash_recovery/README.md](../../examples/crash_recovery/README.md).
 
-```bash
-make stop-embedded
-```
+## 10. Stop The Runtime
 
----
+Press `Ctrl-C` in the Aetheris terminal and the mock-agent terminal.
 
 ## Next steps
 
@@ -186,6 +224,4 @@ make stop-embedded
 | LangChain integration | [../adapters/langchain.md](../adapters/langchain.md) |
 | Connect any HTTP agent | [../adapters/external-http-agent.md](../adapters/external-http-agent.md) |
 | Runtime guarantees | [runtime-guarantees.md](runtime-guarantees.md) |
-| Human-in-the-loop | [../concepts/human-in-the-loop.md](../concepts/human-in-the-loop.md) |
 | Docker Compose deployment | [deployment.md](deployment.md) |
-

@@ -35,7 +35,7 @@ make run-embedded        # starts with embedded SQLite, no external services
 ```
 
 ```bash
-curl http://localhost:8080/api/health   # {"status":"ok"}
+curl http://localhost:8080/api/health   # {"status":"ok", ...}
 ```
 
 **From Python** (`pip install aetheris`):
@@ -54,11 +54,12 @@ print(result.output)
 ```yaml
 # configs/api.embedded.yaml
 agents:
-  my_python_agent:
-    type: "external_http"
-    external:
-      url: "http://localhost:9000/invoke"
-      timeout: "120s"
+  agents:
+    my_python_agent:
+      type: "external_http"
+      external:
+        url: "http://localhost:9000/invoke"
+        timeout: "120s"
 ```
 
 Then submit a job:
@@ -106,6 +107,8 @@ aetheris replay <job-id>   # replay without side effects
 ## Connect your existing agent
 
 Aetheris works with **any agent, in any language**. You don't need to change your agent code.
+
+For split API/Worker deployments, load the same `external_http` agent definition into both processes so the API can accept `/api/agents/:id/message` and the Worker can execute the job.
 
 ### Python (LangChain / any agent)
 

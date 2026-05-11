@@ -4,7 +4,7 @@
 
 ## Configure
 
-Add the agent under the top-level `agents` field in the active runtime config. For embedded API-only development, that is usually `configs/api.embedded.yaml`; for split API/Worker deployments, keep the agent definition available to the process that executes jobs.
+Add the agent under the top-level `agents` field in the active runtime config. For embedded API-only development, that is usually `configs/api.embedded.yaml`; for split API/Worker deployments, load the same agent definition into both the API and Worker configs (or mount a shared config into both) so the API can accept `POST /api/agents/:id/message` and the Worker can execute the job.
 
 ```yaml
 agents:
