@@ -82,3 +82,21 @@ func TestRouter_TraceOverviewPageRoute(t *testing.T) {
 		t.Fatalf("GET /api/trace/overview/page status = %d, want non-404", got)
 	}
 }
+
+func TestRouter_HomePageRoute(t *testing.T) {
+	s := buildRouterForTest(false)
+	w := ut.PerformRequest(s.Engine, "GET", "/", &ut.Body{Body: bytes.NewReader(nil), Len: 0})
+	if got := w.Result().StatusCode(); got != 200 {
+		t.Fatalf("GET / status = %d, want 200", got)
+	}
+	if got := string(w.Header().Peek("Content-Type")); got != "text/html; charset=utf-8" {
+		t.Fatalf("GET / content-type = %q, want text/html; charset=utf-8", got)
+	}
+	body := w.Result().Body()
+	if !bytes.Contains(body, []byte("Aetheris")) {
+		t.Fatalf("GET / body missing project name: %s", body)
+	}
+	if !bytes.Contains(body, []byte("/api/health")) {
+		t.Fatalf("GET / body missing API health entry point: %s", body)
+	}
+}

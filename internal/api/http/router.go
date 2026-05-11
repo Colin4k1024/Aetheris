@@ -91,6 +91,8 @@ func (r *Router) Build(addr string, opts ...config.Option) *server.Hertz {
 		h.Use(r.audit.AuditAccess())
 	}
 
+	h.GET("/", r.handler.HomePage)
+
 	// Prometheus 抓取用；无认证，与 CI/运维约定一致
 	h.GET("/metrics", r.handler.SystemMetrics)
 
