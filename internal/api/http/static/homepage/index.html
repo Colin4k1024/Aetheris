@@ -3,529 +3,1506 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Aetheris</title>
+  <title>Aetheris — Durable Execution Runtime for AI Agents</title>
+  <meta name="description" content="Aetheris gives long-running AI agents crash recovery, at-most-once side effects, and replayable audit trails — without rewriting your stack.">
   <style>
+    /* ─── Reset & Base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     :root {
-      color-scheme: light;
-      --bg: #f5efe5;
-      --panel: rgba(255, 255, 255, 0.88);
-      --line: rgba(76, 48, 20, 0.14);
-      --text: #1f1b16;
-      --muted: #67594c;
-      --accent: #0f766e;
-      --accent-strong: #115e59;
-      --accent-soft: rgba(15, 118, 110, 0.12);
-      --shadow: 0 24px 60px rgba(60, 38, 17, 0.12);
-      --radius-xl: 28px;
-      --radius-lg: 20px;
-      --radius-md: 14px;
+      --bg:          #09090f;
+      --bg-1:        #0f0f1a;
+      --bg-2:        #13131f;
+      --border:      rgba(255,255,255,0.07);
+      --border-hi:   rgba(99,102,241,0.35);
+      --text:        #e2e8f0;
+      --muted:       #94a3b8;
+      --dim:         #475569;
+      --accent:      #6366f1;
+      --accent-hi:   #818cf8;
+      --accent-glow: rgba(99,102,241,0.18);
+      --green:       #34d399;
+      --amber:       #fbbf24;
+      --red:         #f87171;
+      --r-sm:  8px;
+      --r-md:  14px;
+      --r-lg:  20px;
+      --r-xl:  28px;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    html { scroll-behavior: smooth; }
 
     body {
-      margin: 0;
-      font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+      font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
       color: var(--text);
-      background:
-        radial-gradient(circle at top left, rgba(180, 83, 9, 0.16), transparent 34%),
-        radial-gradient(circle at 80% 10%, rgba(15, 118, 110, 0.18), transparent 26%),
-        linear-gradient(180deg, #fcf7ef 0%, var(--bg) 100%);
-      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }
 
-    a {
-      color: inherit;
-    }
+    a { color: inherit; text-decoration: none; }
 
-    .shell {
-      width: min(1120px, calc(100% - 32px));
+    /* ─── Layout helpers ───────────────────────────────── */
+    .wrap {
+      width: min(1160px, calc(100% - 40px));
       margin: 0 auto;
-      padding: 32px 0 56px;
     }
 
+    /* ─── Navbar ───────────────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid var(--border);
+      background: rgba(9,9,15,0.82);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      height: 56px;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 17px;
+      letter-spacing: -0.03em;
+      white-space: nowrap;
+    }
+
+    .nav-logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 900;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      list-style: none;
+      flex: 1;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      font-size: 14px;
+      transition: color 140ms;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+    }
+
+    .gh-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg-1);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      transition: border-color 140ms, color 140ms;
+    }
+
+    .gh-btn:hover { border-color: var(--border-hi); color: var(--text); }
+
+    .gh-star {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(251,191,36,0.25);
+      background: rgba(251,191,36,0.08);
+      color: var(--amber);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* ─── Hero ─────────────────────────────────────────── */
     .hero {
+      padding: 96px 0 80px;
+      text-align: center;
       position: relative;
       overflow: hidden;
-      padding: 28px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-xl);
-      background: linear-gradient(145deg, rgba(255, 250, 242, 0.96), rgba(247, 238, 222, 0.88));
-      box-shadow: var(--shadow);
     }
 
-    .hero::after {
+    .hero::before {
       content: "";
       position: absolute;
-      inset: auto -80px -90px auto;
-      width: 260px;
-      height: 260px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(15, 118, 110, 0.18), transparent 68%);
+      inset: -40% -20% auto;
+      height: 60%;
+      background: radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.18) 0%, transparent 70%);
       pointer-events: none;
     }
 
-    .eyebrow {
+    .hero-badge {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
+      gap: 8px;
+      padding: 5px 12px;
       border-radius: 999px;
-      background: rgba(31, 27, 22, 0.06);
-      color: var(--muted);
+      border: 1px solid rgba(99,102,241,0.28);
+      background: rgba(99,102,241,0.08);
+      color: var(--accent-hi);
       font-size: 13px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      margin-bottom: 28px;
     }
 
-    .eyebrow::before {
+    .hero-badge::before {
       content: "";
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 0 6px rgba(15, 118, 110, 0.12);
+      background: var(--accent-hi);
+      box-shadow: 0 0 8px var(--accent);
     }
 
-    h1 {
-      margin: 18px 0 12px;
-      max-width: 780px;
-      font-size: clamp(42px, 7vw, 76px);
-      line-height: 0.95;
+    .hero h1 {
+      font-size: clamp(40px, 6vw, 74px);
+      font-weight: 800;
       letter-spacing: -0.04em;
+      line-height: 1.0;
+      max-width: 820px;
+      margin: 0 auto 22px;
     }
 
-    .lede {
-      max-width: 720px;
-      margin: 0;
-      font-size: 20px;
-      line-height: 1.6;
+    .hero h1 .hi {
+      background: linear-gradient(120deg, var(--accent-hi), #c4b5fd, var(--accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-sub {
+      max-width: 620px;
+      margin: 0 auto 36px;
       color: var(--muted);
+      font-size: 18px;
+      line-height: 1.7;
     }
 
-    .actions {
+    .hero-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
-      margin-top: 28px;
+      justify-content: center;
+      margin-bottom: 60px;
     }
 
-    .button,
-    .button-secondary {
+    .btn-primary {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      min-height: 48px;
-      padding: 0 18px;
+      gap: 8px;
+      padding: 12px 22px;
       border-radius: 999px;
-      text-decoration: none;
-      font-weight: 700;
-      transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
-    }
-
-    .button {
       background: var(--accent);
-      color: #f7fffe;
-      box-shadow: 0 16px 30px rgba(15, 118, 110, 0.22);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      box-shadow: 0 0 24px rgba(99,102,241,0.36);
+      transition: transform 140ms, box-shadow 140ms, background 140ms;
     }
 
-    .button-secondary {
-      background: rgba(255, 255, 255, 0.66);
-      border: 1px solid rgba(15, 118, 110, 0.18);
-      color: var(--accent-strong);
+    .btn-primary:hover {
+      background: var(--accent-hi);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 32px rgba(99,102,241,0.48);
     }
 
-    .button:hover,
-    .button-secondary:hover {
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg-1);
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 500;
+      transition: border-color 140ms, transform 140ms;
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--border-hi);
       transform: translateY(-1px);
     }
 
-    .meta-grid,
-    .guarantee-grid,
-    .resource-grid {
-      display: grid;
-      gap: 16px;
-      margin-top: 22px;
+    .hero-stats {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 2px;
+      padding: 2px;
+      border-radius: var(--r-lg);
+      border: 1px solid var(--border);
+      background: var(--bg-1);
+      max-width: 700px;
+      margin: 0 auto;
     }
 
-    .meta-grid {
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    .stat {
+      flex: 1 1 150px;
+      padding: 18px 16px;
+      text-align: center;
+      border-radius: calc(var(--r-lg) - 4px);
     }
 
-    .guarantee-grid,
-    .resource-grid {
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--text);
     }
 
-    .panel,
-    .resource-card {
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      background: var(--panel);
-      box-shadow: 0 10px 30px rgba(60, 38, 17, 0.06);
-      backdrop-filter: blur(8px);
-    }
-
-    .panel {
-      padding: 18px;
-    }
-
-    .panel small {
-      display: block;
-      color: var(--muted);
+    .stat-label {
+      margin-top: 3px;
       font-size: 12px;
+      color: var(--dim);
       text-transform: uppercase;
       letter-spacing: 0.08em;
     }
 
-    .panel strong {
-      display: block;
-      margin-top: 10px;
-      font-size: 20px;
+    /* ─── Section shell ────────────────────────────────── */
+    .section {
+      padding: 80px 0;
+      border-top: 1px solid var(--border);
     }
 
-    .section {
-      margin-top: 22px;
-      padding: 22px;
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent-hi);
+      margin-bottom: 14px;
+    }
+
+    .section-label::before {
+      content: "";
+      width: 16px;
+      height: 1px;
+      background: var(--accent);
     }
 
     .section h2 {
-      margin: 0 0 8px;
-      font-size: 28px;
+      font-size: clamp(28px, 3.5vw, 42px);
+      font-weight: 700;
       letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 14px;
     }
 
-    .section > p {
-      margin: 0 0 18px;
+    .section-sub {
+      max-width: 560px;
       color: var(--muted);
+      font-size: 16px;
       line-height: 1.7;
+      margin-bottom: 48px;
     }
 
-    .guarantee {
-      padding: 20px;
+    /* ─── Before / After ───────────────────────────────── */
+    .bfaf-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
     }
 
-    .guarantee .index {
-      display: inline-flex;
+    .bfaf-col {
+      border-radius: var(--r-lg);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .bfaf-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .bfaf-col.before .bfaf-head { color: var(--red); background: rgba(248,113,113,0.06); }
+    .bfaf-col.after  .bfaf-head { color: var(--green); background: rgba(52,211,153,0.06); }
+
+    .bfaf-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+
+    .bfaf-col.before .bfaf-dot { background: var(--red); }
+    .bfaf-col.after  .bfaf-dot { background: var(--green); }
+
+    .bfaf-items {
+      list-style: none;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .bfaf-items li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    .bfaf-items li .icon {
+      flex-shrink: 0;
+      font-size: 15px;
+      margin-top: 1px;
+    }
+
+    /* ─── Architecture ─────────────────────────────────── */
+    .arch-diagram {
+      border-radius: var(--r-lg);
+      border: 1px solid var(--border);
+      background: var(--bg-1);
+      padding: 40px 32px;
+      overflow-x: auto;
+    }
+
+    .arch-flow {
+      display: flex;
       align-items: center;
       justify-content: center;
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: var(--accent-soft);
-      color: var(--accent-strong);
+      gap: 0;
+      flex-wrap: wrap;
+      row-gap: 20px;
+    }
+
+    .arch-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      min-width: 120px;
+    }
+
+    .arch-box {
+      padding: 14px 18px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border);
+      background: var(--bg-2);
+      text-align: center;
+      min-width: 110px;
+    }
+
+    .arch-box.focal {
+      border-color: var(--border-hi);
+      background: rgba(99,102,241,0.08);
+      box-shadow: 0 0 32px rgba(99,102,241,0.14);
+    }
+
+    .arch-box-title {
       font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-    }
-
-    .guarantee h3 {
-      margin: 14px 0 10px;
-      font-size: 22px;
-    }
-
-    .guarantee p {
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.7;
-    }
-
-    .quickstart {
-      display: grid;
-      gap: 18px;
-      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-      align-items: start;
-    }
-
-    pre {
-      margin: 0;
-      padding: 18px;
-      overflow-x: auto;
-      border-radius: var(--radius-md);
-      background: #201710;
-      color: #f9efe0;
-      box-shadow: inset 0 0 0 1px rgba(255, 244, 228, 0.08);
-      font-size: 14px;
-      line-height: 1.65;
-    }
-
-    code {
-      font-family: "SFMono-Regular", "SF Mono", "IBM Plex Mono", Consolas, monospace;
-    }
-
-    .callout {
-      padding: 18px;
-      border-radius: var(--radius-md);
-      background: linear-gradient(180deg, rgba(15, 118, 110, 0.1), rgba(15, 118, 110, 0.04));
-      border: 1px solid rgba(15, 118, 110, 0.18);
-    }
-
-    .callout strong {
-      display: block;
-      margin-bottom: 10px;
-      font-size: 18px;
-    }
-
-    .callout p,
-    .callout ul {
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.7;
-    }
-
-    .callout ul {
-      padding-left: 18px;
-    }
-
-    .resource-card {
-      display: block;
-      padding: 18px;
-      text-decoration: none;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(252, 247, 240, 0.82));
-    }
-
-    .resource-card:hover {
-      border-color: rgba(15, 118, 110, 0.26);
-      transform: translateY(-1px);
-      transition: transform 160ms ease, border-color 160ms ease;
-    }
-
-    .resource-card strong {
-      display: block;
-      font-size: 18px;
-      margin-bottom: 8px;
-    }
-
-    .resource-card span {
-      color: var(--muted);
-      line-height: 1.65;
-    }
-
-    .runtime-status {
-      margin-top: 18px;
-      color: var(--muted);
-      line-height: 1.7;
-    }
-
-    .runtime-status strong {
+      font-weight: 600;
       color: var(--text);
     }
 
-    [hidden] {
-      display: none !important;
+    .arch-box.focal .arch-box-title {
+      color: var(--accent-hi);
     }
 
-    .footer {
-      margin-top: 22px;
-      padding: 18px 4px 0;
+    .arch-box-sub {
+      font-size: 11px;
+      color: var(--dim);
+      margin-top: 3px;
+    }
+
+    .arch-arrow {
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      color: var(--dim);
+      font-size: 20px;
+    }
+
+    .arch-features {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+
+    .arch-feature-pill {
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg-2);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ─── Guarantees ───────────────────────────────────── */
+    .guarantee-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .guarantee-card {
+      border-radius: var(--r-lg);
+      border: 1px solid var(--border);
+      background: var(--bg-1);
+      padding: 28px;
+      transition: border-color 200ms, transform 200ms;
+    }
+
+    .guarantee-card:hover {
+      border-color: var(--border-hi);
+      transform: translateY(-2px);
+    }
+
+    .g-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--r-sm);
+      background: var(--accent-glow);
+      border: 1px solid rgba(99,102,241,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 18px;
+    }
+
+    .guarantee-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+    }
+
+    .guarantee-card p {
       color: var(--muted);
       font-size: 14px;
+      line-height: 1.7;
+      margin-bottom: 18px;
     }
 
-    .footer a {
-      color: var(--accent-strong);
+    .guarantee-snippet {
+      border-radius: var(--r-sm);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      font-family: "SFMono-Regular","SF Mono","Cascadia Code","IBM Plex Mono",Consolas,monospace;
+      font-size: 12px;
+      line-height: 1.65;
+      color: #94a3b8;
+      overflow-x: auto;
     }
 
-    @media (max-width: 900px) {
-      .quickstart {
-        grid-template-columns: 1fr;
-      }
+    .tok-kw  { color: #c084fc; }
+    .tok-fn  { color: #60a5fa; }
+    .tok-str { color: #86efac; }
+    .tok-num { color: #fbbf24; }
+    .tok-cm  { color: #475569; }
+
+    /* ─── Quickstart ───────────────────────────────────── */
+    .qs-container {
+      border-radius: var(--r-xl);
+      border: 1px solid var(--border);
+      background: var(--bg-1);
+      overflow: hidden;
     }
 
-    @media (max-width: 640px) {
-      .shell {
-        width: min(100% - 20px, 1120px);
-        padding-top: 18px;
-        padding-bottom: 32px;
-      }
+    .qs-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      gap: 0;
+    }
 
-      .hero,
-      .section {
-        padding: 18px;
-      }
+    .qs-tab {
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--dim);
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      transition: color 140ms;
+      margin-bottom: -1px;
+    }
 
-      h1 {
-        font-size: clamp(34px, 13vw, 54px);
-      }
+    .qs-tab:hover { color: var(--muted); }
+    .qs-tab.active {
+      color: var(--accent-hi);
+      border-bottom-color: var(--accent);
+    }
 
-      .lede {
-        font-size: 18px;
-      }
+    .qs-body {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+    }
+
+    .qs-steps {
+      padding: 28px;
+      border-right: 1px solid var(--border);
+    }
+
+    .qs-step {
+      display: none;
+    }
+
+    .qs-step.active { display: block; }
+
+    .qs-step-item {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .qs-step-item:last-child { margin-bottom: 0; }
+
+    .qs-num {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--accent-glow);
+      border: 1px solid rgba(99,102,241,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-hi);
+      margin-top: 2px;
+    }
+
+    .qs-step-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .qs-code-wrap {
+      position: relative;
+    }
+
+    .qs-code-wrap pre {
+      margin: 0;
+      padding: 12px 14px;
+      background: var(--bg);
+      border-radius: var(--r-sm);
+      border: 1px solid var(--border);
+      font-family: "SFMono-Regular","SF Mono","Cascadia Code","IBM Plex Mono",Consolas,monospace;
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: #94a3b8;
+      overflow-x: auto;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      padding: 4px 9px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--bg-1);
+      color: var(--dim);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 140ms, border-color 140ms;
+    }
+
+    .copy-btn:hover { color: var(--text); border-color: var(--border-hi); }
+    .copy-btn.copied { color: var(--green); border-color: rgba(52,211,153,0.4); }
+
+    .qs-aside {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .qs-aside-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--dim);
+      margin-bottom: 4px;
+    }
+
+    .qs-endpoint {
+      padding: 12px 14px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      transition: border-color 140ms;
+    }
+
+    .qs-endpoint:hover { border-color: var(--border-hi); }
+
+    .qs-method {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+      margin-bottom: 5px;
+    }
+
+    .qs-method.get  { background: rgba(52,211,153,0.12); color: var(--green); }
+    .qs-method.post { background: rgba(99,102,241,0.12); color: var(--accent-hi); }
+
+    .qs-endpoint-path {
+      font-family: "SFMono-Regular","SF Mono",Consolas,monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .qs-endpoint-desc {
+      margin-top: 3px;
+      font-size: 11px;
+      color: var(--dim);
+    }
+
+    /* ─── Integrations ─────────────────────────────────── */
+    .integration-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+    }
+
+    .int-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border);
+      background: var(--bg-1);
+      transition: border-color 160ms, transform 160ms;
+    }
+
+    .int-card:hover {
+      border-color: var(--border-hi);
+      transform: translateY(-1px);
+    }
+
+    .int-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .int-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .int-desc {
+      font-size: 12px;
+      color: var(--dim);
+      margin-top: 2px;
+    }
+
+    /* ─── Resources ────────────────────────────────────── */
+    .resource-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .res-card {
+      display: block;
+      padding: 22px;
+      border-radius: var(--r-lg);
+      border: 1px solid var(--border);
+      background: var(--bg-1);
+      transition: border-color 160ms, transform 160ms;
+    }
+
+    .res-card:hover {
+      border-color: var(--border-hi);
+      transform: translateY(-2px);
+    }
+
+    .res-icon {
+      font-size: 24px;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .res-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 7px;
+    }
+
+    .res-desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .res-arrow {
+      display: inline-block;
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--accent-hi);
+    }
+
+    /* ─── Runtime shortcuts ────────────────────────────── */
+    #runtime-links { display: none; }
+
+    #runtime-links.visible { display: block; }
+
+    /* ─── CTA banner ───────────────────────────────────── */
+    .cta-banner {
+      margin: 0;
+      padding: 72px 0;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-banner::before {
+      content: "";
+      position: absolute;
+      inset: 20% 10%;
+      background: radial-gradient(ellipse, rgba(99,102,241,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .cta-banner h2 {
+      font-size: clamp(26px, 3vw, 38px);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 12px;
+    }
+
+    .cta-banner p {
+      color: var(--muted);
+      margin-bottom: 32px;
+      font-size: 16px;
+    }
+
+    /* ─── Footer ───────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 0;
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--dim);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 20px;
+      list-style: none;
+    }
+
+    .footer-links a {
+      font-size: 13px;
+      color: var(--dim);
+      transition: color 140ms;
+    }
+
+    .footer-links a:hover { color: var(--muted); }
+
+    /* ─── Responsive ───────────────────────────────────── */
+    @media (max-width: 860px) {
+      .bfaf-grid { grid-template-columns: 1fr; }
+      .qs-body { grid-template-columns: 1fr; }
+      .qs-aside { border-top: 1px solid var(--border); border-right: none; }
+      .nav-links { display: none; }
+    }
+
+    @media (max-width: 600px) {
+      .hero { padding: 64px 0 56px; }
+      .section { padding: 56px 0; }
+      .hero-stats { max-width: 100%; }
+      .stat { flex: 1 1 120px; }
     }
   </style>
 </head>
 <body>
-  <main class="shell">
-    <section class="hero">
-      <span class="eyebrow">Aetheris Runtime</span>
-      <h1>The reliability layer your AI agents are missing.</h1>
-      <p class="lede">
-        Aetheris gives long-running agents durable execution, crash recovery, replayable traces,
-        and at-most-once side effects without forcing you to rewrite your agent stack.
-      </p>
-      <div class="actions">
-        <a class="button" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/quickstart.md" target="_blank" rel="noreferrer">Read quickstart</a>
-        <a class="button-secondary" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/reference/api.md" target="_blank" rel="noreferrer">Browse API</a>
-        <a class="button-secondary" href="https://github.com/Colin4k1024/Aetheris" target="_blank" rel="noreferrer">View repository</a>
-      </div>
-      <div class="meta-grid">
-        <article class="panel">
-          <small>Runtime guarantee</small>
-          <strong>Checkpointed jobs</strong>
-        </article>
-        <article class="panel">
-          <small>Safety model</small>
-          <strong>At-most-once tools</strong>
-        </article>
-        <article class="panel">
-          <small>Observability</small>
-          <strong>Trace, audit, replay</strong>
-        </article>
-        <article class="panel">
-          <small>Integration style</small>
-          <strong>HTTP, Go, Python</strong>
-        </article>
-      </div>
-    </section>
 
-    <section class="section panel">
-      <h2>Why teams adopt Aetheris</h2>
-      <p>
-        Production agents rarely fail in the happy path. They fail mid-run, retry side effects, and leave teams
-        without a clean audit trail. Aetheris wraps those failure modes in durable execution semantics so you can
-        resume work, prove what happened, and keep external actions idempotent.
-      </p>
-      <div class="guarantee-grid">
-        <article class="guarantee panel">
-          <span class="index">01</span>
-          <h3>Crash recovery</h3>
-          <p>When a worker dies, the next worker resumes from the last durable checkpoint instead of restarting the entire task.</p>
-        </article>
-        <article class="guarantee panel">
-          <span class="index">02</span>
-          <h3>At-most-once execution</h3>
-          <p>Payments, emails, and order creation stay protected by an invocation ledger so retries do not duplicate side effects.</p>
-        </article>
-        <article class="guarantee panel">
-          <span class="index">03</span>
-          <h3>Replayable audit trail</h3>
-          <p>Every job transition can be traced and replayed for debugging, compliance, or post-incident analysis.</p>
-        </article>
-      </div>
-    </section>
+<!-- ═══ Navbar ════════════════════════════════════════════ -->
+<nav>
+  <div class="wrap nav-inner">
+    <a href="/" class="nav-logo">
+      <span class="nav-logo-mark">A</span>
+      Aetheris
+    </a>
+    <ul class="nav-links">
+      <li><a href="#guarantees">Guarantees</a></li>
+      <li><a href="#quickstart">Quickstart</a></li>
+      <li><a href="#integrations">Integrations</a></li>
+      <li><a href="#resources">Docs</a></li>
+    </ul>
+    <div class="nav-actions">
+      <a class="gh-star" href="https://github.com/Colin4k1024/Aetheris" target="_blank" rel="noreferrer">
+        ★ Star
+      </a>
+      <a class="gh-btn" href="https://github.com/Colin4k1024/Aetheris" target="_blank" rel="noreferrer">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</nav>
 
-    <section class="section panel">
-      <h2>Quickstart</h2>
-      <p>Launch the API locally, then confirm the runtime is reachable before wiring in your own agent.</p>
-      <div class="quickstart">
-        <pre><code>git clone https://github.com/Colin4k1024/Aetheris.git
-cd Aetheris
-make run-embedded
-
-curl http://localhost:8080/api/health</code></pre>
-        <aside class="callout">
-          <strong>What you can do next</strong>
-          <ul>
-            <li>Submit work to <code>POST /api/agents/:id/message</code></li>
-            <li>Inspect jobs through <code>/api/jobs/:id/trace/page</code></li>
-            <li>Use the existing quickstart and adapter docs from the repository</li>
-          </ul>
-        </aside>
-      </div>
-      <p class="runtime-status" id="runtime-status" aria-live="polite">
-        <strong>Static site mode:</strong> if this page is being served by a live Aetheris runtime,
-        local API shortcuts such as <code>/api/health</code> appear automatically below.
-      </p>
-    </section>
-
-    <section class="section panel" id="runtime-links" hidden>
-      <h2>Runtime shortcuts</h2>
-      <p>Detected a live Aetheris runtime behind this page. These links jump straight into local operational surfaces.</p>
-      <div class="resource-grid">
-        <a class="resource-card" href="/api/health">
-          <strong>API Health</strong>
-          <span>Sanity-check the running service and verify the API is live.</span>
-        </a>
-        <a class="resource-card" href="/metrics">
-          <strong>Prometheus Metrics</strong>
-          <span>Inspect exported runtime metrics for local debugging and ops dashboards.</span>
-        </a>
-        <a class="resource-card" href="/api/trace/overview/page">
-          <strong>Trace Overview</strong>
-          <span>Jump into the built-in trace UI for multi-job inspection and replay navigation.</span>
-        </a>
-      </div>
-    </section>
-
-    <section class="section panel">
-      <h2>Useful entry points</h2>
-      <p>These links cover the core operational and learning surfaces most teams need first.</p>
-      <div class="resource-grid">
-        <a class="resource-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/quickstart.md" target="_blank" rel="noreferrer">
-          <strong>Quickstart Guide</strong>
-          <span>Follow the repo guide for embedded mode, external HTTP agents, and first durable runs.</span>
-        </a>
-        <a class="resource-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/reference/api.md" target="_blank" rel="noreferrer">
-          <strong>API Reference</strong>
-          <span>Browse the main HTTP surface, job lifecycle APIs, and operational endpoints.</span>
-        </a>
-        <a class="resource-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/adapters/external-http-agent.md" target="_blank" rel="noreferrer">
-          <strong>External HTTP Adapter</strong>
-          <span>Connect an existing Python, JavaScript, or Go agent through the durable HTTP boundary.</span>
-        </a>
-        <a class="resource-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/runtime-guarantees.md" target="_blank" rel="noreferrer">
-          <strong>Runtime Guarantees</strong>
-          <span>Read how checkpointing, replay, and side-effect safety are modeled across long-running jobs.</span>
-        </a>
-        <a class="resource-card" href="https://github.com/Colin4k1024/Aetheris/tree/main/sdk/python" target="_blank" rel="noreferrer">
-          <strong>Python SDK</strong>
-          <span>Start from the packaged client when you want durable job submission from Python.</span>
-        </a>
-        <a class="resource-card" href="https://github.com/Colin4k1024/Aetheris/tree/main/examples" target="_blank" rel="noreferrer">
-          <strong>Examples</strong>
-          <span>Explore working demos for agent integrations, workflows, and runtime patterns.</span>
-        </a>
-      </div>
-    </section>
-
-    <p class="footer">
-      Aetheris is open source. Prefer the full repository walkthrough?
-      <a href="https://github.com/Colin4k1024/Aetheris" target="_blank" rel="noreferrer">Open the GitHub project</a>.
+<!-- ═══ Hero ══════════════════════════════════════════════ -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-badge">v2.5.3 &nbsp;·&nbsp; Open Source &nbsp;·&nbsp; Go 1.26</div>
+    <h1>The <span class="hi">reliability layer</span><br>your AI agents are missing.</h1>
+    <p class="hero-sub">
+      Aetheris wraps long-running agents in durable execution semantics —
+      crash recovery, at-most-once side effects, replayable audit trails —
+      without forcing you to rewrite your stack.
     </p>
-  </main>
-  <script>
-    (function () {
-      var runtimePanel = document.getElementById("runtime-links");
-      var runtimeStatus = document.getElementById("runtime-status");
-      var apiHealthURL = "api/health";
+    <div class="hero-actions">
+      <a class="btn-primary" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/quickstart.md" target="_blank" rel="noreferrer">
+        Get started →
+      </a>
+      <a class="btn-ghost" href="https://github.com/Colin4k1024/Aetheris" target="_blank" rel="noreferrer">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        View repository
+      </a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-value">Durable</div>
+        <div class="stat-label">Checkpointed jobs</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">At-most-once</div>
+        <div class="stat-label">Side effects</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">Replayable</div>
+        <div class="stat-label">Audit trail</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">HTTP · Go · Python</div>
+        <div class="stat-label">Integration styles</div>
+      </div>
+    </div>
+  </div>
+</section>
 
-      fetch(apiHealthURL, { headers: { Accept: "application/json" } })
-        .then(function (response) {
-          if (!response.ok) {
-            throw new Error("runtime not available");
-          }
-          return response.json();
-        })
-        .then(function (payload) {
-          if (runtimePanel) {
-            runtimePanel.hidden = false;
-          }
-          if (runtimeStatus) {
-            var service = payload && payload.service ? payload.service : "api-service";
-            runtimeStatus.innerHTML =
-              "<strong>Runtime detected:</strong> connected to " +
-              service +
-              ". Local shortcuts for /api/health, trace, and metrics are now available.";
-          }
-        })
-        .catch(function () {
-          if (runtimePanel) {
-            runtimePanel.hidden = true;
-          }
-        });
-    })();
-  </script>
+<!-- ═══ Problem / Solution ════════════════════════════════ -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-label">Why Aetheris</div>
+    <h2>Production agents fail in ways<br>your code doesn't handle.</h2>
+    <p class="section-sub">
+      Happy-path code runs fine in demos. In production, workers crash mid-run,
+      retries duplicate payments, and nobody can prove what the agent actually did.
+    </p>
+    <div class="bfaf-grid">
+      <div class="bfaf-col before">
+        <div class="bfaf-head">
+          <span class="bfaf-dot"></span>
+          Without Aetheris
+        </div>
+        <ul class="bfaf-items">
+          <li><span class="icon">✗</span> Worker crash → entire task restarts from zero</li>
+          <li><span class="icon">✗</span> Retry logic re-sends emails, re-charges cards</li>
+          <li><span class="icon">✗</span> No audit trail → impossible post-incident analysis</li>
+          <li><span class="icon">✗</span> Human-in-the-loop requires custom state machines</li>
+          <li><span class="icon">✗</span> Long-running jobs silently timeout with no recovery</li>
+        </ul>
+      </div>
+      <div class="bfaf-col after">
+        <div class="bfaf-head">
+          <span class="bfaf-dot"></span>
+          With Aetheris
+        </div>
+        <ul class="bfaf-items">
+          <li><span class="icon">✓</span> Resume from last durable checkpoint automatically</li>
+          <li><span class="icon">✓</span> Invocation ledger guarantees at-most-once execution</li>
+          <li><span class="icon">✓</span> Every transition traced, replayable, and auditable</li>
+          <li><span class="icon">✓</span> StatusParked for wait states — no custom state machine</li>
+          <li><span class="icon">✓</span> Lease fencing keeps jobs alive across worker restarts</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ How it works ══════════════════════════════════════ -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-label">Architecture</div>
+    <h2>Drop in the runtime.<br>Keep your agent logic.</h2>
+    <p class="section-sub">
+      Aetheris sits between your agent and the outside world.
+      You submit work via HTTP or Go SDK; the runtime handles durability, scheduling, and side-effect safety.
+    </p>
+    <div class="arch-diagram">
+      <div class="arch-flow">
+        <div class="arch-node">
+          <div class="arch-box">
+            <div class="arch-box-title">Your Agent</div>
+            <div class="arch-box-sub">Python · Go · HTTP</div>
+          </div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+          <div class="arch-box">
+            <div class="arch-box-title">Aetheris API</div>
+            <div class="arch-box-sub">POST /agents/:id/message</div>
+          </div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+          <div class="arch-box focal">
+            <div class="arch-box-title">Aetheris Runtime</div>
+            <div class="arch-box-sub">Planner → TaskGraph → Executor</div>
+          </div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+          <div class="arch-box">
+            <div class="arch-box-title">Tool Ledger</div>
+            <div class="arch-box-sub">At-most-once guarantees</div>
+          </div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+          <div class="arch-box">
+            <div class="arch-box-title">External Tools</div>
+            <div class="arch-box-sub">APIs · DBs · Services</div>
+          </div>
+        </div>
+      </div>
+      <div class="arch-features">
+        <span class="arch-feature-pill">PostgreSQL job store</span>
+        <span class="arch-feature-pill">Checkpoint runner</span>
+        <span class="arch-feature-pill">Lease fencing</span>
+        <span class="arch-feature-pill">DAG compiler</span>
+        <span class="arch-feature-pill">OpenTelemetry traces</span>
+        <span class="arch-feature-pill">Replay engine</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Guarantees ════════════════════════════════════════ -->
+<section class="section" id="guarantees">
+  <div class="wrap">
+    <div class="section-label">Core Guarantees</div>
+    <h2>Three properties you can<br>reason about formally.</h2>
+    <p class="section-sub">
+      Aetheris is built around a small set of guarantees that compose correctly.
+      Each one has a formal definition in the runtime spec.
+    </p>
+    <div class="guarantee-grid">
+      <div class="guarantee-card">
+        <div class="g-icon">⚡</div>
+        <h3>Crash Recovery</h3>
+        <p>
+          When a worker dies, the scheduler's lease fencing detects the timeout and assigns the
+          job to the next available worker, which resumes from the last committed checkpoint.
+          Zero manual intervention required.
+        </p>
+        <div class="guarantee-snippet"><span class="tok-cm">// Job resumes from checkpoint on worker restart</span>
+<span class="tok-kw">func</span> <span class="tok-fn">Resume</span>(ctx context.Context, jobID <span class="tok-kw">string</span>) error {
+  checkpoint, _ := store.<span class="tok-fn">LoadCheckpoint</span>(jobID)
+  <span class="tok-kw">return</span> runner.<span class="tok-fn">ContinueFrom</span>(ctx, checkpoint)
+}</div>
+      </div>
+      <div class="guarantee-card">
+        <div class="g-icon">🔒</div>
+        <h3>At-most-once Execution</h3>
+        <p>
+          Every tool invocation is recorded in an immutable ledger before execution.
+          On retry, the runtime checks the ledger — if the call already happened,
+          the recorded result is returned without re-executing.
+        </p>
+        <div class="guarantee-snippet"><span class="tok-cm">// Ledger prevents duplicate side effects</span>
+<span class="tok-kw">if</span> result, ok := ledger.<span class="tok-fn">Lookup</span>(invocationID); ok {
+  <span class="tok-kw">return</span> result, <span class="tok-kw">nil</span>  <span class="tok-cm">// idempotent reply</span>
+}
+<span class="tok-kw">return</span> tool.<span class="tok-fn">Execute</span>(ctx, params)</div>
+      </div>
+      <div class="guarantee-card">
+        <div class="g-icon">🔍</div>
+        <h3>Replayable Audit Trail</h3>
+        <p>
+          Every state transition is appended to a durable event log with full causality.
+          Any job can be replayed step-by-step for debugging, compliance review,
+          or post-incident root cause analysis.
+        </p>
+        <div class="guarantee-snippet"><span class="tok-cm">// Full trace for any job</span>
+<span class="tok-kw">curl</span> /api/jobs/<span class="tok-str">{id}</span>/trace/page
+
+<span class="tok-cm">// Deterministic replay in sandbox</span>
+aetheris replay <span class="tok-str">--job</span> <span class="tok-num">job_abc123</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Quickstart ════════════════════════════════════════ -->
+<section class="section" id="quickstart">
+  <div class="wrap">
+    <div class="section-label">Quickstart</div>
+    <h2>Running in under 3 minutes.</h2>
+    <p class="section-sub">
+      Clone, start the embedded runtime, and submit your first durable job.
+      No cloud account, no Kubernetes, no configuration files required.
+    </p>
+    <div class="qs-container">
+      <div class="qs-tabs">
+        <button class="qs-tab active" onclick="switchTab(this,'embedded')">Embedded Mode</button>
+        <button class="qs-tab" onclick="switchTab(this,'http')">External HTTP Agent</button>
+        <button class="qs-tab" onclick="switchTab(this,'python')">Python SDK</button>
+      </div>
+      <div class="qs-body">
+        <div class="qs-steps">
+
+          <!-- Embedded -->
+          <div class="qs-step active" id="tab-embedded">
+            <div class="qs-step-item">
+              <div class="qs-num">1</div>
+              <div>
+                <div class="qs-step-title">Clone and start</div>
+                <div class="qs-code-wrap">
+                  <pre><code>git clone https://github.com/Colin4k1024/Aetheris.git
+cd Aetheris
+make run-embedded</code></pre>
+                  <button class="copy-btn" onclick="copy(this)">copy</button>
+                </div>
+              </div>
+            </div>
+            <div class="qs-step-item">
+              <div class="qs-num">2</div>
+              <div>
+                <div class="qs-step-title">Verify the runtime is live</div>
+                <div class="qs-code-wrap">
+                  <pre><code>curl http://localhost:8080/api/health</code></pre>
+                  <button class="copy-btn" onclick="copy(this)">copy</button>
+                </div>
+              </div>
+            </div>
+            <div class="qs-step-item">
+              <div class="qs-num">3</div>
+              <div>
+                <div class="qs-step-title">Submit your first message</div>
+                <div class="qs-code-wrap">
+                  <pre><code>curl -X POST http://localhost:8080/api/agents/default/message \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Summarize the top 3 HN stories"}'</code></pre>
+                  <button class="copy-btn" onclick="copy(this)">copy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- HTTP Agent -->
+          <div class="qs-step" id="tab-http">
+            <div class="qs-step-item">
+              <div class="qs-num">1</div>
+              <div>
+                <div class="qs-step-title">Register an external HTTP agent</div>
+                <div class="qs-code-wrap">
+                  <pre><code><span class="tok-cm"># agents.yaml</span>
+agents:
+  - id: my-agent
+    type: external_http
+    endpoint: http://localhost:9000/run
+    timeout: 30s</code></pre>
+                  <button class="copy-btn" onclick="copy(this)">copy</button>
+                </div>
+              </div>
+            </div>
+            <div class="qs-step-item">
+              <div class="qs-num">2</div>
+              <div>
+                <div class="qs-step-title">Start your agent server</div>
+                <div class="qs-code-wrap">
+                  <pre><code><span class="tok-cm"># Python example (any HTTP server works)</span>
+<span class="tok-kw">from</span> flask <span class="tok-kw">import</span> Flask, request, jsonify
+app = Flask(__name__)
+
+@app.route(<span class="tok-str">'/run'</span>, methods=[<span class="tok-str">'POST'</span>])
+<span class="tok-kw">def</span> <span class="tok-fn">run</span>():
+    goal = request.json[<span class="tok-str">'goal'</span>]
+    <span class="tok-kw">return</span> jsonify({<span class="tok-str">'answer'</span>: f<span class="tok-str">'Done: {goal}'</span>})</code></pre>
+                  <button class="copy-btn" onclick="copy(this)">copy</button>
+                </div>
+              </div>
+            </div>
+            <div class="qs-step-item">
+              <div class="qs-num">3</div>
+              <div>
+                <div class="qs-step-title">Submit work via Aetheris</div>
+                <div class="qs-code-wrap">
+                  <pre><code>curl -X POST http://localhost:8080/api/agents/my-agent/message \
+  -H "Content-Type: application/json" \
+  -d '{"content": "your goal here"}'</code></pre>
+                  <button class="copy-btn" onclick="copy(this)">copy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Python SDK -->
+          <div class="qs-step" id="tab-python">
+            <div class="qs-step-item">
+              <div class="qs-num">1</div>
+              <div>
+                <div class="qs-step-title">Install the Python SDK</div>
+                <div class="qs-code-wrap">
+                  <pre><code>pip install aetheris-sdk</code></pre>
+                  <button class="copy-btn" onclick="copy(this)">copy</button>
+                </div>
+              </div>
+            </div>
+            <div class="qs-step-item">
+              <div class="qs-num">2</div>
+              <div>
+                <div class="qs-step-title">Submit a durable job</div>
+                <div class="qs-code-wrap">
+                  <pre><code><span class="tok-kw">from</span> aetheris <span class="tok-kw">import</span> Client
+
+client = Client(<span class="tok-str">"http://localhost:8080"</span>)
+job = client.submit(
+    agent=<span class="tok-str">"default"</span>,
+    message=<span class="tok-str">"Summarize the report"</span>,
+)
+<span class="tok-kw">print</span>(job.id, job.status)</code></pre>
+                  <button class="copy-btn" onclick="copy(this)">copy</button>
+                </div>
+              </div>
+            </div>
+            <div class="qs-step-item">
+              <div class="qs-num">3</div>
+              <div>
+                <div class="qs-step-title">Inspect the trace</div>
+                <div class="qs-code-wrap">
+                  <pre><code>trace = client.trace(job.id)
+<span class="tok-kw">for</span> step <span class="tok-kw">in</span> trace.steps:
+    <span class="tok-kw">print</span>(step.name, step.status, step.duration_ms)</code></pre>
+                  <button class="copy-btn" onclick="copy(this)">copy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="qs-aside">
+          <div class="qs-aside-title">Key endpoints</div>
+          <div class="qs-endpoint">
+            <span class="qs-method get">GET</span>
+            <div class="qs-endpoint-path">/api/health</div>
+            <div class="qs-endpoint-desc">Runtime liveness check</div>
+          </div>
+          <div class="qs-endpoint">
+            <span class="qs-method post">POST</span>
+            <div class="qs-endpoint-path">/api/agents/:id/message</div>
+            <div class="qs-endpoint-desc">Submit work to an agent</div>
+          </div>
+          <div class="qs-endpoint">
+            <span class="qs-method get">GET</span>
+            <div class="qs-endpoint-path">/api/jobs/:id/trace/page</div>
+            <div class="qs-endpoint-desc">View step-level execution trace</div>
+          </div>
+          <div class="qs-endpoint">
+            <span class="qs-method get">GET</span>
+            <div class="qs-endpoint-path">/metrics</div>
+            <div class="qs-endpoint-desc">Prometheus metrics</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Integrations ══════════════════════════════════════ -->
+<section class="section" id="integrations">
+  <div class="wrap">
+    <div class="section-label">Integrations</div>
+    <h2>Works with the stack you already use.</h2>
+    <p class="section-sub">
+      Bring your existing agent written in any language. The external HTTP boundary
+      means Aetheris is language-agnostic by design.
+    </p>
+    <div class="integration-grid">
+      <div class="int-card">
+        <div class="int-icon">🐍</div>
+        <div>
+          <div class="int-name">Python</div>
+          <div class="int-desc">SDK + HTTP adapter</div>
+        </div>
+      </div>
+      <div class="int-card">
+        <div class="int-icon">🐹</div>
+        <div>
+          <div class="int-name">Go</div>
+          <div class="int-desc">Native SDK (Eino ADK)</div>
+        </div>
+      </div>
+      <div class="int-card">
+        <div class="int-icon">🟨</div>
+        <div>
+          <div class="int-name">Node.js</div>
+          <div class="int-desc">openclaw-adapter</div>
+        </div>
+      </div>
+      <div class="int-card">
+        <div class="int-icon">🌐</div>
+        <div>
+          <div class="int-name">Any HTTP</div>
+          <div class="int-desc">External agent contract</div>
+        </div>
+      </div>
+      <div class="int-card">
+        <div class="int-icon">🐘</div>
+        <div>
+          <div class="int-name">PostgreSQL</div>
+          <div class="int-desc">Durable job store</div>
+        </div>
+      </div>
+      <div class="int-card">
+        <div class="int-icon">📊</div>
+        <div>
+          <div class="int-name">Prometheus</div>
+          <div class="int-desc">Metrics &amp; observability</div>
+        </div>
+      </div>
+      <div class="int-card">
+        <div class="int-icon">🔭</div>
+        <div>
+          <div class="int-name">OpenTelemetry</div>
+          <div class="int-desc">Distributed tracing</div>
+        </div>
+      </div>
+      <div class="int-card">
+        <div class="int-icon">⚙️</div>
+        <div>
+          <div class="int-name">MCP</div>
+          <div class="int-desc">Model Context Protocol</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Runtime shortcuts (live mode only) ═══════════════ -->
+<section class="section" id="runtime-links">
+  <div class="wrap">
+    <div class="section-label">Live Runtime Detected</div>
+    <h2>Jump into operational surfaces.</h2>
+    <p class="section-sub">
+      This page is being served by a running Aetheris instance. These shortcuts reach it directly.
+    </p>
+    <div class="resource-grid">
+      <a class="res-card" href="/api/health">
+        <span class="res-icon">✅</span>
+        <div class="res-title">API Health</div>
+        <div class="res-desc">Sanity-check the running service and verify the API is live.</div>
+        <span class="res-arrow">Open →</span>
+      </a>
+      <a class="res-card" href="/metrics">
+        <span class="res-icon">📊</span>
+        <div class="res-title">Prometheus Metrics</div>
+        <div class="res-desc">Inspect exported runtime metrics for local debugging and ops dashboards.</div>
+        <span class="res-arrow">Open →</span>
+      </a>
+      <a class="res-card" href="/api/trace/overview/page">
+        <span class="res-icon">🔭</span>
+        <div class="res-title">Trace Overview</div>
+        <div class="res-desc">Jump into the built-in trace UI for multi-job inspection and replay.</div>
+        <span class="res-arrow">Open →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Resources ═════════════════════════════════════════ -->
+<section class="section" id="resources">
+  <div class="wrap">
+    <div class="section-label">Resources</div>
+    <h2>Everything you need to go deeper.</h2>
+    <p class="section-sub">
+      From the five-minute quickstart to formal execution semantics — the full picture is in the docs.
+    </p>
+    <div class="resource-grid">
+      <a class="res-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/quickstart.md" target="_blank" rel="noreferrer">
+        <span class="res-icon">🚀</span>
+        <div class="res-title">Quickstart Guide</div>
+        <div class="res-desc">Embedded mode, external HTTP agents, and your first durable job in 5 minutes.</div>
+        <span class="res-arrow">Read →</span>
+      </a>
+      <a class="res-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/reference/api.md" target="_blank" rel="noreferrer">
+        <span class="res-icon">📖</span>
+        <div class="res-title">API Reference</div>
+        <div class="res-desc">Full HTTP surface, job lifecycle endpoints, and operational APIs.</div>
+        <span class="res-arrow">Read →</span>
+      </a>
+      <a class="res-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/adapters/external-http-agent.md" target="_blank" rel="noreferrer">
+        <span class="res-icon">🔌</span>
+        <div class="res-title">External HTTP Adapter</div>
+        <div class="res-desc">Connect any Python, JavaScript, or Go agent through the durable HTTP boundary.</div>
+        <span class="res-arrow">Read →</span>
+      </a>
+      <a class="res-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/runtime-guarantees.md" target="_blank" rel="noreferrer">
+        <span class="res-icon">🔒</span>
+        <div class="res-title">Runtime Guarantees</div>
+        <div class="res-desc">How checkpointing, replay, and side-effect safety are modeled formally.</div>
+        <span class="res-arrow">Read →</span>
+      </a>
+      <a class="res-card" href="https://github.com/Colin4k1024/Aetheris/tree/main/sdk/python" target="_blank" rel="noreferrer">
+        <span class="res-icon">🐍</span>
+        <div class="res-title">Python SDK</div>
+        <div class="res-desc">Packaged client for durable job submission from Python applications.</div>
+        <span class="res-arrow">Browse →</span>
+      </a>
+      <a class="res-card" href="https://github.com/Colin4k1024/Aetheris/tree/main/examples" target="_blank" rel="noreferrer">
+        <span class="res-icon">💡</span>
+        <div class="res-title">Examples</div>
+        <div class="res-desc">Working demos for agent integrations, workflows, and runtime patterns.</div>
+        <span class="res-arrow">Browse →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CTA Banner ════════════════════════════════════════ -->
+<section class="cta-banner">
+  <div class="wrap">
+    <h2>Ready to make your agents reliable?</h2>
+    <p>Open source · MIT License · No vendor lock-in</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <a class="btn-primary" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/quickstart.md" target="_blank" rel="noreferrer">
+        Get started in 5 minutes →
+      </a>
+      <a class="btn-ghost" href="https://github.com/Colin4k1024/Aetheris" target="_blank" rel="noreferrer">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Footer ════════════════════════════════════════════ -->
+<footer>
+  <div class="wrap footer-inner">
+    <div class="footer-left">
+      <span class="nav-logo-mark" style="width:20px;height:20px;font-size:11px;">A</span>
+      <span>Aetheris — MIT License</span>
+    </div>
+    <ul class="footer-links">
+      <li><a href="https://github.com/Colin4k1024/Aetheris" target="_blank" rel="noreferrer">GitHub</a></li>
+      <li><a href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/quickstart.md" target="_blank" rel="noreferrer">Quickstart</a></li>
+      <li><a href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/reference/api.md" target="_blank" rel="noreferrer">API Docs</a></li>
+      <li><a href="https://github.com/Colin4k1024/Aetheris/releases" target="_blank" rel="noreferrer">Releases</a></li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+(function () {
+  /* ── Tab switcher ─────────────────────────── */
+  function switchTab(btn, id) {
+    document.querySelectorAll('.qs-tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.qs-step').forEach(function(s) { s.classList.remove('active'); });
+    btn.classList.add('active');
+    var el = document.getElementById('tab-' + id);
+    if (el) el.classList.add('active');
+  }
+  window.switchTab = switchTab;
+
+  /* ── Copy button ──────────────────────────── */
+  function copy(btn) {
+    var pre = btn.parentElement.querySelector('pre');
+    var text = pre ? pre.innerText : '';
+    navigator.clipboard.writeText(text).then(function () {
+      btn.textContent = 'copied!';
+      btn.classList.add('copied');
+      setTimeout(function () {
+        btn.textContent = 'copy';
+        btn.classList.remove('copied');
+      }, 1800);
+    });
+  }
+  window.copy = copy;
+
+  /* ── Live runtime detection ───────────────── */
+  fetch('api/health', { headers: { Accept: 'application/json' } })
+    .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+    .then(function () {
+      var el = document.getElementById('runtime-links');
+      if (el) el.classList.add('visible');
+    })
+    .catch(function () {});
+})();
+</script>
 </body>
 </html>
