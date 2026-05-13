@@ -16,7 +16,7 @@ package ingest
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -135,7 +135,7 @@ func (l *DocumentLoader) loadFromPath(ctx *common.PipelineContext, path string) 
 		return nil, common.NewPipelineError(l.name, "invalid file type", fmt.Errorf("expected file, got directory: %s", cleanPath))
 	}
 
-	content, err := ioutil.ReadFile(cleanPath)
+	content, err := os.ReadFile(cleanPath)
 	if err != nil {
 		return nil, common.NewPipelineError(l.name, "读取文件failed", err)
 	}
@@ -179,7 +179,7 @@ func (l *DocumentLoader) loadFromFile(ctx *common.PipelineContext, fileHeader *m
 	}
 	defer file.Close()
 
-	content, err := ioutil.ReadAll(file)
+	content, err := io.ReadAll(file)
 	if err != nil {
 		return nil, common.NewPipelineError(l.name, "读取文件failed", err)
 	}
