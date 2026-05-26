@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -32,6 +33,44 @@ type externalAgentResponse struct {
 	Answer   string         `json:"answer"`
 	Final    bool           `json:"final"`
 	Metadata map[string]any `json:"metadata,omitempty"`
+}
+
+// sseAgentRequest 是 sse_legacy 协议的请求体，兼容 superagent-base /api/v1/chat/stream。
+type sseAgentRequest struct {
+	AgentID   string `json:"agent_id,omitempty"`
+	SessionID string `json:"session_id,omitempty"`
+	Message   string `json:"message"`
+}
+
+// consumeSSELegacyResponse 消费 SSE 流式响应（Legacy 模式），聚合 token 直到收到 [DONE]。
+// 格式：每行 "data: <token>\n\n"，结束标记 "data: [DONE]\n\n"。
+// 如果流在未收到 [DONE] 的情况下结束，则返回错误（协议错误）。
+// 聚合内容超过 maxExternalResponseBytes 时返回错误。
+func consumeSSELegacyResponse(body io.Reader) (string, error) {
+	const doneMarker = "[DONE]"
+	const maxLineBytes = 64 * 1024 // 64 KiB per SSE line
+	var sb strings.Builder
+	scanner := bufio.NewScanner(body)
+	scanner.Buffer(make([]byte, maxLineBytes), maxLineBytes)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		token := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if token == doneMarker {
+			return sb.String(), nil
+		}
+		sb.WriteString(token)
+		if int64(sb.Len()) > maxExternalResponseBytes {
+			return "", fmt.Errorf("external_agent_call: SSE response exceeds %d MiB limit", maxExternalResponseBytes/(1024*1024))
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("external_agent_call: read SSE stream: %w", err)
+	}
+	// 流结束但未遇到 [DONE] 标记，视为协议错误。
+	return "", fmt.Errorf("external_agent_call: SSE stream ended without [DONE] sentinel")
 }
 
 type externalAgentCallTool struct {
@@ -122,7 +161,16 @@ func (t *externalAgentCallTool) Execute(ctx context.Context, sess *session.Sessi
 	if sess != nil {
 		sessionID = sess.ID
 	}
+	protocol := strings.ToLower(strings.TrimSpace(agentCfg.Protocol))
+	switch protocol {
+	case "", "json", "sse_legacy":
+		// valid
+	default:
+		return nil, fmt.Errorf("external_agent_call: unsupported protocol %q for agent %q; allowed values: \"\", \"json\", \"sse_legacy\"", protocol, agentID)
+	}
+
 	metadata := mapFromAny(input["metadata"])
+	userMetadata := metadata // preserve user-provided metadata for protocol-specific checks
 	if metadata == nil {
 		metadata = make(map[string]any)
 	}
@@ -134,13 +182,38 @@ func (t *externalAgentCallTool) Execute(ctx context.Context, sess *session.Sessi
 		metadata["idempotency_key"] = idempotencyKey
 	}
 
-	reqBody, err := json.Marshal(externalAgentRequest{
-		Message:   message,
-		SessionID: sessionID,
-		Metadata:  metadata,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("external_agent_call: encode request: %w", err)
+	// 根据协议类型构建请求体。
+	var reqBody []byte
+	switch protocol {
+	case "sse_legacy":
+		// sse_legacy 不转发 metadata；有用户输入的 metadata 时报错避免静默丢失。
+		if len(userMetadata) > 0 {
+			return nil, fmt.Errorf("external_agent_call: metadata is not forwarded in sse_legacy protocol")
+		}
+		// superagent-base 兼容格式：{"agent_id","session_id","message"}
+		sseReq := sseAgentRequest{
+			Message:   message,
+			SessionID: sessionID,
+		}
+		if agentCfg.AgentID != "" {
+			sseReq.AgentID = agentCfg.AgentID
+		}
+		var err error
+		reqBody, err = json.Marshal(sseReq)
+		if err != nil {
+			return nil, fmt.Errorf("external_agent_call: encode sse request: %w", err)
+		}
+	default:
+		// 默认 JSON 协议：{"message","session_id","metadata"}
+		var err error
+		reqBody, err = json.Marshal(externalAgentRequest{
+			Message:   message,
+			SessionID: sessionID,
+			Metadata:  metadata,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("external_agent_call: encode request: %w", err)
+		}
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, agentCfg.URL, bytes.NewReader(reqBody))
@@ -148,6 +221,9 @@ func (t *externalAgentCallTool) Execute(ctx context.Context, sess *session.Sessi
 		return nil, fmt.Errorf("external_agent_call: create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if protocol == "sse_legacy" {
+		req.Header.Set("Accept", "text/event-stream")
+	}
 	if idempotencyKey != "" {
 		req.Header.Set("Idempotency-Key", idempotencyKey)
 	}
@@ -185,21 +261,33 @@ func (t *externalAgentCallTool) Execute(ctx context.Context, sess *session.Sessi
 		return nil, fmt.Errorf("external_agent_call: upstream returned HTTP %d", resp.StatusCode)
 	}
 
-	// Read at most maxExternalResponseBytes+1 to detect over-size responses.
-	limitedBody, err := io.ReadAll(io.LimitReader(resp.Body, maxExternalResponseBytes+1))
-	if err != nil {
-		return nil, fmt.Errorf("external_agent_call: read response: %w", err)
-	}
-	if int64(len(limitedBody)) > maxExternalResponseBytes {
-		return nil, fmt.Errorf("external_agent_call: response exceeds %d MiB limit", maxExternalResponseBytes/(1024*1024))
-	}
+	// 根据协议类型解析响应。
 	var out externalAgentResponse
-	if err := json.Unmarshal(limitedBody, &out); err != nil {
-		return nil, fmt.Errorf("external_agent_call: decode response: %w", err)
+	switch protocol {
+	case "sse_legacy":
+		// 消费 SSE 流，聚合 token 为最终答案。
+		answer, err := consumeSSELegacyResponse(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		out = externalAgentResponse{Answer: answer, Final: true, Metadata: metadata}
+	default:
+		// 默认 JSON 响应解析。
+		limitedBody, err := io.ReadAll(io.LimitReader(resp.Body, maxExternalResponseBytes+1))
+		if err != nil {
+			return nil, fmt.Errorf("external_agent_call: read response: %w", err)
+		}
+		if int64(len(limitedBody)) > maxExternalResponseBytes {
+			return nil, fmt.Errorf("external_agent_call: response exceeds %d MiB limit", maxExternalResponseBytes/(1024*1024))
+		}
+		if err := json.Unmarshal(limitedBody, &out); err != nil {
+			return nil, fmt.Errorf("external_agent_call: decode response: %w", err)
+		}
+		if !out.Final {
+			return nil, fmt.Errorf("external_agent_call: upstream returned final=false; streaming is not supported")
+		}
 	}
-	if !out.Final {
-		return nil, fmt.Errorf("external_agent_call: upstream returned final=false; streaming is not supported")
-	}
+
 	if out.Metadata == nil {
 		out.Metadata = make(map[string]any)
 	}

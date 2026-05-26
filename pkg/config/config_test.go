@@ -632,6 +632,24 @@ func TestAgentsConfig_ExternalHTTP(t *testing.T) {
 	}
 }
 
+func TestAgentsConfig_ExternalHTTP_SSELegacy(t *testing.T) {
+	cfg := AgentsConfig{
+		Agents: map[string]AgentDefConfig{
+			"sse_bot": {
+				Type: "external_http",
+				External: AgentExternalConfig{
+					URL:      "http://sse-bot:8888/api/v1/chat/stream",
+					Protocol: "sse_legacy",
+					AgentID:  "research-agent",
+				},
+			},
+		},
+	}
+	if err := ValidateExternalAgents(&cfg); err != nil {
+		t.Fatalf("ValidateExternalAgents returned error for valid sse_legacy config: %v", err)
+	}
+}
+
 func TestValidateExternalAgents_Errors(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -669,9 +687,17 @@ func TestValidateExternalAgents_Errors(t *testing.T) {
 			}},
 		},
 		{
-			name: "file scheme",
+			name: "invalid protocol",
 			agent: AgentDefConfig{Type: "external_http", External: AgentExternalConfig{
-				URL: "file:///etc/passwd",
+				URL:      "http://customer-bot:9000/invoke",
+				Protocol: "grpc",
+			}},
+		},
+		{
+			name: "agent_id without sse_legacy",
+			agent: AgentDefConfig{Type: "external_http", External: AgentExternalConfig{
+				URL:     "http://customer-bot:9000/invoke",
+				AgentID: "some-agent",
 			}},
 		},
 	}
