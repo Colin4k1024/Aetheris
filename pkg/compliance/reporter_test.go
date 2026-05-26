@@ -2,6 +2,7 @@ package compliance
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -104,5 +105,8 @@ func TestGenerateReport_ReturnsUnsupportedStandardError(t *testing.T) {
 	_, err := r.GenerateReport(context.Background(), "tenant_1", TimeRange{})
 	if err == nil {
 		t.Fatal("expected error for unsupported standard")
+	}
+	if !strings.Contains(err.Error(), "unsupported standard") {
+		t.Fatalf("expected unsupported standard error, got %v", err)
 	}
 }

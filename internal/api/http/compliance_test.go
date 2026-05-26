@@ -98,3 +98,25 @@ func TestComplianceReport_RejectsMismatchedEvidencePackageID(t *testing.T) {
 		t.Fatalf("expected package id mismatch error: %s", w.Result().Body())
 	}
 }
+
+func TestComplianceReport_AllowsEmptyVerificationPackageID(t *testing.T) {
+	h := NewHandler(nil, nil)
+	s := server.Default(server.WithHostPorts(":0"))
+	s.POST("/api/compliance/report", h.ComplianceReport)
+
+	body := []byte(`{
+		"tenant_id":"tenant-1",
+		"standard":"GDPR",
+		"evidence_package_id":"evidence-job-1.zip",
+		"evidence_verification":{
+			"root_hash":"root-hash",
+			"verified":true,
+			"signed":true,
+			"signature_valid":true
+		}
+	}`)
+	w := ut.PerformRequest(s.Engine, "POST", "/api/compliance/report", &ut.Body{Body: bytes.NewReader(body), Len: len(body)})
+	if got := w.Result().StatusCode(); got != 200 {
+		t.Fatalf("status = %d, want 200; body=%s", got, w.Result().Body())
+	}
+}
