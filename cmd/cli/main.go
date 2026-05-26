@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"context"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -31,6 +32,7 @@ import (
 	"github.com/Colin4k1024/Aetheris/v2/pkg/config"
 	"github.com/Colin4k1024/Aetheris/v2/pkg/proof"
 	"github.com/Colin4k1024/Aetheris/v2/pkg/signature"
+	"golang.org/x/crypto/ed25519"
 )
 
 //go:embed templates/agent-minimal
@@ -142,11 +144,11 @@ func main() {
 		runDebug(args[0], compareReplay)
 	case "verify":
 		if len(args) < 1 {
-			fmt.Fprintf(os.Stderr, "Usage: aetheris verify <job_id> | aetheris verify <evidence.zip>\n")
+			fmt.Fprintf(os.Stderr, "Usage: aetheris verify <job_id> | aetheris verify <evidence.zip> [--public-key base64]\n")
 			os.Exit(1)
 		}
 		if strings.HasSuffix(args[0], ".zip") {
-			runVerifyEvidenceZip(args[0])
+			runVerifyEvidenceZip(args)
 		} else {
 			runVerifyJob(args[0])
 		}
@@ -190,7 +192,7 @@ func printUsage() {
 	fmt.Println("  signal <job_id> <correlation_key> - 向 waiting/parked Job 发送 signal")
 	fmt.Println("  debug <job_id> [--compare-replay] - Agent 调试器：timeline + evidence + replay verification")
 	fmt.Println("  verify <job_id> - 执行验证：输出 execution_hash、event_chain_root、ledger proof、replay proof")
-	fmt.Println("  verify <evidence.zip> - 离线验证证据包完整性")
+	fmt.Println("  verify <evidence.zip> [--public-key base64] - 离线验证证据包完整性和签名")
 	fmt.Println("  sign <evidence.zip> [--key key_id] - 对证据包进行数字签名 (3.0-M4)")
 	fmt.Println("  export <job_id> [--output evidence.zip] - 导出 Job 证据包（2.0-M1）")
 	fmt.Println("  init [dir]      - Scaffold a minimal agent project (templates + config) into current dir or dir")
@@ -843,19 +845,53 @@ func runExport(args []string) {
 }
 
 // runVerifyEvidenceZip 验证证据包（2.0-M1）
-func runVerifyEvidenceZip(zipPath string) {
-	code := verifyEvidenceZip(zipPath, os.Stdout, os.Stderr)
+func runVerifyEvidenceZip(args []string) {
+	zipPath, publicKey, err := parseEvidenceVerifyArgs(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Usage: aetheris verify <evidence.zip> [--public-key base64]\n")
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	code := verifyEvidenceZip(zipPath, os.Stdout, os.Stderr, publicKey)
 	os.Exit(code)
 }
 
-func verifyEvidenceZip(zipPath string, stdout, stderr io.Writer) int {
+func parseEvidenceVerifyArgs(args []string) (string, ed25519.PublicKey, error) {
+	if len(args) == 0 {
+		return "", nil, fmt.Errorf("missing evidence zip path")
+	}
+	zipPath := args[0]
+	var publicKey ed25519.PublicKey
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case "--public-key":
+			if i+1 >= len(args) {
+				return "", nil, fmt.Errorf("--public-key requires a base64 value")
+			}
+			raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(args[i+1]))
+			if err != nil {
+				return "", nil, fmt.Errorf("invalid public key: %w", err)
+			}
+			if len(raw) != ed25519.PublicKeySize {
+				return "", nil, fmt.Errorf("invalid public key length: got %d, want %d", len(raw), ed25519.PublicKeySize)
+			}
+			publicKey = ed25519.PublicKey(raw)
+			i++
+		default:
+			return "", nil, fmt.Errorf("unknown option %q", args[i])
+		}
+	}
+	return zipPath, publicKey, nil
+}
+
+func verifyEvidenceZip(zipPath string, stdout, stderr io.Writer, publicKey ...ed25519.PublicKey) int {
 	zipBytes, err := os.ReadFile(zipPath)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "Error reading file: %v\n", err)
 		return 1
 	}
 
-	result := proof.VerifyEvidenceZip(zipBytes)
+	result := proof.VerifyEvidenceZip(zipBytes, publicKey...)
 	_, _ = fmt.Fprintf(stdout, "Verifying evidence package: %s\n\n", zipPath)
 	_, _ = fmt.Fprintln(stdout, "=== Verification Results ===")
 
@@ -870,6 +906,9 @@ func verifyEvidenceZip(zipPath string, stdout, stderr io.Writer) int {
 		}
 		if result.ManifestValid {
 			fmt.Fprintln(stdout, "  - Manifest: OK")
+		}
+		if len(publicKey) > 0 && publicKey[0] != nil && result.SignatureValid {
+			fmt.Fprintln(stdout, "  - Signature: OK")
 		}
 		return 0
 	}

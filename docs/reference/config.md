@@ -42,7 +42,9 @@ For API-only embedded mode, add the block to the API config. For split API/Worke
 | middleware.auth | Enable auth |
 | middleware.rate_limit / rate_limit_rps | Rate limit toggle and RPS |
 | middleware.jwt_key / jwt_timeout / jwt_max_refresh | JWT (when auth is true); prefer `${JWT_SECRET}` env for jwt_key |
-| forensics.experimental | Whether to expose experimental forensics query endpoints (`/api/forensics/*`, `/api/jobs/:id/evidence-graph`, `/api/jobs/:id/audit-log`) |
+| forensics.experimental | Whether to expose experimental forensics, evidence graph, audit log, compliance, and AI-forensics endpoints (`/api/forensics/*`, `/api/jobs/:id/evidence-graph`, `/api/jobs/:id/audit-log`, `/api/compliance/*`) |
+
+See [forensics read model](../guides/forensics-read-model.md) for the query schema and release drill.
 | grpc.enable / port | gRPC toggle and port, default 9090 |
 
 ### jobstore
@@ -56,6 +58,33 @@ Task event storage (event stream + lease).
 | lease_duration | Lease duration; Heartbeat interval should be &lt; lease_duration/2 |
 
 **Important**: When `jobstore.type=postgres`, **only Worker processes execute via event Claim**; the API **does not start** an in-process Scheduler (single execution ownership). With memory, the API starts the Scheduler and runs jobs.
+
+### runtime production gates
+
+When `runtime.profile: "prod"` or `runtime.strict: true`, API and Worker startup enforce production-safe storage:
+
+- `jobstore.type=postgres` with DSN
+- `effect_store.type=postgres` with DSN
+- `checkpoint_store.type=postgres` with DSN
+- no default database password
+- no `sslmode=disable`
+
+The API process additionally requires specific CORS origins, authentication enabled, and a JWT key. See [production runtime gates](../guides/production-runtime-gates.md).
+
+The Invocation Ledger does not have a separate public config block. It is assembled from the shared ToolInvocationStore during DAG compiler setup; in production this relies on the same Postgres-backed runtime storage path used by the configured stores.
+
+### security.evidence_signing
+
+Optional Ed25519 signing for evidence ZIP exports.
+
+| Field | Description |
+|-------|-------------|
+| enabled | When true, `POST /api/jobs/:id/export` signs `proof.json` inside the ZIP |
+| key_id | Key identifier written into signed proof metadata; defaults to `default` |
+| private_key_base64 | Raw 64-byte Ed25519 private key encoded with standard base64; env substitution is supported |
+| public_key_base64 | Optional raw 32-byte Ed25519 public key encoded with standard base64; startup validates it matches the private key when present |
+
+See [evidence signing](../guides/evidence-signing.md).
 
 ### agent.job_scheduler
 

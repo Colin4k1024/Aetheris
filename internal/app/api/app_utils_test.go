@@ -15,6 +15,10 @@
 package api
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
+	"strings"
 	"testing"
 	"time"
 
@@ -223,6 +227,45 @@ func TestIsSSLEnabled(t *testing.T) {
 				t.Errorf("isSSLEnabled(%q) = %v, want %v", tt.dsn, result, tt.want)
 			}
 		})
+	}
+}
+
+func TestEvidenceSigningConfigFromConfig(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	cfg, err := evidenceSigningConfigFromConfig(config.EvidenceSigningConfig{
+		Enabled:          true,
+		KeyID:            "release-key",
+		PrivateKeyBase64: base64.StdEncoding.EncodeToString(privateKey),
+		PublicKeyBase64:  base64.StdEncoding.EncodeToString(publicKey),
+	})
+	if err != nil {
+		t.Fatalf("evidenceSigningConfigFromConfig returned error: %v", err)
+	}
+	if !cfg.Enabled {
+		t.Fatalf("expected signing enabled")
+	}
+	if cfg.KeyID != "release-key" {
+		t.Fatalf("KeyID = %q, want release-key", cfg.KeyID)
+	}
+	if !ed25519.PrivateKey(cfg.PrivateKey).Equal(privateKey) {
+		t.Fatalf("private key mismatch")
+	}
+}
+
+func TestEvidenceSigningConfigFromConfig_InvalidKey(t *testing.T) {
+	_, err := evidenceSigningConfigFromConfig(config.EvidenceSigningConfig{
+		Enabled:          true,
+		PrivateKeyBase64: base64.StdEncoding.EncodeToString([]byte("bad")),
+	})
+	if err == nil {
+		t.Fatalf("expected invalid key error")
+	}
+	if !strings.Contains(err.Error(), "invalid evidence signing private key length") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

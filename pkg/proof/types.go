@@ -116,6 +116,7 @@ type VerifyResult struct {
 // SigningConfig contains Ed25519 private key for signing evidence packages.
 type SigningConfig struct {
 	PrivateKey ed25519.PrivateKey
+	KeyID      string
 }
 
 // SignedProof extends ProofSummary with cryptographic signature.

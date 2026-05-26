@@ -149,3 +149,52 @@ func TestGC_DeleteOnly(t *testing.T) {
 		t.Fatalf("delete calls = %d, want 1", store.deleteCalls)
 	}
 }
+
+func TestGC_RetentionDoesNotMutateEventHistoryForReplay(t *testing.T) {
+	ctx := context.Background()
+	jobID := "job-retention-replay"
+	eventStore := NewMemoryStore()
+	if _, err := eventStore.Append(ctx, jobID, 0, JobEvent{
+		JobID:   jobID,
+		Type:    JobCreated,
+		Payload: []byte(`{"goal":"retain replay history"}`),
+	}); err != nil {
+		t.Fatalf("append job_created: %v", err)
+	}
+	if _, err := eventStore.Append(ctx, jobID, 1, JobEvent{
+		JobID:   jobID,
+		Type:    ToolInvocationFinished,
+		Payload: []byte(`{"idempotency_key":"old-key","outcome":"success","tool_name":"test"}`),
+	}); err != nil {
+		t.Fatalf("append tool_invocation_finished: %v", err)
+	}
+
+	store := &fakeLifecycleStore{
+		JobStore: eventStore,
+		expiredBatches: [][]ToolInvocationRef{
+			{{JobID: jobID, IdempotencyKey: "old-key"}},
+		},
+	}
+	if err := GC(ctx, store, GCConfig{
+		Enable:         true,
+		TTLDays:        1,
+		ArchiveEnabled: true,
+		BatchSize:      10,
+	}); err != nil {
+		t.Fatalf("GC failed: %v", err)
+	}
+
+	events, version, err := eventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		t.Fatalf("list events after GC: %v", err)
+	}
+	if version != 2 || len(events) != 2 {
+		t.Fatalf("retention GC must not mutate replay event history, version=%d len=%d", version, len(events))
+	}
+	if events[1].Type != ToolInvocationFinished {
+		t.Fatalf("expected replay event history to retain tool finish event, got %s", events[1].Type)
+	}
+	if store.archiveCalls != 1 || store.deleteCalls != 1 {
+		t.Fatalf("expected lifecycle archive+delete calls, archive=%d delete=%d", store.archiveCalls, store.deleteCalls)
+	}
+}

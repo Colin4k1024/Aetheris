@@ -20,6 +20,12 @@ func TestGetTemplate(t *testing.T) {
 	if template.RetentionDays != 90 {
 		t.Errorf("expected 90 days retention, got %d", template.RetentionDays)
 	}
+	if template.Version == "" {
+		t.Error("expected template version")
+	}
+	if template.ExportFormat != "json" {
+		t.Errorf("expected json export format, got %s", template.ExportFormat)
+	}
 }
 
 // TestListTemplates 测试列出所有模板

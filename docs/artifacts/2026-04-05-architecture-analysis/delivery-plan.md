@@ -8,6 +8,8 @@ status: ready-for-execute
 
 # 交付计划：架构分析与修复
 
+> Historical note (2026-05-25): 本计划中的 EffectStore “事件流优先” 方案已被后续强 Replay 契约取代。当前权威契约见 [effect-store-contract.md](../../../design/internal/effect-store-contract.md)。
+
 ## 1. 版本目标
 
 | 项目 | 说明 |
@@ -39,7 +41,7 @@ status: ready-for-execute
 |----|--------|------|------|--------|
 | RTN-01 | Heartbeat SQL 增加 attempt_id 校验 | backend-engineer | 无 | P0 |
 | RTN-02 | 明确 Worker 失租检测机制 | architect | RTN-01 | P0 |
-| RTN-03 | EffectStore 写入顺序修复（事件流优先） | backend-engineer | 无 | P0 |
+| RTN-03 | EffectStore 写入顺序修复（historical: 事件流优先；current: PutEffect before committed/finished events） | backend-engineer | 无 | P0 |
 | RTN-04 | 确认/实现 EffectStore catch-up 逻辑 | backend-engineer | RTN-03 | P0 |
 | RTN-05 | Agent 并发模型明确（Take/Release 语义） | architect | 无 | P0 |
 | RTN-06 | Agent/Manager 字段并发保护 | backend-engineer | RTN-05 | P1 |
@@ -94,7 +96,7 @@ status: ready-for-execute
 ### Runtime 修复关键发现
 
 1. **RTN-01 不充分**：Heartbeat 加 attempt_id 校验是必要条件，但不充分。需要明确 Worker 失租检测机制
-2. **RTN-03 顺序错误**：当前 Phase 1 写 EffectStore、Phase 2 写事件流的顺序与 design doc "事件流优先" 原则矛盾
+2. **RTN-03 顺序错误（historical）**：当时 Phase 1 写 EffectStore、Phase 2 写事件流的顺序被认为与 "事件流优先" 原则矛盾；当前契约已改为 PutEffect before committed/finished events
 3. **RTN-05 并发模型缺失**：Agent 是否允许多 goroutine 并发调用未明确，需要 architect 决策
 
 ### 测试增强关键发现
@@ -132,5 +134,5 @@ status: ready-for-execute
 | ADR | 标题 | 决策点 |
 |-----|------|--------|
 | ADR-XXX | Agent 并发模型决策 | Agent 是否允许多 goroutine 并发 Run()？ |
-| ADR-XXX | EffectStore 与事件流写入顺序 | 事件流优先 vs EffectStore 优先？ |
+| ADR-XXX | EffectStore 与事件流写入顺序 | Historical: 事件流优先 vs EffectStore 优先；current: PutEffect before committed/finished events |
 | ADR-XXX | RoleStore 配置解耦 | RoleStore 类型是否应与 JobStore 解耦？ |

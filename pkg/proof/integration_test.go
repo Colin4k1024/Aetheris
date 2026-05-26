@@ -16,6 +16,7 @@ package proof
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -191,5 +192,81 @@ func TestEndToEnd_ChainIntegrity(t *testing.T) {
 	result := VerifyEvidenceZip(zipBytes, nil)
 	if !result.OK {
 		t.Errorf("verification failed: %v", result.Errors)
+	}
+}
+
+func TestEndToEnd_RedactedExportRemovesPIIAndVerifies(t *testing.T) {
+	jobID := "job_e2e_redacted"
+	event := Event{
+		ID:        "1",
+		JobID:     jobID,
+		Type:      "tool_invocation_finished",
+		Payload:   `{"email":"alice@example.com","phone":"+1-555-0100","ssn":"123-45-6789","api_key":"secret-key","safe":"keep"}`,
+		CreatedAt: time.Now().UTC(),
+	}
+	event.Hash = ComputeEventHash(event)
+
+	zipBytes, err := ExportEvidenceZip(
+		context.Background(),
+		jobID,
+		memJobStore{events: []Event{event}},
+		nil,
+		ExportOptions{
+			RuntimeVersion:   "test",
+			RedactionEnabled: true,
+			RedactionSalt:    "fixture-salt",
+		},
+	)
+	if err != nil {
+		t.Fatalf("export failed: %v", err)
+	}
+
+	result := VerifyEvidenceZip(zipBytes, nil)
+	if !result.OK {
+		t.Fatalf("redacted package should verify, errors: %v", result.Errors)
+	}
+	if len(result.Events) != 1 {
+		t.Fatalf("expected one event, got %d", len(result.Events))
+	}
+	payload := result.Events[0].Payload
+	for _, forbidden := range []string{"alice@example.com", "+1-555-0100", "123-45-6789", "secret-key", "api_key"} {
+		if strings.Contains(payload, forbidden) {
+			t.Fatalf("redacted payload leaked %q: %s", forbidden, payload)
+		}
+	}
+	if !strings.Contains(payload, `"safe":"keep"`) {
+		t.Fatalf("redacted payload should retain safe field: %s", payload)
+	}
+	if !strings.Contains(payload, `"email":"hash:`) {
+		t.Fatalf("email should be hashed for correlation: %s", payload)
+	}
+}
+
+func TestEndToEnd_RedactedExportRequiresSalt(t *testing.T) {
+	jobID := "job_e2e_redacted_no_salt"
+	event := Event{
+		ID:        "1",
+		JobID:     jobID,
+		Type:      "tool_invocation_finished",
+		Payload:   `{"email":"alice@example.com"}`,
+		CreatedAt: time.Now().UTC(),
+	}
+	event.Hash = ComputeEventHash(event)
+
+	_, err := ExportEvidenceZip(
+		context.Background(),
+		jobID,
+		memJobStore{events: []Event{event}},
+		nil,
+		ExportOptions{
+			RuntimeVersion:   "test",
+			RedactionEnabled: true,
+		},
+	)
+	if err == nil {
+		t.Fatal("expected error when redaction is enabled without salt")
+	}
+	if !strings.Contains(err.Error(), "redaction_salt is required") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

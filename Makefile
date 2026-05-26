@@ -14,7 +14,7 @@ EMBED_WORKER_PID := $(BIN_DIR)/worker.embedded.pid
 EMBED_API_LOG := $(BIN_DIR)/api.embedded.log
 EMBED_WORKER_LOG := $(BIN_DIR)/worker.embedded.log
 
-.PHONY: build run run-all run-api run-worker run-embedded run-embedded-api run-embedded-worker stop stop-embedded clean test test-integration vet fmt fmt-check tidy docker-build docker-run docker-stop run-embedded-docker stop-embedded-docker release-2.0 ci-local help
+.PHONY: build run run-all run-api run-worker run-embedded run-embedded-api run-embedded-worker stop stop-embedded clean test test-integration vet fmt fmt-check tidy docker-build docker-run docker-stop run-embedded-docker stop-embedded-docker release-2.0 evidence-signing-drill forensics-read-model-drill rbac-redaction-retention-drill compliance-report-drill ci-local help
 
 # 默认目标：帮助
 help:
@@ -36,6 +36,10 @@ help:
 	@echo "  make run-embedded-docker  - 启动 embedded compose 栈（无外部 DB）"
 	@echo "  make stop-embedded-docker - 停止 embedded compose 栈"
 	@echo "  make release-2.0  - 执行 2.0 发布前检查脚本"
+	@echo "  make evidence-signing-drill - 执行证据包签名发布演练"
+	@echo "  make forensics-read-model-drill - 执行取证查询 read model 发布演练"
+	@echo "  make rbac-redaction-retention-drill - 执行 RBAC/脱敏/留存发布演练"
+	@echo "  make compliance-report-drill - 执行合规报告发布演练"
 	@echo "  make ci-local  - 本地复现核心 CI 流程（含 Postgres 集成测试）"
 	@echo "  make vet     - go vet"
 	@echo "  make fmt       - gofmt -w"
@@ -127,6 +131,18 @@ stop-embedded-docker:
 
 release-2.0:
 	./scripts/release-2.0.sh
+
+evidence-signing-drill:
+	./scripts/release-evidence-signing-drill.sh
+
+forensics-read-model-drill:
+	./scripts/release-forensics-read-model-drill.sh
+
+rbac-redaction-retention-drill:
+	./scripts/release-rbac-redaction-retention-drill.sh
+
+compliance-report-drill:
+	./scripts/release-compliance-report-drill.sh
 
 ci-local:
 	@echo "[ci-local] fmt-check"

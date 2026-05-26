@@ -708,24 +708,15 @@ func (a *ToolNodeAdapter) runNodeExecute(ctx context.Context, jobID, taskID, too
 	}
 	resultBytes, _ := json.Marshal(nodeResult)
 	externalID := extractExternalIDFromToolResult(result.Output, result.State)
-	// 事件流是权威来源：先写事件流 AppendToolInvocationFinished（design/effect-system.md）
-	if a.ToolEventSink != nil && jobID != "" {
-		_ = a.ToolEventSink.AppendToolInvocationFinished(ctx, jobID, nodeIDForEvent, &ToolInvocationFinishedPayload{
-			InvocationID:   invocationID,
-			IdempotencyKey: idempotencyKey,
-			Outcome:        ToolInvocationOutcomeSuccess,
-			Result:         resultBytes,
-			FinishedAt:     FormatStartedAt(finishedAt),
-		})
-	}
-	// EffectStore 写入（可选）：仅用于审计加速；崩溃发生在"事件流已写但 EffectStore 未写"时，Replay 仍可从事件流恢复（design/effect-log-and-provenance.md）
+	// Strong replay contract: persist the completed effect before appending commit
+	// events, so a crash after the side effect can be recovered without replaying it.
 	if a.EffectStore != nil && jobID != "" {
 		inputBytes, _ := json.Marshal(cfg)
 		meta := map[string]any{"tool_name": toolName}
 		if externalID != "" {
 			meta["external_id"] = externalID
 		}
-		_ = a.EffectStore.PutEffect(ctx, &EffectRecord{
+		if err := a.EffectStore.PutEffect(ctx, &EffectRecord{
 			JobID:          jobID,
 			CommandID:      nodeIDForEvent,
 			IdempotencyKey: idempotencyKey,
@@ -734,6 +725,17 @@ func (a *ToolNodeAdapter) runNodeExecute(ctx context.Context, jobID, taskID, too
 			Output:         resultBytes,
 			Error:          result.Err,
 			Metadata:       meta,
+		}); err != nil {
+			return nil, err
+		}
+	}
+	if a.ToolEventSink != nil && jobID != "" {
+		_ = a.ToolEventSink.AppendToolInvocationFinished(ctx, jobID, nodeIDForEvent, &ToolInvocationFinishedPayload{
+			InvocationID:   invocationID,
+			IdempotencyKey: idempotencyKey,
+			Outcome:        ToolInvocationOutcomeSuccess,
+			Result:         resultBytes,
+			FinishedAt:     FormatStartedAt(finishedAt),
 		})
 	}
 	if a.CommandEventSink != nil && jobID != "" {

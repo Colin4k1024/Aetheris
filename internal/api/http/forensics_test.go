@@ -2,6 +2,8 @@ package http
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/json"
 	"testing"
 	"time"
@@ -79,6 +81,74 @@ func TestBuildForensicsPackage_ProofCompatible(t *testing.T) {
 	}
 	if !result.ManifestValid {
 		t.Fatalf("expected manifest valid")
+	}
+}
+
+func TestBuildForensicsPackage_SignedProof(t *testing.T) {
+	ctx := context.Background()
+	jobID := "job_forensics_export_signed"
+	store := jobstore.NewMemoryStore()
+	_, ver, err := store.ListEvents(ctx, jobID)
+	if err != nil {
+		t.Fatalf("list events: %v", err)
+	}
+	_, err = store.Append(ctx, jobID, ver, jobstore.JobEvent{
+		JobID: jobID,
+		Type:  jobstore.JobCreated,
+	})
+	if err != nil {
+		t.Fatalf("append job_created: %v", err)
+	}
+
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	h := NewHandler(nil, nil)
+	h.SetJobEventStore(store)
+	h.SetEvidenceSigning(EvidenceSigningConfig{
+		Enabled:    true,
+		KeyID:      "test-key",
+		PrivateKey: privateKey,
+	})
+
+	zipBytes, err := h.buildForensicsPackage(ctx, jobID)
+	if err != nil {
+		t.Fatalf("build signed forensics package: %v", err)
+	}
+
+	result := proof.VerifyEvidenceZip(zipBytes, publicKey)
+	if !result.OK {
+		t.Fatalf("expected signed exported zip to be verifiable, errors: %v", result.Errors)
+	}
+	if !result.SignatureValid {
+		t.Fatalf("expected signature valid")
+	}
+}
+
+func TestBuildForensicsPackage_InvalidSigningKey(t *testing.T) {
+	ctx := context.Background()
+	jobID := "job_forensics_export_invalid_signing_key"
+	store := jobstore.NewMemoryStore()
+	_, err := store.Append(ctx, jobID, 0, jobstore.JobEvent{
+		JobID: jobID,
+		Type:  jobstore.JobCreated,
+	})
+	if err != nil {
+		t.Fatalf("append job_created: %v", err)
+	}
+
+	h := NewHandler(nil, nil)
+	h.SetJobEventStore(store)
+	h.SetEvidenceSigning(EvidenceSigningConfig{
+		Enabled:    true,
+		KeyID:      "bad-key",
+		PrivateKey: []byte("not-an-ed25519-private-key"),
+	})
+
+	if _, err := h.buildForensicsPackage(ctx, jobID); err == nil {
+		t.Fatalf("expected invalid signing key error")
 	}
 }
 

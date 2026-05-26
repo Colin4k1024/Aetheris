@@ -38,6 +38,16 @@ func TestRouter_ForensicsRoutesDisabledByDefault(t *testing.T) {
 	if got := w.Result().StatusCode(); got != 404 {
 		t.Fatalf("GET /api/jobs/:id/audit-log status = %d, want 404", got)
 	}
+
+	w = ut.PerformRequest(s.Engine, "POST", "/api/forensics/ai/detect-anomalies", &ut.Body{Body: bytes.NewReader(body), Len: len(body)})
+	if got := w.Result().StatusCode(); got != 404 {
+		t.Fatalf("POST /api/forensics/ai/detect-anomalies status = %d, want 404", got)
+	}
+
+	w = ut.PerformRequest(s.Engine, "GET", "/api/compliance/templates", &ut.Body{Body: bytes.NewReader(nil), Len: 0})
+	if got := w.Result().StatusCode(); got != 404 {
+		t.Fatalf("GET /api/compliance/templates status = %d, want 404", got)
+	}
 }
 
 func TestRouter_ForensicsRoutesEnabled(t *testing.T) {
@@ -54,6 +64,12 @@ func TestRouter_ForensicsRoutesEnabled(t *testing.T) {
 	status = w.Result().StatusCode()
 	if status == 404 {
 		t.Fatalf("GET /api/jobs/:id/evidence-graph status = %d, want non-404 when experimental enabled", status)
+	}
+
+	w = ut.PerformRequest(s.Engine, "GET", "/api/compliance/templates", &ut.Body{Body: bytes.NewReader(nil), Len: 0})
+	status = w.Result().StatusCode()
+	if status == 404 {
+		t.Fatalf("GET /api/compliance/templates status = %d, want non-404 when experimental enabled", status)
 	}
 }
 

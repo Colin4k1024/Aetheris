@@ -174,3 +174,139 @@ func TestForensicsBatchExport_StatusFlow(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 }
+
+func TestForensicsQuery_PaginationLimitCapAndFilters(t *testing.T) {
+	ctx := context.Background()
+	jobStore := job.NewJobStoreMem()
+	eventStore := jobstore.NewMemoryStore()
+	h := NewHandler(nil, nil)
+	h.SetJobStore(jobStore)
+	h.SetJobEventStore(eventStore)
+
+	for i := 0; i < 205; i++ {
+		jobID, err := jobStore.Create(ctx, &job.Job{
+			AgentID:  "agent-page",
+			TenantID: "tenant-page",
+			Goal:     "pagination test",
+		})
+		if err != nil {
+			t.Fatalf("create job %d: %v", i, err)
+		}
+		_, ver, err := eventStore.ListEvents(ctx, jobID)
+		if err != nil {
+			t.Fatalf("list events for %s: %v", jobID, err)
+		}
+		payload, _ := json.Marshal(map[string]interface{}{
+			"invocation_id":   "inv-page",
+			"idempotency_key": "key-page",
+			"tool_name":       "stripe.charge",
+			"outcome":         "success",
+			"finished_at":     time.Now().UTC().Format(time.RFC3339),
+		})
+		if ver, err = eventStore.Append(ctx, jobID, ver, jobstore.JobEvent{JobID: jobID, Type: jobstore.JobCreated}); err != nil {
+			t.Fatalf("append created: %v", err)
+		}
+		if _, err = eventStore.Append(ctx, jobID, ver, jobstore.JobEvent{JobID: jobID, Type: jobstore.ToolInvocationFinished, Payload: payload}); err != nil {
+			t.Fatalf("append tool finished: %v", err)
+		}
+	}
+
+	s := server.Default(server.WithHostPorts(":0"))
+	s.POST("/api/forensics/query", h.ForensicsQuery)
+
+	body := []byte(`{
+		"tenant_id":"tenant-page",
+		"agent_filter":["agent-page"],
+		"tool_filter":["stripe*"],
+		"limit":500,
+		"offset":0
+	}`)
+	w := ut.PerformRequest(s.Engine, "POST", "/api/forensics/query", &ut.Body{Body: bytes.NewReader(body), Len: len(body)})
+	if got := w.Result().StatusCode(); got != 200 {
+		t.Fatalf("status = %d, want 200; body=%s", got, w.Result().Body())
+	}
+
+	var resp struct {
+		Jobs       []map[string]interface{} `json:"jobs"`
+		TotalCount int                      `json:"total_count"`
+		Page       int                      `json:"page"`
+	}
+	if err := json.Unmarshal(w.Result().Body(), &resp); err != nil {
+		t.Fatalf("unmarshal query response: %v", err)
+	}
+	if resp.TotalCount != 205 {
+		t.Fatalf("total_count = %d, want 205", resp.TotalCount)
+	}
+	if len(resp.Jobs) != 200 {
+		t.Fatalf("jobs length = %d, want capped page size 200", len(resp.Jobs))
+	}
+	if resp.Page != 0 {
+		t.Fatalf("page = %d, want 0", resp.Page)
+	}
+}
+
+func TestForensicsQuery_LargeEventStreamEventCount(t *testing.T) {
+	ctx := context.Background()
+	jobStore := job.NewJobStoreMem()
+	eventStore := jobstore.NewMemoryStore()
+	h := NewHandler(nil, nil)
+	h.SetJobStore(jobStore)
+	h.SetJobEventStore(eventStore)
+
+	jobID, err := jobStore.Create(ctx, &job.Job{
+		AgentID:  "agent-large-events",
+		TenantID: "tenant-large-events",
+		Goal:     "large event stream test",
+	})
+	if err != nil {
+		t.Fatalf("create job: %v", err)
+	}
+	_, ver, err := eventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		t.Fatalf("list events: %v", err)
+	}
+	appendEvent := func(ev jobstore.JobEvent) {
+		ev.JobID = jobID
+		nextVer, err := eventStore.Append(ctx, jobID, ver, ev)
+		if err != nil {
+			t.Fatalf("append %s: %v", ev.Type, err)
+		}
+		ver = nextVer
+	}
+	appendEvent(jobstore.JobEvent{Type: jobstore.JobCreated})
+	for i := 0; i < 1000; i++ {
+		appendEvent(jobstore.JobEvent{Type: jobstore.CriticalDecisionMade})
+	}
+
+	s := server.Default(server.WithHostPorts(":0"))
+	s.POST("/api/forensics/query", h.ForensicsQuery)
+
+	body := []byte(`{
+		"tenant_id":"tenant-large-events",
+		"agent_filter":["agent-large-events"],
+		"event_filter":["critical_decision_made"],
+		"limit":20,
+		"offset":0
+	}`)
+	w := ut.PerformRequest(s.Engine, "POST", "/api/forensics/query", &ut.Body{Body: bytes.NewReader(body), Len: len(body)})
+	if got := w.Result().StatusCode(); got != 200 {
+		t.Fatalf("status = %d, want 200; body=%s", got, w.Result().Body())
+	}
+
+	var resp struct {
+		Jobs []struct {
+			JobID      string `json:"job_id"`
+			EventCount int    `json:"event_count"`
+		} `json:"jobs"`
+		TotalCount int `json:"total_count"`
+	}
+	if err := json.Unmarshal(w.Result().Body(), &resp); err != nil {
+		t.Fatalf("unmarshal query response: %v", err)
+	}
+	if resp.TotalCount != 1 || len(resp.Jobs) != 1 {
+		t.Fatalf("expected one matching job, got total=%d jobs=%v", resp.TotalCount, resp.Jobs)
+	}
+	if resp.Jobs[0].EventCount != 1001 {
+		t.Fatalf("event_count = %d, want 1001", resp.Jobs[0].EventCount)
+	}
+}

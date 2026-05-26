@@ -16,6 +16,7 @@ package http
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -28,6 +29,13 @@ import (
 	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/jobstore"
 	"github.com/Colin4k1024/Aetheris/v2/pkg/proof"
 )
+
+// EvidenceSigningConfig configures optional signing for exported evidence ZIPs.
+type EvidenceSigningConfig struct {
+	Enabled    bool
+	KeyID      string
+	PrivateKey ed25519.PrivateKey
+}
 
 // ExportJobForensics 导出 job 的完整证据包（ZIP 格式）
 // POST /api/jobs/:id/export
@@ -75,16 +83,21 @@ func (h *Handler) buildForensicsPackage(ctx context.Context, jobID string) ([]by
 	jobAdapter := &proofJobStoreAdapter{store: h.jobEventStore}
 	ledgerAdapter := &proofLedgerAdapter{store: h.jobEventStore}
 
-	return proof.ExportEvidenceZip(
-		ctx,
-		jobID,
-		jobAdapter,
-		ledgerAdapter,
-		proof.ExportOptions{
-			RuntimeVersion: "2.0.0",
-			SchemaVersion:  "2.0",
-		},
-	)
+	opts := proof.ExportOptions{
+		RuntimeVersion: "2.0.0",
+		SchemaVersion:  "2.0",
+	}
+	if h.evidenceSigning.Enabled {
+		if len(h.evidenceSigning.PrivateKey) != ed25519.PrivateKeySize {
+			return nil, fmt.Errorf("evidence signing is enabled but private key is invalid")
+		}
+		opts.SigningConfig = proof.SigningConfig{
+			PrivateKey: h.evidenceSigning.PrivateKey,
+			KeyID:      h.evidenceSigning.KeyID,
+		}
+	}
+
+	return proof.ExportEvidenceZip(ctx, jobID, jobAdapter, ledgerAdapter, opts)
 }
 
 // proofJobStoreAdapter 将 jobstore.JobStore 适配为 proof.JobStore。

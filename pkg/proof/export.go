@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/Colin4k1024/Aetheris/v2/pkg/redaction"
 )
 
 // ExportEvidenceZip 导出证据包为 ZIP 格式
@@ -48,6 +50,15 @@ func ExportEvidenceZip(
 	// 2. 验证内部一致性（哈希链）
 	if err := ValidateChain(events); err != nil {
 		return nil, fmt.Errorf("hash chain validation failed: %w", err)
+	}
+	if opts.RedactionEnabled {
+		if strings.TrimSpace(opts.RedactionSalt) == "" {
+			return nil, fmt.Errorf("redaction_salt is required when redaction is enabled")
+		}
+		events, err = redactEventsForExport(events, opts.RedactionSalt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to redact events: %w", err)
+		}
 	}
 
 	// 3. 获取 ledger
@@ -124,11 +135,15 @@ func ExportEvidenceZip(
 		if err != nil {
 			return nil, fmt.Errorf("failed to sign evidence: %w", err)
 		}
+		keyID := opts.SigningConfig.KeyID
+		if keyID == "" {
+			keyID = "default"
+		}
 		signedProof := SignedProof{
 			ProofSummary: proofSummary,
 			Signature:    sig,
 			SignedAt:     SignedAt(),
-			SignerKeyID:  "default",
+			SignerKeyID:  keyID,
 		}
 		proofJSON, err = json.MarshalIndent(signedProof, "", "  ")
 		if err != nil {
@@ -170,6 +185,41 @@ func ExportEvidenceZip(
 	}
 
 	return buf.Bytes(), nil
+}
+
+func redactEventsForExport(events []Event, salt string) ([]Event, error) {
+	policy := &redaction.RedactionPolicy{
+		EventRules: map[string][]redaction.FieldMask{},
+		GlobalRules: []redaction.FieldMask{
+			{FieldPath: "email", Mode: redaction.RedactionModeHash, Salt: salt},
+			{FieldPath: "phone", Mode: redaction.RedactionModeHash, Salt: salt},
+			{FieldPath: "ssn", Mode: redaction.RedactionModeRedact},
+			{FieldPath: "credit_card", Mode: redaction.RedactionModeRedact},
+			{FieldPath: "api_key", Mode: redaction.RedactionModeRemove},
+			{FieldPath: "token", Mode: redaction.RedactionModeRemove},
+			{FieldPath: "password", Mode: redaction.RedactionModeRemove},
+			{FieldPath: "secret", Mode: redaction.RedactionModeRemove},
+		},
+	}
+	engine := redaction.NewEngine(policy, nil)
+
+	out := make([]Event, len(events))
+	prevHash := ""
+	for i, event := range events {
+		redacted := event
+		if strings.TrimSpace(redacted.Payload) != "" {
+			payload, err := engine.RedactData(redacted.Type, []byte(redacted.Payload))
+			if err != nil {
+				return nil, err
+			}
+			redacted.Payload = string(payload)
+		}
+		redacted.PrevHash = prevHash
+		redacted.Hash = ComputeEventHash(redacted)
+		out[i] = redacted
+		prevHash = redacted.Hash
+	}
+	return out, nil
 }
 
 // eventsToNDJSON 将事件列表转换为 NDJSON 格式

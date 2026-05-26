@@ -291,6 +291,20 @@ func TestFrameworkFactory_CreateFramework_HIPAA(t *testing.T) {
 	}
 }
 
+func TestFrameworkFactory_CreateFramework_SOX(t *testing.T) {
+	factory := FrameworkFactory{}
+	framework, err := factory.CreateFramework(StandardSOX)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if framework == nil {
+		t.Fatal("expected non-nil framework")
+	}
+	if framework.GetControl("SOX.1") == nil {
+		t.Fatal("expected SOX.1 control")
+	}
+}
+
 func TestFrameworkFactory_CreateFramework_Unsupported(t *testing.T) {
 	factory := FrameworkFactory{}
 	_, err := factory.CreateFramework("UNSUPPORTED")

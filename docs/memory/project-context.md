@@ -1,5 +1,7 @@
 # Project Context
 
+> Update 2026-05-25: 早期记录中的 EffectStore “事件流优先” 结论已被强 Replay 契约取代。当前权威契约为 Tool/LLM 执行成功后先 `PutEffect`，再 Append committed/finished 事件，并通过 Effect Store catch-up 覆盖崩溃窗口。见 [effect-store-contract.md](../../design/internal/effect-store-contract.md)。
+
 ## 基本信息
 
 | 字段 | 内容 |
@@ -56,7 +58,7 @@
 | 硬编码凭证 | ✅ 已移除 | 改为环境变量 |
 | 跨租户泄露 | ✅ 已修复 | 添加 tenant 过滤 |
 | Heartbeat 缺校验 | ✅ 已修复 | 添加 attempt_id 校验 |
-| EffectStore 非原子 | ✅ 已修复 | 事件流优先 |
+| EffectStore 非原子 | ✅ 已修复 | 当前契约：PutEffect before committed/finished events |
 | Agent 并发竞争 | ✅ 已修复 | Take/Release 原子操作 |
 | Worker 失租检测 | ✅ 已验证 | Heartbeat + Lease 机制 |
 

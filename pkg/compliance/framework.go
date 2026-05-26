@@ -27,6 +27,7 @@ const (
 	StandardGDPR     Standard = "GDPR"
 	StandardHIPAA    Standard = "HIPAA"
 	StandardISO27001 Standard = "ISO27001"
+	StandardSOX      Standard = "SOX"
 )
 
 // ControlCategory 控制类别
@@ -85,6 +86,7 @@ const (
 	StatusNonCompliant  Status = "non_compliant"
 	StatusNotApplicable Status = "not_applicable"
 	StatusPending       Status = "pending"
+	StatusUnsupported   Status = "unsupported"
 )
 
 // Finding 发现项
@@ -190,6 +192,8 @@ func (f *FrameworkFactory) CreateFramework(standard Standard) (*ComplianceFramew
 		f.addGDPRControls(framework)
 	case StandardHIPAA:
 		f.addHIPAAControls(framework)
+	case StandardSOX:
+		f.addSOXControls(framework)
 	default:
 		return nil, fmt.Errorf("unsupported standard: %s", standard)
 	}
@@ -276,6 +280,20 @@ func (f *FrameworkFactory) addHIPAAControls(framework *ComplianceFramework) {
 		{ID: "HIPAA.6", Category: ControlCategoryHIPAA3, Name: "Access Control", Description: "访问控制"},
 		{ID: "HIPAA.7", Category: ControlCategoryHIPAA3, Name: "Audit Controls", Description: "审计控制"},
 		{ID: "HIPAA.8", Category: ControlCategoryHIPAA3, Name: "Transmission Security", Description: "传输安全"},
+	}
+
+	for _, c := range controls {
+		framework.AddControl(c)
+	}
+}
+
+// addSOXControls 添加 SOX 报告控制项。
+func (f *FrameworkFactory) addSOXControls(framework *ComplianceFramework) {
+	controls := []*Control{
+		{ID: "SOX.1", Category: ControlCategoryCC5, Name: "Financial Audit Trail", Description: "Runtime execution events support financial process audit trails"},
+		{ID: "SOX.2", Category: ControlCategoryCC6, Name: "Access Control Evidence", Description: "Export and report generation paths are protected by RBAC"},
+		{ID: "SOX.3", Category: ControlCategoryCC7, Name: "Evidence Retention", Description: "Evidence retention and replay invariants are documented and tested"},
+		{ID: "SOX.4", Category: ControlCategoryCC8, Name: "Change Management Evidence", Description: "External change-management controls require customer evidence"},
 	}
 
 	for _, c := range controls {

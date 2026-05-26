@@ -4,9 +4,12 @@ task: architecture-analysis
 date: 2026-04-05
 role: architect
 status: ready-for-execute
+superseded_by: ../../../design/internal/effect-store-contract.md
 ---
 
 # 架构设计：安全与 Runtime 修复
+
+> Historical note (2026-05-25): 本文记录 2026-04-05 当时的修复方案，其中 “EffectStore 事件流优先” 的表述已被后续强 Replay 契约取代。当前权威契约见 [effect-store-contract.md](../../../design/internal/effect-store-contract.md)：Tool 成功后先 `PutEffect`，再 Append committed/finished 事件，并通过 catch-up 覆盖崩溃窗口。
 
 ## 1. 系统边界
 
@@ -70,7 +73,7 @@ Runtime Core
 - `Agent`: 增加 `sync.Mutex` 保护 Session/Memory/Planner/Tools
 - `Manager.Get()`: 返回副本或引入 Take/Release 语义
 - `Scheduler.Heartbeat()`: SQL 增加 `attempt_id` 校验
-- `EffectStore.Write()`: 改为事件流优先
+- `EffectStore.Write()`: historical proposal was 事件流优先；current contract is PutEffect before committed/finished events
 
 ---
 
@@ -87,16 +90,16 @@ Request
   → Handler (执行业务逻辑)
 ```
 
-### 3.2 EffectStore 写入顺序（修复后）
+### 3.2 EffectStore 写入顺序（historical）
 
 ```
 1. AppendToolInvocationStarted (声明开始)
 2. Execute Tool
-3. AppendCommandCommitted (提交结果到事件流) ← 权威来源
-4. PutEffect (可选，仅用于审计加速) ← 异步
+3. AppendCommandCommitted (提交结果到事件流) ← historical proposal
+4. PutEffect (可选，仅用于审计加速) ← historical proposal
 ```
 
-**设计原则**: 事件流是权威来源，EffectStore 是可选加速层。崩溃后从事件流恢复。
+**当前状态**: 该顺序已废弃。当前契约是 `PutEffect` 先于 committed/finished 事件，用 Effect Store catch-up 覆盖 “Execute 成功、Append 前崩溃” 窗口；事件流在 commit 后仍是长期 replay 权威来源。
 
 ### 3.3 Heartbeat 校验流程（修复后）
 
@@ -141,7 +144,7 @@ Worker.Heartbeat(jobID, workerID, attemptID)
 | 凭证存储 | 环境变量 | 避免硬编码，支持 Docker/K8s Secret |
 | RoleStore | PostgreSQL (解耦) | 独立配置，多实例共享 |
 | 并发保护 | sync.Mutex | 简单有效，避免死锁 |
-| EffectStore 顺序 | 事件流优先 | 与 design doc 一致，更安全 |
+| EffectStore 顺序 | historical: 事件流优先；current: PutEffect before committed/finished events | 当前以强 Replay 契约为准 |
 
 ---
 

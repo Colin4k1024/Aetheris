@@ -8,6 +8,8 @@ status: in-progress
 
 # Execute Log：架构分析与修复
 
+> Historical note (2026-05-25): 本日志中的 “EffectStore 事件流优先” 决策已被后续强 Replay 契约取代。当前权威契约见 [effect-store-contract.md](../../../design/internal/effect-store-contract.md)。
+
 ## 计划 vs 实际
 
 ### 计划 (Phase 1 - 安全修复)
@@ -72,12 +74,13 @@ status: in-progress
   - `Heartbeat` 方法支持 `WithAttemptID` context
   - 新增 `TestPgStore_Heartbeat_StaleLease` 测试用例验证 stale lease 场景
 
-### RTN-03: EffectStore 写入顺序修复
+### RTN-03: EffectStore 写入顺序修复（historical）
 - **文件**: `internal/agent/runtime/executor/node_adapter.go`
 - **变更**: 调整写入顺序
   - **之前**: Phase 1 写 EffectStore → Phase 2 写事件流
-  - **之后**: 先写事件流 `AppendToolInvocationFinished` → 再写 EffectStore（可选）
-- **原因**: 设计文档明确事件流是权威来源
+  - **之后（historical）**: 先写事件流 `AppendToolInvocationFinished` → 再写 EffectStore（可选）
+  - **当前契约**: Tool/LLM 执行成功后先 `PutEffect`，再写 committed/finished 事件；崩溃恢复从 Effect Store catch-up，不重执行。
+- **原因（historical）**: 当时设计文档明确事件流是权威来源；当前设计将 Effect Store 定义为 commit 前恢复桥，事件流在 commit 后仍是 replay 权威。
 
 ### RTN-05: Agent 并发模型决策（Take/Release 语义）
 - **文件**: `internal/agent/runtime/agent.go`, `internal/agent/runtime/scheduler.go`
@@ -155,8 +158,9 @@ status: in-progress
 - **原因**: 符合 12-factor app 最佳实践，支持 Docker/K8s Secret
 
 ### 决定 2: EffectStore 写入顺序
-- **选择**: 事件流优先
-- **原因**: 与 design doc 一致，事件流是权威来源
+- **选择（historical）**: 事件流优先
+- **当前替代决策**: Effect Store 两步提交优先，事件流在 committed/finished 后作为长期 replay 权威。
+- **原因**: 覆盖 “Execute 成功、Append 前崩溃” 窗口，避免恢复时重复执行 Tool/LLM。
 
 ### 决定 3: 降级角色
 - **选择**: `RoleUser` 而非 `RoleAdmin`

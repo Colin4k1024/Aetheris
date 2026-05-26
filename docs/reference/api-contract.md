@@ -32,7 +32,7 @@ Compatibility window:
 - `GET /api/jobs/:id/trace`
 - `GET /api/jobs/:id/replay`
 - `GET /api/jobs/:id/verify`
-- `POST /api/jobs/:id/export`
+- `POST /api/jobs/:id/export` (evidence ZIP; includes signed proof when `security.evidence_signing.enabled=true`)
 
 ### Run APIs
 
@@ -46,13 +46,13 @@ Compatibility window:
 
 ### Agent APIs
 
-- `POST /api/agents`
-- `GET /api/agents`
 - `GET /api/agents/:id/state`
 - `POST /api/agents/:id/resume`
 - `POST /api/agents/:id/stop`
 - `GET /api/agents/:id/jobs`
 - `GET /api/agents/:id/jobs/:job_id`
+
+Agent definitions are loaded from configuration. Runtime creation/listing APIs are not part of the stable `2.x` surface.
 
 ### Document APIs
 
@@ -78,18 +78,6 @@ Compatibility window:
 - `GET /api/jobs/:id/nodes/:node_id`
 - `GET /api/trace/overview/page`
 
-### Forensics APIs
-
-- `POST /api/forensics/query`
-- `POST /api/forensics/batch-export`
-- `GET /api/forensics/export-status/:task_id`
-- `GET /api/forensics/consistency/:job_id`
-
-### Evidence & Audit APIs
-
-- `GET /api/jobs/:id/evidence-graph`
-- `GET /api/jobs/:id/audit-log`
-
 ### RBAC APIs
 
 - `GET /api/rbac/role`
@@ -114,6 +102,21 @@ Experimental APIs may change without major bump, but should be noted in release 
 - New endpoints not listed in Section 3
 - Optional response fields marked experimental in docs/release notes
 - Adapter-specific runtime internals
+- Endpoints exposed only when `api.forensics.experimental=true`:
+  - `POST /api/forensics/query`
+  - `POST /api/forensics/batch-export`
+  - `GET /api/forensics/export-status/:task_id`
+  - `GET /api/forensics/consistency/:job_id`
+  - `POST /api/forensics/ai/detect-anomalies`
+  - `GET /api/jobs/:id/evidence-graph`
+  - `GET /api/jobs/:id/audit-log`
+  - `GET /api/compliance/templates`
+  - `POST /api/compliance/apply`
+  - `POST /api/compliance/report`
+
+Forensics query read-model shape and filter compatibility are documented in `docs/guides/forensics-read-model.md`, but the endpoints remain experimental until the API compatibility contract is explicitly promoted.
+
+Compliance report shape and evidence-binding rules are documented in `docs/guides/compliance-reporting.md`. Reports must include signed evidence verification metadata, template versioning, and explicit unsupported controls; the endpoints remain experimental and do not certify legal compliance.
 
 ## 5. Request/Response Change Policy
 
@@ -158,7 +161,7 @@ Example:
 
 A `2.x` release should not be published unless:
 
-- Contract docs are updated (`docs/api-contract.md`)
+- Contract docs are updated (`docs/reference/api-contract.md`)
 - Compatibility checks pass for stable endpoints (smoke + regression tests)
 - Deprecations (if any) include migration guidance
 - Release notes include API delta summary
@@ -167,4 +170,7 @@ A `2.x` release should not be published unless:
 
 - `docs/release-checklist-2.0.md`
 - `docs/upgrade-1.x-to-2.0.md`
-- `docs/runtime-guarantees.md`
+- `docs/guides/runtime-guarantees.md`
+- `docs/guides/evidence-signing.md`
+- `docs/guides/forensics-read-model.md`
+- `docs/STATUS.md`

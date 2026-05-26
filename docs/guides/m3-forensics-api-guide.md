@@ -4,6 +4,8 @@
 
 Aetheris 2.0-M3 Forensics API 提供"案件式"查询能力，支持按时间范围、tool 类型、关键事件等维度检索 jobs，并支持批量导出和一致性检查。
 
+当前接口仍由 `api.forensics.experimental=true` 暴露。查询 read model、过滤兼容性、分页规则和性能边界见 [forensics-read-model.md](forensics-read-model.md)。
+
 ---
 
 ## API Endpoints
