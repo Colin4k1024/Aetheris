@@ -100,4 +100,4 @@ To avoid roadmap confusion:
 
 1. Harden 2.x gates in CI/release pipeline (make P0 gates non-optional for release jobs).
 2. Close multi-tenant operational gaps (isolation tests, authz drills, runbook evidence).
-3. Next 3.0 slice candidate: define whether broader `pkg/compliance` surfaces beyond evidence-bound reports should stay prototype or receive their own vertical slice.
+3. Next 3.0 slice candidate: implement the offline compliance report CLI slice defined in [compliance-surface-definition](artifacts/2026-05-26-compliance-surface-definition/README.md).

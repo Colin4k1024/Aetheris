@@ -34,6 +34,9 @@ Use the policy in [docs/STATUS.md](../../STATUS.md): `prototype` -> `integrated`
 
 ## Next Engineering Ticket
 
-No active prototype-promotion ticket remains from the architecture review batch.
+The next active ticket is the compliance surface slice defined in
+[compliance-surface-definition](../2026-05-26-compliance-surface-definition/README.md).
 
-Future tickets should be opened only when a specific package needs a new vertical slice with runtime path, API/CLI contract, tests, and operations evidence.
+Implementation should start with the offline CLI path: verify a signed evidence
+ZIP, generate a versioned compliance report, preserve unsupported controls, and
+extend the compliance report release drill.
