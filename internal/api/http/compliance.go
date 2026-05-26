@@ -171,8 +171,12 @@ func (h *Handler) ComplianceReport(c context.Context, ctx *app.RequestContext) {
 }
 
 func validateComplianceEvidenceBinding(packageID string, verification compliance.EvidenceVerification) error {
-	if strings.TrimSpace(packageID) == "" {
+	normalizedPackageID := strings.TrimSpace(packageID)
+	if normalizedPackageID == "" {
 		return fmt.Errorf("evidence_package_id is required")
+	}
+	if verificationPackageID := strings.TrimSpace(verification.PackageID); verificationPackageID != "" && verificationPackageID != normalizedPackageID {
+		return fmt.Errorf("evidence_verification.package_id must match evidence_package_id")
 	}
 	if !verification.Verified {
 		return fmt.Errorf("evidence_verification.verified must be true")

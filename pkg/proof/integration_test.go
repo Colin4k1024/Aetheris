@@ -241,3 +241,32 @@ func TestEndToEnd_RedactedExportRemovesPIIAndVerifies(t *testing.T) {
 		t.Fatalf("email should be hashed for correlation: %s", payload)
 	}
 }
+
+func TestEndToEnd_RedactedExportRequiresSalt(t *testing.T) {
+	jobID := "job_e2e_redacted_no_salt"
+	event := Event{
+		ID:        "1",
+		JobID:     jobID,
+		Type:      "tool_invocation_finished",
+		Payload:   `{"email":"alice@example.com"}`,
+		CreatedAt: time.Now().UTC(),
+	}
+	event.Hash = ComputeEventHash(event)
+
+	_, err := ExportEvidenceZip(
+		context.Background(),
+		jobID,
+		memJobStore{events: []Event{event}},
+		nil,
+		ExportOptions{
+			RuntimeVersion:   "test",
+			RedactionEnabled: true,
+		},
+	)
+	if err == nil {
+		t.Fatal("expected error when redaction is enabled without salt")
+	}
+	if !strings.Contains(err.Error(), "redaction_salt is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

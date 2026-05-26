@@ -52,6 +52,9 @@ func ExportEvidenceZip(
 		return nil, fmt.Errorf("hash chain validation failed: %w", err)
 	}
 	if opts.RedactionEnabled {
+		if strings.TrimSpace(opts.RedactionSalt) == "" {
+			return nil, fmt.Errorf("redaction_salt is required when redaction is enabled")
+		}
 		events, err = redactEventsForExport(events, opts.RedactionSalt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to redact events: %w", err)

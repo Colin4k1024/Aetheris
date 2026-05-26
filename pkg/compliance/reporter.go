@@ -96,7 +96,7 @@ func (r *Reporter) generateControlReport(ctx context.Context, tenantID string) (
 	factory := &FrameworkFactory{}
 	framework, err := factory.CreateFramework(Standard(r.template.Standard))
 	if err != nil {
-		return nil, nil
+		return nil, fmt.Errorf("create framework: %w", err)
 	}
 	checker := NewChecker()
 	checker.RegisterFramework(framework)

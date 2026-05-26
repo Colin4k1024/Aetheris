@@ -94,3 +94,15 @@ func TestGenerateReport_InvalidTimeRange(t *testing.T) {
 		t.Fatal("expected invalid time range error")
 	}
 }
+
+func TestGenerateReport_ReturnsUnsupportedStandardError(t *testing.T) {
+	r := NewReporter(ComplianceTemplate{
+		Name:     "custom",
+		Standard: "UNSUPPORTED",
+		Version:  "1.0",
+	})
+	_, err := r.GenerateReport(context.Background(), "tenant_1", TimeRange{})
+	if err == nil {
+		t.Fatal("expected error for unsupported standard")
+	}
+}
