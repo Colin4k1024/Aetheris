@@ -34,9 +34,14 @@ Use the policy in [docs/STATUS.md](../../STATUS.md): `prototype` -> `integrated`
 
 ## Next Engineering Ticket
 
-The next active ticket is the compliance surface slice defined in
+The next active implementation ticket is the compliance surface slice defined in
 [compliance-surface-definition](../2026-05-26-compliance-surface-definition/README.md).
 
 Implementation should start with the offline CLI path: verify a signed evidence
 ZIP, generate a versioned compliance report, preserve unsupported controls, and
 extend the compliance report release drill.
+
+The next active design ticket is the issue #197 routing-advisor contract defined
+in [routing-advisor-contract](../2026-05-26-routing-advisor-contract/README.md).
+It should stay design-only until replay, event evidence, config, adapter, and
+release-drill tests are implemented.

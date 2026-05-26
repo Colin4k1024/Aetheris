@@ -111,6 +111,10 @@ const (
 	// Phase 1 At-Most-Once: atomic commit protocol
 	LedgerAcquired  EventType = "ledger_acquired"  // 执行权已获取，tool 未执行
 	LedgerCommitted EventType = "ledger_committed" // 结果已提交，tool 执行完成
+
+	// Experimental: RoutingAdvisor capability selection evidence (see design/routing-advisor-contract)
+	// RouteDecisionRecorded is replay-relevant: replay must read the recorded decision and bypass the advisor.
+	RouteDecisionRecorded EventType = "route_decision_recorded"
 )
 
 // JobWaitingPayload job_waiting 事件 payload 契约；只有携带相同 correlation_key 的 signal 才能解除该 block（design/runtime-contract.md）

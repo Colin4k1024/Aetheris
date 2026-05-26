@@ -395,3 +395,70 @@ func (t *MyTool) Execute(ctx context.Context, sess *session.Session, input map[s
 1. Define request/response types in handler
 2. Implement handler method
 3. Register route in `internal/api/http/router.go`
+
+
+<claude-mem-context>
+# Memory Context
+
+# [CoRag] recent context, 2026-05-26 1:07pm GMT+8
+
+Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
+Format: ID TIME TYPE TITLE
+Fetch details: get_observations([IDs]) | Search: mem-search skill
+
+Stats: 50 obs (17,283t read) | 440,696t work | 96% savings
+
+### May 8, 2026
+2912 2:54p 🔵 Aetheris Go 框架适配器生态 — 8 种外部框架作为 TaskGraph 节点支持
+2913 " 🔵 Aetheris 自定义 Agent 迁移模式 — 命令式代码→Tool+TaskGraph 标准化转换
+2914 2:55p 🔵 AgentFactory 实现细节 — Checkpoint Runner 不缓存，默认 agents.yaml 定义 6 种 Agent
+2916 3:03p 🔵 Aetheris 战略定位与 SDK 完整上下文确认
+2917 " ⚖️ Aetheris "用户已有 Agent 接入"方向三项核心决策确立
+2918 " 🔵 Aetheris SDK + NodeAdapter 执行层完整结构确认
+2923 3:08p ⚖️ CoRag/Aetheris MVP 黑盒 Agent 接入策略确定
+2928 3:12p 🔵 CoRag/Aetheris 黑盒 Agent 接入架构全景探索
+2929 " 🔵 CoRag/Aetheris app.go 完整工具链初始化路径
+2930 " 🔵 CoRag/Aetheris Runner 执行契约 — PlanGenerated 强制前置
+2931 3:13p 🟣 openclaw-adapter 黑盒 HTTP Agent 接入 TDD RED 阶段 — 测试先行
+2933 3:14p 🔵 CoRag 开发环境 Go 二进制路径需手动指定
+2934 3:15p 🔵 TDD RED 状态确认 — external_http Agent 接入编译失败
+2938 3:19p 🔵 CoRag/Aetheris TDD GREEN Phase — Session Resumed After Code Pull
+2939 " 🟣 pkg/config: AgentExternalConfig + ValidateExternalAgents 实现落地
+2940 " 🟣 runtime.Manager.Register() — 稳定 ID agent 注册方法新增
+2941 " ✅ external_agent_tool_test.go — 返回类型断言从 map[string]any 修正为 tools.ToolResult
+2943 3:21p 🟣 ExternalAgentCallTool 完整实现 — internal/app/api/external_agent_tool.go 新建
+2944 " 🟣 RegisterConfiguredAgents + PlanGoalForJobFuncWithExternalAgents 实现落地
+2946 3:22p 🟣 app.go 启动时完整接入 external_http agent — 工具注册、Agent 注册、Planner 路由三段全部接通
+2947 3:23p 🟣 collectExternalAgentConfigs 辅助函数添加至 external_agent_tool.go
+2948 " 🔴 app.go nil-safety fix — bootstrap.Config nil guard before AgentsConfig dereference
+2949 " ✅ agent_dag.go loadLocalAgents — external_http case guard prevents unknown-type warning
+2950 3:24p 🟣 AppendJobCompleted 携带 external agent 答案 — extractAnswerFromCommittedEvents 实现
+2951 " 🟣 TDD GREEN 阶段完成 — pkg/config 和 internal/app/api 测试全部通过
+2952 3:29p 🟣 external_http Agent Type — Phase 1 HTTP Blackbox Adapter
+2953 " 🔴 app.go nil guard before AgentsConfig dereference
+2954 " 🔴 ExternalAgentCallTool test type assertion fixed from map to tools.ToolResult
+2955 " ⚖️ external_http reliability boundary: at-most-once only for outer tool call
+2956 3:31p 🟣 node_sink_test.go — AppendJobCompleted answer extraction integration test
+2957 3:32p 🟣 external_http full test suite GREEN — all 5 packages pass including new node_sink_test
+2958 3:35p 🔵 CoRag/Aetheris working branch is main tracking origin/main
+2959 4:16p 🔵 CoRag Project Review — Branch State and Directory Structure Confirmed
+2960 4:17p 🔵 CoRag/Aetheris Project Structure — Multi-Language Monorepo with SLSA Release Pipeline
+2961 " 🔵 CoRag/Aetheris Internal Design Documentation — Extensive Formal Spec Coverage
+2962 " 🔵 Aetheris v2.3.0 Status Snapshot — Production-Ready Runtime, Integrated Compliance, Prototype Enterprise Lane
+2963 " 🔵 Aetheris CI Pipeline — Go 1.26.1, 30% Coverage Threshold, Postgres Integration Tests
+2964 4:18p 🔵 Aetheris Full Test Suite — All Packages Pass, Complete Package Layout Confirmed
+2965 " 🔵 Local Build Environment — Go Module Cache Permission Issue and Linter Not Installed
+2966 4:19p 🔵 Aetheris go.mod Dependency Stack — CloudWeGo Eino + Hertz, Full OpenTelemetry, Dual DB Support
+2967 4:22p 🔵 Aetheris Technical Debt Scan — gRPC Unimplemented, Milvus/Pinecone Stubs, SAML Not Supported
+2968 " 🔵 AGENTS.md Go Version Stale — Documents 1.25.7 While go.mod and CI Use 1.26.1
+2969 4:24p 🔵 Aetheris Runtime Configuration — Key Environment Variables Including PLANNER_TYPE Switcher
+2970 " 🔵 Go Version Documentation Drift Is Pervasive — 1.25.7 Appears in 10+ Files vs Actual 1.26.1
+2971 " 🔵 Aetheris Latest Release is v2.5.3 — docs/STATUS.md Stale at v2.3.0+
+2975 4:35p ✅ CoRag/Aetheris Go version requirement bumped to 1.26.1 across all docs
+2976 " ✅ Milvus/Pinecone vector adapters clarified as non-production prototype placeholders
+2977 " ✅ CoRag/Aetheris STATUS.md updated to v2.5.3 and CURRENT-STATUS-AND-FOCUS.md demoted to historical snapshot
+2978 " 🔵 Remote branch codex/external-http-agent-intake diverged with 2 PR-review fix commits during local work
+2994 5:15p ✅ hermes-agent-go v2.1.0 代码推送 GitHub 启动
+
+Access 441k tokens of past work via get_observations([IDs]) or mem-search skill.
+</claude-mem-context>

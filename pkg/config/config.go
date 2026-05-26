@@ -44,6 +44,7 @@ type Config struct {
 	Security        SecurityConfig        `mapstructure:"security"`
 	MCP             MCPConfig             `mapstructure:"mcp"`
 	Hermes          HermesConfig          `mapstructure:"hermes"`
+	RoutingAdvisor  RoutingAdvisorConfig  `mapstructure:"routing_advisor"`
 }
 
 // RuntimeConfig 运行时环境配置
@@ -309,6 +310,57 @@ type HermesConfig struct {
 
 	// ACPTimeout is the HTTP timeout for ACP dispatch calls, e.g. "120s". Default 120s.
 	ACPTimeout string `mapstructure:"acp_timeout"`
+}
+
+// RoutingAdvisorConfig configures the experimental RoutingAdvisor.
+//
+// When Enabled is false (default) or Mode is empty/"noop", NewAdvisorFromConfig
+// in the routing package returns a deterministic NoOpAdvisor that requires no
+// external calls and is always replay-safe.
+type RoutingAdvisorConfig struct {
+	// Enabled activates the routing advisor. When false, a NoOpAdvisor is used
+	// regardless of Mode. Defaults to false.
+	Enabled bool `mapstructure:"enabled"`
+
+	// Mode selects the advisor implementation: "noop" (default) or "remote".
+	// "remote" is reserved for future use and returns an error at startup.
+	Mode string `mapstructure:"mode"`
+
+	// FallbackPolicy controls advisor failure handling.
+	// Accepted values: "fail_open" (default), "fail_closed", "cached_decision".
+	FallbackPolicy string `mapstructure:"fallback_policy"`
+
+	// Noop configures observable fields on the NoOpAdvisor.
+	Noop RoutingAdvisorNoOpConfig `mapstructure:"noop"`
+
+	// Remote configures a future remote advisor endpoint (reserved for forward-compatibility).
+	Remote RoutingAdvisorRemoteConfig `mapstructure:"remote"`
+}
+
+// RoutingAdvisorNoOpConfig configures the deterministic NoOpAdvisor.
+type RoutingAdvisorNoOpConfig struct {
+	// Name overrides advisor.name in produced RouteDecision evidence. Defaults to "noop".
+	Name string `mapstructure:"name"`
+
+	// Version overrides advisor.version in produced RouteDecision evidence. Defaults to "v1".
+	Version string `mapstructure:"version"`
+}
+
+// RoutingAdvisorRemoteConfig configures a remote advisor endpoint.
+// Currently unused; reserved for forward-compatibility with WisePick and similar services.
+type RoutingAdvisorRemoteConfig struct {
+	// Endpoint is the remote advisor HTTP/HTTPS base URL.
+	Endpoint string `mapstructure:"endpoint"`
+
+	// Timeout is the per-call timeout, e.g. "10s". Defaults to "10s" when empty.
+	Timeout string `mapstructure:"timeout"`
+
+	// TokenEnv is the environment variable name whose value is sent as a Bearer
+	// token. Empty means no Authorization header is added.
+	TokenEnv string `mapstructure:"token_env"`
+
+	// TLSInsecure disables TLS certificate verification. Do not use in production.
+	TLSInsecure bool `mapstructure:"tls_insecure"`
 }
 
 // AgentADKConfig ADK Runner 配置（主对话入口）

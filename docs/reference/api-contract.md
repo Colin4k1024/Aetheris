@@ -122,6 +122,8 @@ The next compliance contract slice is defined in `docs/artifacts/2026-05-26-comp
 
 AI-forensics detector behavior and false-positive budget are documented in `docs/guides/ai-forensics-eval.md`. The detector is eval-gated, but `/api/forensics/ai/detect-anomalies` remains experimental and must not be treated as an autonomous enforcement API.
 
+RoutingAdvisor capability-routing behavior is defined as an experimental internal contract in `docs/guides/routing-advisor-contract.md`. There is no stable public HTTP or CLI surface for this capability. Replay must use recorded route decision evidence and must not call external routing advisors.
+
 ## 5. Request/Response Change Policy
 
 For stable endpoints:
