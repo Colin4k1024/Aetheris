@@ -1171,12 +1171,24 @@ make run-embedded</code></pre>
               <div>
                 <div class="qs-step-title">Register an external HTTP agent</div>
                 <div class="qs-code-wrap">
-                  <pre><code><span class="tok-cm"># agents.yaml</span>
+                  <pre><code><span class="tok-cm"># configs/agents.yaml</span>
 agents:
-  - id: my-agent
-    type: external_http
-    endpoint: http://localhost:9000/run
-    timeout: 30s</code></pre>
+  my_agent:
+    type: "external_http"
+    description: "My agent (JSON mode)"
+    external:
+      url: "http://localhost:9000/invoke"
+      timeout: "30s"
+      token_env: "MY_AGENT_API_KEY"
+<span class="tok-cm">
+  # SSE-streaming agent (e.g. superagent-base)</span>
+  streaming_agent:
+    type: "external_http"
+    external:
+      url: "http://localhost:8888/api/v1/chat/stream"
+      timeout: "120s"
+      protocol: "sse_legacy"
+      agent_id: "research-agent"</code></pre>
                   <button class="copy-btn" onclick="copy(this)">copy</button>
                 </div>
               </div>
@@ -1350,6 +1362,13 @@ job = client.submit(
           <div class="int-desc">Model Context Protocol</div>
         </div>
       </div>
+      <div class="int-card">
+        <div class="int-icon">🤖</div>
+        <div>
+          <div class="int-name">superagent-base</div>
+          <div class="int-desc">SSE-streaming via sse_legacy</div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -1409,7 +1428,7 @@ job = client.submit(
       <a class="res-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/adapters/external-http-agent.md" target="_blank" rel="noreferrer">
         <span class="res-icon">🔌</span>
         <div class="res-title">External HTTP Adapter</div>
-        <div class="res-desc">Connect any Python, JavaScript, or Go agent through the durable HTTP boundary.</div>
+        <div class="res-desc">JSON and SSE-streaming protocol modes. Includes superagent-base integration guide.</div>
         <span class="res-arrow">Read →</span>
       </a>
       <a class="res-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/runtime-guarantees.md" target="_blank" rel="noreferrer">
