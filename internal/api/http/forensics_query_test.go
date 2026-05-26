@@ -175,6 +175,57 @@ func TestForensicsBatchExport_StatusFlow(t *testing.T) {
 	}
 }
 
+func TestAIForensicsDetectAnomalies_EventSignals(t *testing.T) {
+	ctx := context.Background()
+	jobID := "job_ai_forensics_eval"
+	eventStore := jobstore.NewMemoryStore()
+	h := NewHandler(nil, nil)
+	h.SetJobEventStore(eventStore)
+
+	_, ver, err := eventStore.ListEvents(ctx, jobID)
+	if err != nil {
+		t.Fatalf("list events: %v", err)
+	}
+	appendEvent := func(eventType jobstore.EventType, payload map[string]interface{}) {
+		raw, _ := json.Marshal(payload)
+		newVer, err := eventStore.Append(ctx, jobID, ver, jobstore.JobEvent{
+			JobID:   jobID,
+			Type:    eventType,
+			Payload: raw,
+		})
+		if err != nil {
+			t.Fatalf("append %s: %v", eventType, err)
+		}
+		ver = newVer
+	}
+
+	appendEvent(jobstore.ReasoningSnapshot, map[string]interface{}{
+		"step_id":              "tampered.step",
+		"evidence":             map[string]interface{}{"tool_invocation_ids": []interface{}{"inv-1"}},
+		"confidence":           0.95,
+		"reasoning_hash_valid": false,
+	})
+	for i := 0; i < 4; i++ {
+		appendEvent(jobstore.StepRetried, map[string]interface{}{"step_id": "retry.step"})
+	}
+
+	s := server.Default(server.WithHostPorts(":0"))
+	s.POST("/api/forensics/ai/detect-anomalies", h.AIForensicsDetectAnomalies)
+
+	body := []byte(`{"job_id":"` + jobID + `","threshold":0.8}`)
+	w := ut.PerformRequest(s.Engine, "POST", "/api/forensics/ai/detect-anomalies", &ut.Body{Body: bytes.NewReader(body), Len: len(body)})
+	if got := w.Result().StatusCode(); got != 200 {
+		t.Fatalf("status = %d, want 200; body=%s", got, w.Result().Body())
+	}
+	respBody := w.Result().Body()
+	if !bytes.Contains(respBody, []byte(`"type":"tampered_reasoning"`)) {
+		t.Fatalf("expected tampered reasoning anomaly: %s", respBody)
+	}
+	if !bytes.Contains(respBody, []byte(`"type":"suspicious_retry_loop"`)) {
+		t.Fatalf("expected retry loop anomaly: %s", respBody)
+	}
+}
+
 func TestForensicsQuery_PaginationLimitCapAndFilters(t *testing.T) {
 	ctx := context.Background()
 	jobStore := job.NewJobStoreMem()

@@ -118,6 +118,8 @@ Forensics query read-model shape and filter compatibility are documented in `doc
 
 Compliance report shape and evidence-binding rules are documented in `docs/guides/compliance-reporting.md`. Reports must include signed evidence verification metadata, template versioning, and explicit unsupported controls; the endpoints remain experimental and do not certify legal compliance.
 
+AI-forensics detector behavior and false-positive budget are documented in `docs/guides/ai-forensics-eval.md`. The detector is eval-gated, but `/api/forensics/ai/detect-anomalies` remains experimental and must not be treated as an autonomous enforcement API.
+
 ## 5. Request/Response Change Policy
 
 For stable endpoints:

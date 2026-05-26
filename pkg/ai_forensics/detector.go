@@ -30,6 +30,8 @@ type DecisionSignal struct {
 	Confidence        float64 // 0-1
 	BypassedApproval  bool
 	Failed            bool
+	RetryCount        int
+	TamperedReasoning bool
 	AdditionalDetails []string
 }
 
@@ -128,9 +130,39 @@ func (d *AnomalyDetector) DetectAnomalies(ctx context.Context, jobID string) ([]
 				},
 			})
 		}
+		if s.RetryCount >= 3 {
+			anomalies = append(anomalies, Anomaly{
+				JobID:       jobID,
+				StepID:      stepID,
+				Type:        AnomalySuspiciousRetryLoop,
+				Severity:    retrySeverity(s.RetryCount),
+				Description: "step entered a suspicious retry loop",
+				Evidence: append([]string{
+					fmt.Sprintf("retry_count=%d", s.RetryCount),
+					"threshold=3",
+				}, s.AdditionalDetails...),
+			})
+		}
+		if s.TamperedReasoning {
+			anomalies = append(anomalies, Anomaly{
+				JobID:       jobID,
+				StepID:      stepID,
+				Type:        AnomalyTamperedReasoning,
+				Severity:    "critical",
+				Description: "reasoning snapshot appears tampered or hash-invalid",
+				Evidence:    append([]string{"tampered_reasoning=true"}, s.AdditionalDetails...),
+			})
+		}
 	}
 
 	return anomalies, nil
+}
+
+func retrySeverity(retryCount int) string {
+	if retryCount >= 5 {
+		return "critical"
+	}
+	return "high"
 }
 
 func lowConfidenceSeverity(confidence float64, threshold float64) string {
@@ -158,8 +190,10 @@ type Anomaly struct {
 type AnomalyType string
 
 const (
-	AnomalyMissingEvidence AnomalyType = "missing_evidence"
-	AnomalyInconsistent    AnomalyType = "inconsistent"
-	AnomalyTiming          AnomalyType = "timing"
-	AnomalyLowConfidence   AnomalyType = "low_confidence"
+	AnomalyMissingEvidence     AnomalyType = "missing_evidence"
+	AnomalyInconsistent        AnomalyType = "inconsistent"
+	AnomalyTiming              AnomalyType = "timing"
+	AnomalyLowConfidence       AnomalyType = "low_confidence"
+	AnomalySuspiciousRetryLoop AnomalyType = "suspicious_retry_loop"
+	AnomalyTamperedReasoning   AnomalyType = "tampered_reasoning"
 )

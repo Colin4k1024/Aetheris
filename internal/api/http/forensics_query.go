@@ -607,10 +607,8 @@ func (h *Handler) AIForensicsDetectAnomalies(c context.Context, ctx *app.Request
 
 // ListDecisionSignals 实现 ai_forensics.DecisionSignalSource 接口
 func (h *Handler) ListDecisionSignals(ctx context.Context, jobID string) ([]ai_forensics.DecisionSignal, error) {
-	signals := make([]ai_forensics.DecisionSignal, 0)
-
 	if h.jobEventStore == nil {
-		return signals, nil
+		return []ai_forensics.DecisionSignal{}, nil
 	}
 
 	// 从 JobStore 获取 job 事件
@@ -619,25 +617,212 @@ func (h *Handler) ListDecisionSignals(ctx context.Context, jobID string) ([]ai_f
 		return nil, err
 	}
 
+	retryCounts := make(map[string]int)
+	for _, evt := range events {
+		if evt.Type != jobstore.JobRequeued && evt.Type != jobstore.JobRetrying && evt.Type != jobstore.StepRetried {
+			continue
+		}
+		stepID := stepIDFromPayload(evt.Payload)
+		if stepID == "" {
+			stepID = "job"
+		}
+		retryCounts[stepID]++
+	}
+
+	signals := make([]ai_forensics.DecisionSignal, 0, len(events)+len(retryCounts))
+	seenStepSignals := make(map[string]struct{})
+
 	// 遍历事件，构建决策信号
 	for _, evt := range events {
-		signal := ai_forensics.DecisionSignal{
-			StepID: evt.ID,
+		switch evt.Type {
+		case jobstore.ReasoningSnapshot, jobstore.DecisionSnapshot, jobstore.CriticalDecisionMade:
+			signal := decisionSignalFromEvent(evt)
+			if signal.StepID == "" {
+				signal.StepID = evt.ID
+			}
+			if signal.StepID == "" {
+				signal.StepID = "unknown"
+			}
+			signal.RetryCount = retryCounts[signal.StepID]
+			signals = append(signals, signal)
+			seenStepSignals[signal.StepID] = struct{}{}
+		case jobstore.StepFailed, jobstore.JobFailed:
+			stepID := stepIDFromPayload(evt.Payload)
+			if stepID == "" {
+				stepID = evt.ID
+			}
+			if stepID == "" {
+				stepID = "failed"
+			}
+			signals = append(signals, ai_forensics.DecisionSignal{
+				StepID:            stepID,
+				EvidenceCount:     evidenceCountFromPayload(evt.Payload),
+				Consistent:        false,
+				Confidence:        1,
+				Failed:            true,
+				AdditionalDetails: []string{"event_type=" + string(evt.Type)},
+			})
 		}
+	}
 
-		// 检查是否有 tool 调用
-		if strings.Contains(string(evt.Type), "tool_invocation") {
-			signal.EvidenceCount = 1
-			signal.Consistent = true
+	for stepID, count := range retryCounts {
+		if _, ok := seenStepSignals[stepID]; ok {
+			continue
 		}
-
-		// 检查是否有失败
-		if strings.Contains(string(evt.Type), "failed") || strings.Contains(string(evt.Type), "error") {
-			signal.Failed = true
-		}
-
-		signals = append(signals, signal)
+		signals = append(signals, ai_forensics.DecisionSignal{
+			StepID:            stepID,
+			EvidenceCount:     1,
+			Consistent:        true,
+			Confidence:        1,
+			RetryCount:        count,
+			AdditionalDetails: []string{"retry_source=event_stream"},
+		})
 	}
 
 	return signals, nil
+}
+
+func decisionSignalFromEvent(evt jobstore.JobEvent) ai_forensics.DecisionSignal {
+	payload := map[string]interface{}{}
+	_ = json.Unmarshal(evt.Payload, &payload)
+
+	stepID := stringFromMap(payload, "step_id")
+	if stepID == "" {
+		stepID = stringFromMap(payload, "node_id")
+	}
+
+	evidenceCount := countEvidenceValue(payload["evidence"])
+	if evidenceCount == 0 {
+		evidenceCount = intFromMap(payload, "evidence_count")
+	}
+
+	consistent := true
+	if v, ok := payload["consistent"].(bool); ok {
+		consistent = v
+	}
+
+	confidence := 1.0
+	if v, ok := floatFromMap(payload, "confidence"); ok {
+		confidence = v
+	}
+
+	tampered := boolFromMap(payload, "tampered") || boolFromMap(payload, "tampered_reasoning")
+	if v, ok := payload["reasoning_hash_valid"].(bool); ok && !v {
+		tampered = true
+	}
+	if v, ok := payload["hash_valid"].(bool); ok && !v {
+		tampered = true
+	}
+
+	return ai_forensics.DecisionSignal{
+		StepID:            stepID,
+		EvidenceCount:     evidenceCount,
+		Consistent:        consistent && !tampered,
+		Duration:          durationFromPayload(payload),
+		Confidence:        confidence,
+		BypassedApproval:  boolFromMap(payload, "bypassed_approval"),
+		Failed:            boolFromMap(payload, "failed"),
+		TamperedReasoning: tampered,
+		AdditionalDetails: []string{"event_type=" + string(evt.Type)},
+	}
+}
+
+func stepIDFromPayload(raw []byte) string {
+	payload := map[string]interface{}{}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return ""
+	}
+	if stepID := stringFromMap(payload, "step_id"); stepID != "" {
+		return stepID
+	}
+	return stringFromMap(payload, "node_id")
+}
+
+func evidenceCountFromPayload(raw []byte) int {
+	payload := map[string]interface{}{}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return 0
+	}
+	if count := countEvidenceValue(payload["evidence"]); count > 0 {
+		return count
+	}
+	return intFromMap(payload, "evidence_count")
+}
+
+func countEvidenceValue(v interface{}) int {
+	switch evidence := v.(type) {
+	case map[string]interface{}:
+		count := 0
+		for _, value := range evidence {
+			switch typed := value.(type) {
+			case []interface{}:
+				count += len(typed)
+			case string:
+				if strings.TrimSpace(typed) != "" {
+					count++
+				}
+			case nil:
+			default:
+				count++
+			}
+		}
+		return count
+	case []interface{}:
+		return len(evidence)
+	case string:
+		if strings.TrimSpace(evidence) != "" {
+			return 1
+		}
+	}
+	return 0
+}
+
+func stringFromMap(m map[string]interface{}, key string) string {
+	if v, ok := m[key].(string); ok {
+		return strings.TrimSpace(v)
+	}
+	return ""
+}
+
+func intFromMap(m map[string]interface{}, key string) int {
+	switch v := m[key].(type) {
+	case int:
+		return v
+	case float64:
+		return int(v)
+	case json.Number:
+		i, _ := v.Int64()
+		return int(i)
+	default:
+		return 0
+	}
+}
+
+func floatFromMap(m map[string]interface{}, key string) (float64, bool) {
+	switch v := m[key].(type) {
+	case float64:
+		return v, true
+	case int:
+		return float64(v), true
+	case json.Number:
+		f, err := v.Float64()
+		return f, err == nil
+	default:
+		return 0, false
+	}
+}
+
+func boolFromMap(m map[string]interface{}, key string) bool {
+	v, ok := m[key].(bool)
+	return ok && v
+}
+
+func durationFromPayload(payload map[string]interface{}) time.Duration {
+	if ms := intFromMap(payload, "duration_ms"); ms > 0 {
+		return time.Duration(ms) * time.Millisecond
+	}
+	if seconds, ok := floatFromMap(payload, "duration_seconds"); ok && seconds > 0 {
+		return time.Duration(seconds * float64(time.Second))
+	}
+	return 0
 }

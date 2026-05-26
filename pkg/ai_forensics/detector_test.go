@@ -47,6 +47,52 @@ func TestAnomalyDetector(t *testing.T) {
 	}
 }
 
+func TestAnomalyDetector_RetryLoopAndTamperedReasoning(t *testing.T) {
+	detector := NewAnomalyDetector(0.8).WithSignalSource(&fakeSignalSource{
+		data: map[string][]DecisionSignal{
+			"job_eval": {
+				{StepID: "retry.step", EvidenceCount: 1, Consistent: true, Confidence: 0.95, RetryCount: 4},
+				{StepID: "tampered.step", EvidenceCount: 1, Consistent: true, Confidence: 0.95, TamperedReasoning: true},
+			},
+		},
+	})
+
+	anomalies, err := detector.DetectAnomalies(context.Background(), "job_eval")
+	if err != nil {
+		t.Fatalf("detect anomalies failed: %v", err)
+	}
+
+	seen := map[AnomalyType]string{}
+	for _, anomaly := range anomalies {
+		seen[anomaly.Type] = anomaly.Severity
+	}
+	if seen[AnomalySuspiciousRetryLoop] != "high" {
+		t.Fatalf("retry loop severity = %q, want high", seen[AnomalySuspiciousRetryLoop])
+	}
+	if seen[AnomalyTamperedReasoning] != "critical" {
+		t.Fatalf("tampered reasoning severity = %q, want critical", seen[AnomalyTamperedReasoning])
+	}
+}
+
+func TestGoldenEvalCases_PassWithinFalsePositiveBudget(t *testing.T) {
+	report, err := EvaluateGoldenCases(context.Background(), 0.8, 10*time.Minute, nil)
+	if err != nil {
+		t.Fatalf("evaluate golden cases: %v", err)
+	}
+	if !report.Passed {
+		t.Fatalf("golden eval should pass: %+v", report)
+	}
+	if report.FalsePositiveCount != 0 {
+		t.Fatalf("false positives = %d, want 0", report.FalsePositiveCount)
+	}
+	if report.FalseNegativeCount != 0 {
+		t.Fatalf("false negatives = %d, want 0", report.FalseNegativeCount)
+	}
+	if report.SeverityMismatchCnt != 0 {
+		t.Fatalf("severity mismatches = %d, want 0", report.SeverityMismatchCnt)
+	}
+}
+
 // TestPatternMatcher 测试模式匹配
 func TestPatternMatcher(t *testing.T) {
 	matcher := NewPatternMatcher().WithSignalSource(&fakeSignalSource{

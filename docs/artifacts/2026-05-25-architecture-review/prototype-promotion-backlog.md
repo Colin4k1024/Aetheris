@@ -22,9 +22,9 @@ Use the policy in [docs/STATUS.md](../../STATUS.md): `prototype` -> `integrated`
 | Forensics query read model | Read-model doc, tenant isolation test, pagination cap test, large-event-stream test, and release drill exist | Keep `integrated`; endpoints remain experimental until API contract promotion | Continue running release drill; add indexed/materialized read model before removing experimental gate | Done |
 | RBAC/redaction/retention hardening | Release drill covers role matrix, tenant/RBAC HTTP matrix, redacted evidence export, and retention replay invariants | Keep `production-ready` for bounded runtime safety claims | Continue running release drill; external policy/KMS/legal certification remain out of scope | Done |
 | Compliance reports | Signed evidence binding, template versions, unsupported controls, HTTP export tests, and release drill exist | Keep `integrated` as a report generator, not a compliance guarantee | Continue running release drill; legal certification, GRC integration, and external policy evidence remain out of scope | Done |
-| AI forensics detection | `pkg/ai_forensics` and `/api/forensics/ai/detect-anomalies` exist as 3.0-M4 candidates | Keep prototype | Define eval dataset and false-positive budget before API contract stabilization | Next |
-| Distributed verifier | `pkg/distributed` exists as technical reserve | Keep prototype | Prove single-node runtime saturation, lease limits, and recovery bottlenecks before distributed promotion | Hold |
-| Monitoring quality scorer | `pkg/monitoring` exists as standalone logic | Keep prototype or fold into observability | Connect to `/api/observability/*`; define alert semantics; add SRE runbook | Later |
+| AI forensics detection | Golden eval dataset, false-positive budget, severity mapping, event-signal extraction, HTTP tests, and release drill exist | Keep `integrated` as an eval-gated detector; API remains experimental | Continue running eval drill; do not use for autonomous blocking without policy/human layer | Done |
+| Distributed verifier | Root-hash consensus/divergence tests, readiness assessment, runbook, and release drill exist | Keep prototype | Promotion remains blocked until single-node saturation, lease, and recovery evidence exists | Done |
+| Monitoring quality scorer | Alert semantics, SRE runbook, healthy/degraded/critical/noisy tests, and release drill exist | Keep prototype as offline report utility; do not fold into `/api/observability/*` yet | Define aggregation windows, Prometheus labels, and alert ownership before API integration | Done |
 
 ## Non-Goals
 
@@ -34,9 +34,6 @@ Use the policy in [docs/STATUS.md](../../STATUS.md): `prototype` -> `integrated`
 
 ## Next Engineering Ticket
 
-Start with **AI forensics detection**:
+No active prototype-promotion ticket remains from the architecture review batch.
 
-1. Define a small golden eval dataset for missing evidence, suspicious retry loops, and tampered reasoning snapshots.
-2. Set a false-positive budget and expected severity mapping before changing API behavior.
-3. Add release drill coverage that runs detector tests against the golden dataset.
-4. Keep `/api/forensics/ai/detect-anomalies` experimental until eval quality is stable.
+Future tickets should be opened only when a specific package needs a new vertical slice with runtime path, API/CLI contract, tests, and operations evidence.

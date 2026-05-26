@@ -241,6 +241,9 @@ The example shows durable submission and trace visibility around one external HT
 | Understand forensics query read model | [docs/guides/forensics-read-model.md](docs/guides/forensics-read-model.md) |
 | Harden RBAC, redaction, and retention | [docs/guides/rbac-redaction-retention-hardening.md](docs/guides/rbac-redaction-retention-hardening.md) |
 | Generate evidence-bound compliance reports | [docs/guides/compliance-reporting.md](docs/guides/compliance-reporting.md) |
+| Evaluate AI forensics detection | [docs/guides/ai-forensics-eval.md](docs/guides/ai-forensics-eval.md) |
+| Assess distributed verifier readiness | [docs/guides/distributed-verifier-readiness.md](docs/guides/distributed-verifier-readiness.md) |
+| Interpret monitoring quality scores | [docs/guides/monitoring-quality-scorer.md](docs/guides/monitoring-quality-scorer.md) |
 | Promote prototype capabilities | [docs/artifacts/2026-05-25-architecture-review/prototype-promotion-backlog.md](docs/artifacts/2026-05-25-architecture-review/prototype-promotion-backlog.md) |
 | Deploy to production (Docker) | [docs/guides/deployment.md](docs/guides/deployment.md) |
 | API reference | [docs/reference/api.md](docs/reference/api.md) |
