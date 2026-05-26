@@ -170,6 +170,7 @@ func (t *externalAgentCallTool) Execute(ctx context.Context, sess *session.Sessi
 	}
 
 	metadata := mapFromAny(input["metadata"])
+	userMetadata := metadata // preserve user-provided metadata for protocol-specific checks
 	if metadata == nil {
 		metadata = make(map[string]any)
 	}
@@ -186,7 +187,7 @@ func (t *externalAgentCallTool) Execute(ctx context.Context, sess *session.Sessi
 	switch protocol {
 	case "sse_legacy":
 		// sse_legacy 不转发 metadata；有用户输入的 metadata 时报错避免静默丢失。
-		if len(mapFromAny(input["metadata"])) > 0 {
+		if len(userMetadata) > 0 {
 			return nil, fmt.Errorf("external_agent_call: metadata is not forwarded in sse_legacy protocol")
 		}
 		// superagent-base 兼容格式：{"agent_id","session_id","message"}
