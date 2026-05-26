@@ -175,6 +175,8 @@ main() {
   local cancelled=0
   local timeout=0
   local request_fail=0
+  local failure_log="$tmp_dir/request_failures.txt"
+  : > "$failure_log"
 
   local i
   for ((i = 1; i <= PERF_SAMPLES; i++)); do
@@ -185,6 +187,11 @@ main() {
     echo "$RESPONSE_TIME_MS" >> "$post_file"
 
     if [[ "$RESPONSE_CODE" != "202" ]]; then
+      {
+        echo "sample=$i step=post_message http_code=$RESPONSE_CODE"
+        echo "$RESPONSE_BODY"
+        echo "---"
+      } >> "$failure_log"
       request_fail=$((request_fail + 1))
       total=$((total + 1))
       continue
@@ -193,6 +200,11 @@ main() {
     local job_id
     job_id="$(json_get "job_id" "$RESPONSE_BODY")"
     if [[ -z "$job_id" ]]; then
+      {
+        echo "sample=$i step=parse_job_id http_code=$RESPONSE_CODE"
+        echo "$RESPONSE_BODY"
+        echo "---"
+      } >> "$failure_log"
       request_fail=$((request_fail + 1))
       total=$((total + 1))
       continue
@@ -279,6 +291,10 @@ main() {
 - GET events P95 <= $PERF_MAX_GET_EVENTS_P95_MS
 - Throughput >= $PERF_MIN_JOBS_PER_MIN jobs/min
 - Completion ratio >= $PERF_MIN_COMPLETION_RATIO
+
+## Request Failures
+
+$(if [[ -s "$failure_log" ]]; then sed 's/^/- /' "$failure_log"; else echo "- none"; fi)
 
 ## Gate Verdict
 

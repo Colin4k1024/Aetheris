@@ -23,8 +23,14 @@ jobs:
     timeout-minutes: 75
     env:
       CORAG_API_URL: http://localhost:8080
+      CORAG_LOGIN_USERNAME: admin
+      CORAG_LOGIN_PASSWORD: admin
       PLANNER_TYPE: rule
       PROMETHEUS_IMAGE: prom/prometheus:v2.47.0
+      API_MIDDLEWARE_JWT_KEY: ci-release-gates-jwt-key
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin
+      ADMIN_ROLE: admin
       CI: "true"
       RELEASE_STRICT_P0: "true"
       RUN_P0_PERF: "1"
