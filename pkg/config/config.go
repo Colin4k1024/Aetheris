@@ -671,6 +671,16 @@ func ValidateExternalAgents(cfg *AgentsConfig) error {
 				log.Printf("WARNING: agents.%s.external.token_env %q is not set; requests will fail at execution time", name, agent.External.TokenEnv)
 			}
 		}
+		proto := strings.ToLower(strings.TrimSpace(agent.External.Protocol))
+		switch proto {
+		case "", "json", "sse_legacy":
+			// valid
+		default:
+			return fmt.Errorf("agents.%s.external.protocol %q is not supported; allowed values: \"\", \"json\", \"sse_legacy\"", name, proto)
+		}
+		if agent.External.AgentID != "" && proto != "sse_legacy" {
+			return fmt.Errorf("agents.%s.external.agent_id is only used with protocol \"sse_legacy\", got %q", name, proto)
+		}
 	}
 	return nil
 }

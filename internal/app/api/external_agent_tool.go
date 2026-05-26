@@ -44,11 +44,14 @@ type sseAgentRequest struct {
 
 // consumeSSELegacyResponse 消费 SSE 流式响应（Legacy 模式），聚合 token 直到收到 [DONE]。
 // 格式：每行 "data: <token>\n\n"，结束标记 "data: [DONE]\n\n"。
-// 响应体读取上限为 maxExternalResponseBytes。
+// 如果流在未收到 [DONE] 的情况下结束，则返回错误（协议错误）。
+// 聚合内容超过 maxExternalResponseBytes 时返回错误。
 func consumeSSELegacyResponse(body io.Reader) (string, error) {
 	const doneMarker = "[DONE]"
+	const maxLineBytes = 64 * 1024 // 64 KiB per SSE line
 	var sb strings.Builder
-	scanner := bufio.NewScanner(io.LimitReader(body, maxExternalResponseBytes+1))
+	scanner := bufio.NewScanner(body)
+	scanner.Buffer(make([]byte, maxLineBytes), maxLineBytes)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !strings.HasPrefix(line, "data:") {
@@ -59,12 +62,15 @@ func consumeSSELegacyResponse(body io.Reader) (string, error) {
 			return sb.String(), nil
 		}
 		sb.WriteString(token)
+		if int64(sb.Len()) > maxExternalResponseBytes {
+			return "", fmt.Errorf("external_agent_call: SSE response exceeds %d MiB limit", maxExternalResponseBytes/(1024*1024))
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		return "", fmt.Errorf("external_agent_call: read SSE stream: %w", err)
 	}
-	// 流结束但未遇到 [DONE] 标记，返回已聚合内容。
-	return sb.String(), nil
+	// 流结束但未遇到 [DONE] 标记，视为协议错误。
+	return "", fmt.Errorf("external_agent_call: SSE stream ended without [DONE] sentinel")
 }
 
 type externalAgentCallTool struct {
@@ -155,6 +161,14 @@ func (t *externalAgentCallTool) Execute(ctx context.Context, sess *session.Sessi
 	if sess != nil {
 		sessionID = sess.ID
 	}
+	protocol := strings.ToLower(strings.TrimSpace(agentCfg.Protocol))
+	switch protocol {
+	case "", "json", "sse_legacy":
+		// valid
+	default:
+		return nil, fmt.Errorf("external_agent_call: unsupported protocol %q for agent %q; allowed values: \"\", \"json\", \"sse_legacy\"", protocol, agentID)
+	}
+
 	metadata := mapFromAny(input["metadata"])
 	if metadata == nil {
 		metadata = make(map[string]any)
@@ -169,9 +183,12 @@ func (t *externalAgentCallTool) Execute(ctx context.Context, sess *session.Sessi
 
 	// 根据协议类型构建请求体。
 	var reqBody []byte
-	protocol := strings.ToLower(strings.TrimSpace(agentCfg.Protocol))
 	switch protocol {
 	case "sse_legacy":
+		// sse_legacy 不转发 metadata；有用户输入的 metadata 时报错避免静默丢失。
+		if len(mapFromAny(input["metadata"])) > 0 {
+			return nil, fmt.Errorf("external_agent_call: metadata is not forwarded in sse_legacy protocol")
+		}
 		// superagent-base 兼容格式：{"agent_id","session_id","message"}
 		sseReq := sseAgentRequest{
 			Message:   message,
@@ -203,6 +220,9 @@ func (t *externalAgentCallTool) Execute(ctx context.Context, sess *session.Sessi
 		return nil, fmt.Errorf("external_agent_call: create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if protocol == "sse_legacy" {
+		req.Header.Set("Accept", "text/event-stream")
+	}
 	if idempotencyKey != "" {
 		req.Header.Set("Idempotency-Key", idempotencyKey)
 	}
