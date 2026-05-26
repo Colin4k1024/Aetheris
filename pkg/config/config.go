@@ -195,6 +195,14 @@ type AgentExternalConfig struct {
 	URL      string `mapstructure:"url"`
 	Timeout  string `mapstructure:"timeout"`
 	TokenEnv string `mapstructure:"token_env"`
+	// Protocol 控制请求/响应协议。
+	// ""/"json" = 默认 JSON 协议（发送 JSON body，接收 {"answer","final"} JSON）。
+	// "sse_legacy" = SSE 流式协议（兼容 superagent-base /api/v1/chat/stream）：
+	//   发送 {"agent_id","session_id","message"}，消费 SSE data 行直到 [DONE]，聚合为最终答案。
+	Protocol string `mapstructure:"protocol"`
+	// AgentID 仅 sse_legacy 协议使用，填充请求中的 agent_id 字段。
+	// 未设置时使用远端默认值（superagent-base 默认 "research-agent"）。
+	AgentID string `mapstructure:"agent_id"`
 }
 
 // AgentLLMConfig 默认 LLM 配置（用于本地 Agent）

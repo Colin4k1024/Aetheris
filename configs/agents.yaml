@@ -54,6 +54,21 @@ agents:
   #     timeout: "120s"
   #     token_env: "CUSTOMER_BOT_TOKEN"
 
+  # superagent-base 集成 —— 开源 AI Agent 平台（SSE 流式协议）
+  # 项目地址：https://github.com/Colin4k1024/superagent-base
+  # 启动 superagent-base 服务后取消注释即可接入。
+  # 环境变量 SUPERAGENT_BASE_API_KEY 设置为 superagent-base 的 api_key。
+  # agent_id 可指定要调用的具体 Agent（留空则使用远端默认值 "research-agent"）。
+  # superagent_base:
+  #   type: "external_http"
+  #   description: "superagent-base 开源 AI Agent 平台（SSE 流式接入）"
+  #   external:
+  #     url: "http://localhost:8888/api/v1/chat/stream"
+  #     timeout: "120s"
+  #     token_env: "SUPERAGENT_BASE_API_KEY"
+  #     protocol: "sse_legacy"
+  #     agent_id: "research-agent"    # 可选，指定远端 Agent ID
+
   # Chain - 简单链式调用
   conversation:
     type: "chain"
