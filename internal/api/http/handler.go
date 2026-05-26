@@ -114,6 +114,7 @@ type Handler struct {
 	agentCreator       AgentCreator
 	jobStore           job.JobStore
 	jobEventStore      jobstore.JobStore
+	evidenceSigning    EvidenceSigningConfig
 	toolsRegistry      *tools.Registry
 	agentStateStore    agentruntime.AgentStateStore
 	agentInstanceStore instance.AgentInstanceStore
@@ -186,6 +187,11 @@ func (h *Handler) SetJobStore(store job.JobStore) {
 // SetJobEventStore 设置任务事件存储；设置后 message 创建任务时会先追加 JobCreated 事件（与 SetJobStore 双写）
 func (h *Handler) SetJobEventStore(store jobstore.JobStore) {
 	h.jobEventStore = store
+}
+
+// SetEvidenceSigning configures optional Ed25519 signing for exported evidence packages.
+func (h *Handler) SetEvidenceSigning(cfg EvidenceSigningConfig) {
+	h.evidenceSigning = cfg
 }
 
 // SetToolsRegistry 设置工具注册表；设置后提供 GET /api/tools 与 GET /api/tools/:name

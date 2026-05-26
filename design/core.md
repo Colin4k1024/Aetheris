@@ -63,6 +63,31 @@ flowchart LR
 
 ---
 
+## 2.1 权威执行链路
+
+本项目的边界语言统一为：**Eino builds; Aetheris executes durably**。
+
+```text
+API / SDK
+  -> Create Job metadata
+  -> Append JobCreated
+  -> Append PlanGenerated or equivalent decision record
+  -> Worker claims Job through JobStore lease
+  -> Durable Runner loads recorded plan
+  -> Runner executes steps through Steppable / NodeAdapter
+  -> Runtime Tool calls pass through Invocation Ledger + Effect Store
+  -> NodeFinished / CommandCommitted / StepCommitted / Checkpoint events are appended
+  -> Trace / Replay / Verify read the event history
+```
+
+权威规则：
+
+- Agent framework 是构建层，不是执行事实源。
+- `PlanGenerated` / event history 是执行事实源。
+- `Runner.RunForJob` 是 durable Job 执行入口。
+- Eino ADK / AgentFactory 用于构建 agent、model 和 tool surface；它不替代 JobStore、Ledger、Effect Store 或 Replay 契约。
+- `external_http` 是迁移入口，只把外部 Agent 包成一个外层 Runtime Tool；其内部副作用不自动获得 Aetheris 保证。
+
 ## 3. API / Interface Layer
 
 ### 职责
@@ -87,9 +112,9 @@ flowchart LR
 
 ## 4. Orchestration & Agent Runtime（核心）
 
-### 🔴 系统唯一核心：eino
+### 系统核心边界：Eino 构建，Aetheris 执行
 
-eino 是整个系统的 **中枢神经系统**，负责：
+Eino 是 Agent / Workflow 构建层的主要依赖，负责：
 
 - Workflow / DAG 定义与执行
 - Agent 调度
@@ -97,7 +122,7 @@ eino 是整个系统的 **中枢神经系统**，负责：
 - 上下文（Context / State）传递
 - 并发与异步执行
 
-### Runtime 结构
+### Eino 构建层结构
 
 ```
 eino Runtime
@@ -109,8 +134,7 @@ eino Runtime
 └─ Concurrency Runtime (Go)
 ```
 
-> ⚠️ 官方默认：Agent 构建在 Eino 生态完成
-> ⚠️ Aetheris 不再主推自建 Agent Core，只提供运行时保障能力
+> 官方默认：Agent 构建在 Eino 生态完成；Aetheris 的核心责任是 Job、事件、租约、Ledger、Effect Store、Replay 和 Verify。
 
 ### 4.1 Agent Runtime 与任务执行
 
@@ -127,6 +151,8 @@ eino Runtime
 - 与 eino 的关系：eino **仅作为 DAG 执行内核** 被 `internal/agent/runtime/executor` 调用，不直接面对“创建任务”；任务创建与调度由 Agent Runtime 与 JobStore 负责。
 
 **执行保证契约**：步至少/至多执行一次、Signal 交付、Replay 确定性、崩溃后不重复副作用等正式语义见 [execution-guarantees.md](execution-guarantees.md)。
+
+事件类型按执行、协调、效应、Trace、审计分层治理，见 [event-taxonomy.md](internal/event-taxonomy.md)。面向运维和用户的 Job 生命周期说明见 [job-lifecycle.md](../docs/guides/job-lifecycle.md)。
 
 ---
 ## 4.2 AgentFactory — 配置驱动的 Agent 构建

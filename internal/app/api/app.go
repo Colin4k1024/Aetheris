@@ -16,6 +16,8 @@ package api
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -694,6 +696,13 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 		handler.SetObservabilityReader(pgStore)
 	}
 	handler.SetJobEventStore(jobEventStore)
+	if bootstrap.Config != nil {
+		signingCfg, err := evidenceSigningConfigFromConfig(bootstrap.Config.Security.EvidenceSigning)
+		if err != nil {
+			return nil, err
+		}
+		handler.SetEvidenceSigning(signingCfg)
+	}
 	handler.SetAgentStateStore(agentStateStore)
 	handler.SetToolsRegistry(toolsReg)
 	// 1.0 Plan 事件化：Job 创建时即生成并持久化 TaskGraph，执行阶段只读
@@ -964,6 +973,44 @@ func validateProductionRuntimeConfig(cfg *config.Config) error {
 		return fmt.Errorf("production requires JWT key to be set. Set api.middleware.jwt_key")
 	}
 	return nil
+}
+
+func evidenceSigningConfigFromConfig(cfg config.EvidenceSigningConfig) (http.EvidenceSigningConfig, error) {
+	if !cfg.Enabled {
+		return http.EvidenceSigningConfig{}, nil
+	}
+	if strings.TrimSpace(cfg.PrivateKeyBase64) == "" {
+		return http.EvidenceSigningConfig{}, fmt.Errorf("evidence signing is enabled but security.evidence_signing.private_key_base64 is empty")
+	}
+	privateKey, err := base64.StdEncoding.DecodeString(strings.TrimSpace(cfg.PrivateKeyBase64))
+	if err != nil {
+		return http.EvidenceSigningConfig{}, fmt.Errorf("invalid evidence signing private key: %w", err)
+	}
+	if len(privateKey) != ed25519.PrivateKeySize {
+		return http.EvidenceSigningConfig{}, fmt.Errorf("invalid evidence signing private key length: got %d, want %d", len(privateKey), ed25519.PrivateKeySize)
+	}
+	if strings.TrimSpace(cfg.PublicKeyBase64) != "" {
+		publicKey, err := base64.StdEncoding.DecodeString(strings.TrimSpace(cfg.PublicKeyBase64))
+		if err != nil {
+			return http.EvidenceSigningConfig{}, fmt.Errorf("invalid evidence signing public key: %w", err)
+		}
+		if len(publicKey) != ed25519.PublicKeySize {
+			return http.EvidenceSigningConfig{}, fmt.Errorf("invalid evidence signing public key length: got %d, want %d", len(publicKey), ed25519.PublicKeySize)
+		}
+		derived, ok := ed25519.PrivateKey(privateKey).Public().(ed25519.PublicKey)
+		if !ok || !ed25519.PublicKey(publicKey).Equal(derived) {
+			return http.EvidenceSigningConfig{}, fmt.Errorf("evidence signing public key does not match private key")
+		}
+	}
+	keyID := strings.TrimSpace(cfg.KeyID)
+	if keyID == "" {
+		keyID = "default"
+	}
+	return http.EvidenceSigningConfig{
+		Enabled:    true,
+		KeyID:      keyID,
+		PrivateKey: ed25519.PrivateKey(privateKey),
+	}, nil
 }
 
 // startGRPC 创建并启动 gRPC 服务（在 goroutine 中 Serve），返回 grpcRun 以便 Shutdown 时 GracefulStop

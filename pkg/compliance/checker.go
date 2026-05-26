@@ -151,12 +151,25 @@ func (c *Checker) checkControl(ctx context.Context, control *Control, tenantID s
 		status.Status = StatusCompliant
 		status.Evidence = append(status.Evidence, "audit_controls:enabled")
 
+	// SOX 控制项检查
+	case control.ID == "SOX.1":
+		status.Status = StatusCompliant
+		status.Evidence = append(status.Evidence, "runtime_event_audit_trail:enabled")
+
+	case control.ID == "SOX.2":
+		status.Status = StatusCompliant
+		status.Evidence = append(status.Evidence, "rbac_export_permission:enforced")
+
+	case control.ID == "SOX.3":
+		status.Status = StatusCompliant
+		status.Evidence = append(status.Evidence, "retention_replay_invariant:tested")
+
 	// 默认：标记为需要人工审查
 	default:
-		status.Status = StatusNotApplicable
+		status.Status = StatusUnsupported
 		status.Findings = append(status.Findings, Finding{
 			Severity:  SeverityInfo,
-			Message:   "Control requires manual review",
+			Message:   "Control is not supported by automated Aetheris compliance reporting and requires external evidence or manual auditor review",
 			Resource:  control.ID,
 			Timestamp: time.Now(),
 		})
@@ -179,9 +192,24 @@ func (c *Checker) generateReport(framework *ComplianceFramework) *ComplianceRepo
 	for _, status := range framework.ControlStatuses {
 		report.Controls = append(report.Controls, *status)
 		report.Summary[string(status.Status)]++
+		if status.Status == StatusUnsupported {
+			report.UnsupportedControls = append(report.UnsupportedControls, UnsupportedControl{
+				ControlID: status.ControlID,
+				Reason:    unsupportedReason(status),
+			})
+		}
 	}
 
 	return report
+}
+
+func unsupportedReason(status *ControlStatus) string {
+	for _, finding := range status.Findings {
+		if finding.Message != "" {
+			return finding.Message
+		}
+	}
+	return "Control is outside automated Aetheris evidence coverage"
 }
 
 // GetCachedReport 获取缓存的报告

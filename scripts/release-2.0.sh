@@ -12,21 +12,33 @@ if [[ "$STRICT_P0_MODE" == "true" ]]; then
   RUN_P0_DRILLS="1"
   RUN_DB_DRILL="1"
   RUN_TENANT_REGRESSION="1"
+  RUN_EVIDENCE_SIGNING_DRILL="1"
+  RUN_FORENSICS_READ_MODEL_DRILL="1"
+  RUN_RBAC_RED_RET_DRILL="1"
+  RUN_COMPLIANCE_REPORT_DRILL="1"
 elif [[ "${CI:-}" == "true" ]]; then
   RUN_P0_PERF="${RUN_P0_PERF:-1}"
   RUN_P0_DRILLS="${RUN_P0_DRILLS:-1}"
   RUN_DB_DRILL="${RUN_DB_DRILL:-1}"
   RUN_TENANT_REGRESSION="${RUN_TENANT_REGRESSION:-1}"
+  RUN_EVIDENCE_SIGNING_DRILL="${RUN_EVIDENCE_SIGNING_DRILL:-1}"
+  RUN_FORENSICS_READ_MODEL_DRILL="${RUN_FORENSICS_READ_MODEL_DRILL:-1}"
+  RUN_RBAC_RED_RET_DRILL="${RUN_RBAC_RED_RET_DRILL:-1}"
+  RUN_COMPLIANCE_REPORT_DRILL="${RUN_COMPLIANCE_REPORT_DRILL:-1}"
 else
   RUN_P0_PERF="${RUN_P0_PERF:-0}"
   RUN_P0_DRILLS="${RUN_P0_DRILLS:-0}"
   RUN_DB_DRILL="${RUN_DB_DRILL:-0}"
   RUN_TENANT_REGRESSION="${RUN_TENANT_REGRESSION:-1}"
+  RUN_EVIDENCE_SIGNING_DRILL="${RUN_EVIDENCE_SIGNING_DRILL:-1}"
+  RUN_FORENSICS_READ_MODEL_DRILL="${RUN_FORENSICS_READ_MODEL_DRILL:-1}"
+  RUN_RBAC_RED_RET_DRILL="${RUN_RBAC_RED_RET_DRILL:-1}"
+  RUN_COMPLIANCE_REPORT_DRILL="${RUN_COMPLIANCE_REPORT_DRILL:-1}"
 fi
 
 echo "[release-2.0] starting release checks..."
 echo "[release-2.0] strict P0 mode: $STRICT_P0_MODE"
-echo "[release-2.0] gate flags: RUN_P0_PERF=$RUN_P0_PERF RUN_P0_DRILLS=$RUN_P0_DRILLS RUN_DB_DRILL=$RUN_DB_DRILL RUN_TENANT_REGRESSION=$RUN_TENANT_REGRESSION"
+echo "[release-2.0] gate flags: RUN_P0_PERF=$RUN_P0_PERF RUN_P0_DRILLS=$RUN_P0_DRILLS RUN_DB_DRILL=$RUN_DB_DRILL RUN_TENANT_REGRESSION=$RUN_TENANT_REGRESSION RUN_EVIDENCE_SIGNING_DRILL=$RUN_EVIDENCE_SIGNING_DRILL RUN_FORENSICS_READ_MODEL_DRILL=$RUN_FORENSICS_READ_MODEL_DRILL RUN_RBAC_RED_RET_DRILL=$RUN_RBAC_RED_RET_DRILL RUN_COMPLIANCE_REPORT_DRILL=$RUN_COMPLIANCE_REPORT_DRILL"
 
 echo "[release-2.0] gofmt check"
 if [ -n "$(gofmt -l .)" ]; then
@@ -60,6 +72,26 @@ fi
 if [[ "$RUN_TENANT_REGRESSION" == "1" ]]; then
   echo "[release-2.0] tenant regression gate"
   ./scripts/release-tenant-regression.sh
+fi
+
+if [[ "$RUN_EVIDENCE_SIGNING_DRILL" == "1" ]]; then
+  echo "[release-2.0] evidence signing drill gate"
+  ./scripts/release-evidence-signing-drill.sh
+fi
+
+if [[ "$RUN_FORENSICS_READ_MODEL_DRILL" == "1" ]]; then
+  echo "[release-2.0] forensics read model drill gate"
+  ./scripts/release-forensics-read-model-drill.sh
+fi
+
+if [[ "$RUN_RBAC_RED_RET_DRILL" == "1" ]]; then
+  echo "[release-2.0] RBAC/redaction/retention drill gate"
+  ./scripts/release-rbac-redaction-retention-drill.sh
+fi
+
+if [[ "$RUN_COMPLIANCE_REPORT_DRILL" == "1" ]]; then
+  echo "[release-2.0] compliance report drill gate"
+  ./scripts/release-compliance-report-drill.sh
 fi
 
 echo "[release-2.0] completed successfully"

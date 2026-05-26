@@ -17,6 +17,7 @@ package http
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
@@ -35,6 +36,7 @@ func (h *Handler) ComplianceTemplates(c context.Context, ctx *app.RequestContext
 		result = append(result, map[string]interface{}{
 			"name":           t.Name,
 			"standard":       t.Standard,
+			"version":        t.Version,
 			"retention_days": t.RetentionDays,
 			"export_format":  t.ExportFormat,
 		})
@@ -102,10 +104,12 @@ func (h *Handler) ComplianceApply(c context.Context, ctx *app.RequestContext) {
 // POST /api/compliance/report
 func (h *Handler) ComplianceReport(c context.Context, ctx *app.RequestContext) {
 	var req struct {
-		TenantID string `json:"tenant_id"`
-		Standard string `json:"standard"` // GDPR, SOX, HIPAA
-		Start    string `json:"start"`
-		End      string `json:"end"`
+		TenantID             string                          `json:"tenant_id"`
+		Standard             string                          `json:"standard"` // GDPR, SOX, HIPAA
+		Start                string                          `json:"start"`
+		End                  string                          `json:"end"`
+		EvidencePackageID    string                          `json:"evidence_package_id"`
+		EvidenceVerification compliance.EvidenceVerification `json:"evidence_verification"`
 	}
 
 	if err := ctx.BindJSON(&req); err != nil {
@@ -115,6 +119,10 @@ func (h *Handler) ComplianceReport(c context.Context, ctx *app.RequestContext) {
 
 	if req.TenantID == "" || req.Standard == "" {
 		ctx.JSON(consts.StatusBadRequest, map[string]string{"error": "tenant_id and standard are required"})
+		return
+	}
+	if err := validateComplianceEvidenceBinding(req.EvidencePackageID, req.EvidenceVerification); err != nil {
+		ctx.JSON(consts.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -144,7 +152,13 @@ func (h *Handler) ComplianceReport(c context.Context, ctx *app.RequestContext) {
 		return
 	}
 
-	reporter := compliance.NewReporter(*template)
+	verification := req.EvidenceVerification
+	verification.PackageID = strings.TrimSpace(req.EvidencePackageID)
+	if verification.VerifiedAt.IsZero() {
+		verification.VerifiedAt = time.Now().UTC()
+	}
+
+	reporter := compliance.NewReporter(*template).WithEvidenceVerification(verification)
 	report, err := reporter.GenerateReport(c, req.TenantID, timeRange)
 	if err != nil {
 		ctx.JSON(consts.StatusInternalServerError, map[string]string{
@@ -153,12 +167,24 @@ func (h *Handler) ComplianceReport(c context.Context, ctx *app.RequestContext) {
 		return
 	}
 
-	ctx.JSON(consts.StatusOK, map[string]interface{}{
-		"tenant_id":       req.TenantID,
-		"standard":        req.Standard,
-		"time_range":      timeRange,
-		"compliant":       report.IsCompliant(),
-		"compliance_rate": report.ComplianceRate,
-		"generated_at":    time.Now().Format(time.RFC3339),
-	})
+	ctx.JSON(consts.StatusOK, report)
+}
+
+func validateComplianceEvidenceBinding(packageID string, verification compliance.EvidenceVerification) error {
+	if strings.TrimSpace(packageID) == "" {
+		return fmt.Errorf("evidence_package_id is required")
+	}
+	if !verification.Verified {
+		return fmt.Errorf("evidence_verification.verified must be true")
+	}
+	if !verification.Signed {
+		return fmt.Errorf("evidence_verification.signed must be true")
+	}
+	if !verification.SignatureValid {
+		return fmt.Errorf("evidence_verification.signature_valid must be true")
+	}
+	if strings.TrimSpace(verification.RootHash) == "" {
+		return fmt.Errorf("evidence_verification.root_hash is required")
+	}
+	return nil
 }

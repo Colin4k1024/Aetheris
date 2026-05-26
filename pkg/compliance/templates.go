@@ -11,6 +11,7 @@ import (
 type ComplianceTemplate struct {
 	Name           string
 	Standard       string
+	Version        string
 	RetentionDays  int
 	RedactionRules []redaction.FieldMask
 	ExportFormat   string
@@ -21,7 +22,9 @@ var (
 	TemplateGDPR = ComplianceTemplate{
 		Name:          "GDPR",
 		Standard:      "GDPR",
+		Version:       "2026.05",
 		RetentionDays: 90,
+		ExportFormat:  "json",
 		RedactionRules: []redaction.FieldMask{
 			{FieldPath: "email", Mode: redaction.RedactionModeRedact},
 			{FieldPath: "name", Mode: redaction.RedactionModeRedact},
@@ -32,7 +35,9 @@ var (
 	TemplateSOX = ComplianceTemplate{
 		Name:          "SOX",
 		Standard:      "SOX",
+		Version:       "2026.05",
 		RetentionDays: 2555, // 7 years
+		ExportFormat:  "json",
 		RedactionRules: []redaction.FieldMask{
 			{FieldPath: "credit_card", Mode: redaction.RedactionModeRemove},
 		},
@@ -41,7 +46,9 @@ var (
 	TemplateHIPAA = ComplianceTemplate{
 		Name:          "HIPAA",
 		Standard:      "HIPAA",
+		Version:       "2026.05",
 		RetentionDays: 1825, // 5 years
+		ExportFormat:  "json",
 		RedactionRules: []redaction.FieldMask{
 			{FieldPath: "patient_id", Mode: redaction.RedactionModeHash},
 			{FieldPath: "medical_record", Mode: redaction.RedactionModeEncrypt},

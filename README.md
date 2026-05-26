@@ -6,7 +6,7 @@ Your agent is processing 1,000 customer records. It reaches record 847 — and t
 
 **Without Aetheris:** start over from record 1. Re-run 847 LLM calls. Pay twice. Pray nothing was written twice.
 
-**With Aetheris:** restart. It resumes from record 847. Zero duplicates. Zero data loss.
+**With Aetheris:** restart. It resumes from recorded progress. Runtime Tool side effects are not repeated when the production Ledger and Effect Store are configured.
 
 ---
 
@@ -86,12 +86,12 @@ Worker crash!  💀
 Restart:       ████████████████████            (resumes at step 16)
 ```
 
-### 2. At-most-once tool execution
-External API calls (payments, emails, order creation) are wrapped in an invocation ledger. Even if a step is retried, each side effect runs exactly once.
+### 2. At-most-once Runtime Tool boundary
+External API calls implemented as Aetheris Runtime Tools (payments, emails, order creation) are wrapped in an invocation ledger and Effect Store. If a step is retried after a recorded commit, the runtime injects the recorded result instead of repeating the side effect.
 
 ```python
 # Without Aetheris:  retry → email sent twice
-# With Aetheris:     retry → ledger returns cached result, email sent once
+# With Aetheris Runtime Tool: retry → ledger returns recorded result, email send is not repeated
 ```
 
 ### 3. Full decision audit trail
@@ -101,6 +101,8 @@ Every LLM call, tool invocation, and checkpoint is appended to an immutable even
 aetheris trace <job-id>    # view the full decision timeline
 aetheris replay <job-id>   # replay without side effects
 ```
+
+Guarantees are configuration-dependent. See the [guarantee matrix](docs/guides/guarantee-matrix.md) for the exact boundary between embedded mode, `external_http`, native Runtime Tools, and production Postgres deployments.
 
 ---
 
@@ -165,7 +167,7 @@ Your Agent (Python/JS/Go/any)
         │
         ▼
   Aetheris API ──── idempotency key ──▶ Invocation Ledger
-        │                                    (at-most-once)
+        │                                    (Runtime Tool boundary)
         ▼
   Durable Worker ──── checkpoint ──────▶ Event Store
         │                                    (crash recovery)
@@ -173,7 +175,7 @@ Your Agent (Python/JS/Go/any)
   Trace & Replay API ───────────────────────────────▶ Audit
 ```
 
-The runtime is event-sourced: every state transition is an append-only event. This enables deterministic replay — the same job can be re-run at any time without re-calling LLMs or APIs.
+The runtime is event-sourced: every state transition is an append-only event. With the production Ledger and Effect Store configured, replay injects recorded LLM and Runtime Tool results instead of re-calling them.
 
 ---
 
@@ -183,10 +185,10 @@ The runtime is event-sourced: every state transition is an append-only event. Th
 |---|---|---|---|
 | Open source + self-hosted | ✅ | ❌ (cloud only) | ✅ |
 | No infrastructure for local dev | ✅ (embedded SQLite) | ❌ | ❌ (requires server) |
-| At-most-once tool execution | ✅ built-in | ⚠️ manual | ⚠️ manual |
+| At-most-once Runtime Tool boundary | ✅ with Ledger + Effect Store | ⚠️ manual | ⚠️ activity/idempotency dependent |
 | Works with any agent framework | ✅ | ❌ LangGraph only | ❌ requires SDK |
 | LLM decision audit trail | ✅ | ✅ | ❌ |
-| Deterministic replay | ✅ | ❌ | ❌ |
+| Replay without re-calling recorded LLM/Tool effects | ✅ with Effect Store | ⚠️ checkpoint-dependent | ✅ for recorded workflow history |
 
 ---
 
@@ -228,8 +230,18 @@ The example shows durable submission and trace visibility around one external HT
 |---|---|
 | Get started in 5 minutes | [docs/guides/quickstart.md](docs/guides/quickstart.md) |
 | Connect an existing HTTP agent | [docs/adapters/external-http-agent.md](docs/adapters/external-http-agent.md) |
+| Migrate external side effects safely | [docs/adapters/external-http-migration.md](docs/adapters/external-http-migration.md) |
 | Connect a LangChain agent | [docs/adapters/langchain.md](docs/adapters/langchain.md) |
 | Understand crash recovery | [docs/guides/runtime-guarantees.md](docs/guides/runtime-guarantees.md) |
+| Compare guarantee boundaries | [docs/guides/guarantee-matrix.md](docs/guides/guarantee-matrix.md) |
+| Follow the Job lifecycle | [docs/guides/job-lifecycle.md](docs/guides/job-lifecycle.md) |
+| Check production gates | [docs/guides/production-runtime-gates.md](docs/guides/production-runtime-gates.md) |
+| Estimate runtime cost | [docs/guides/runtime-cost-model.md](docs/guides/runtime-cost-model.md) |
+| Sign evidence packages | [docs/guides/evidence-signing.md](docs/guides/evidence-signing.md) |
+| Understand forensics query read model | [docs/guides/forensics-read-model.md](docs/guides/forensics-read-model.md) |
+| Harden RBAC, redaction, and retention | [docs/guides/rbac-redaction-retention-hardening.md](docs/guides/rbac-redaction-retention-hardening.md) |
+| Generate evidence-bound compliance reports | [docs/guides/compliance-reporting.md](docs/guides/compliance-reporting.md) |
+| Promote prototype capabilities | [docs/artifacts/2026-05-25-architecture-review/prototype-promotion-backlog.md](docs/artifacts/2026-05-25-architecture-review/prototype-promotion-backlog.md) |
 | Deploy to production (Docker) | [docs/guides/deployment.md](docs/guides/deployment.md) |
 | API reference | [docs/reference/api.md](docs/reference/api.md) |
 

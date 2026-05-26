@@ -53,6 +53,7 @@ aetheris migrate m1-sql
 aetheris replay <job_id>
 aetheris export <job_id> --output evidence.zip
 aetheris verify evidence.zip
+aetheris verify evidence.zip --public-key <base64-public-key>  # when evidence signing is enabled
 ```
 
 ## 4. Deployment checks
@@ -75,6 +76,11 @@ aetheris verify evidence.zip
 - [ ] Performance baseline report attached (`docs/performance-baseline-2.0.md`)
 - [ ] Failure drills executed and recorded (`docs/runbook-failure-drills.md`)
 - [ ] Security baseline checks completed (`docs/security.md`)
+- [ ] Evidence signing drill executed and recorded (`docs/releases/evidence-signing-release-drill.md`)
+- [ ] Evidence signing key custody and rotation runbooks reviewed (`docs/releases/evidence-key-custody.md`, `docs/releases/evidence-key-rotation.md`)
+- [ ] Forensics read model drill executed and recorded (`docs/releases/forensics-read-model-release-drill.md`)
+- [ ] RBAC/redaction/retention drill executed and recorded (`docs/releases/rbac-redaction-retention-release-drill.md`)
+- [ ] Compliance report drill executed and recorded (`docs/releases/compliance-report-release-drill.md`)
 
 ### 6.1 Execute P0 performance gate
 
@@ -115,6 +121,42 @@ RUN_P0_PERF=1 RUN_P0_DRILLS=1 ./scripts/release-2.0.sh
 Artifact:
 - `artifacts/release/tenant-regression-2.0-*.md`
 
+### 6.5 Execute evidence signing drill
+
+```bash
+./scripts/release-evidence-signing-drill.sh
+```
+
+Artifact:
+- `artifacts/release/evidence-signing-drill-*.md`
+
+### 6.6 Execute forensics read model drill
+
+```bash
+./scripts/release-forensics-read-model-drill.sh
+```
+
+Artifact:
+- `artifacts/release/forensics-read-model-drill-*.md`
+
+### 6.7 Execute RBAC/redaction/retention drill
+
+```bash
+./scripts/release-rbac-redaction-retention-drill.sh
+```
+
+Artifact:
+- `artifacts/release/rbac-redaction-retention-drill-*.md`
+
+### 6.8 Execute compliance report drill
+
+```bash
+./scripts/release-compliance-report-drill.sh
+```
+
+Artifact:
+- `artifacts/release/compliance-report-drill-*.md`
+
 ## 7. Failure triage (when release gate fails)
 
 1. Check workflow artifact bundle (`artifacts/release/*`) first:
@@ -132,4 +174,16 @@ Artifact:
 5. If tenant regression gate failed:
    - run `./scripts/release-tenant-regression.sh` locally and identify failing suite (`internal/api/http` or `pkg/auth`)
    - inspect role assignment, permission check, and tenant-boundary test assertions
-6. Re-run full gate only after root cause is fixed and documented.
+6. If evidence signing drill failed:
+   - run `./scripts/release-evidence-signing-drill.sh` locally
+   - inspect signing config parsing, signed export, CLI public-key verification, and proof verification logs
+7. If forensics read model drill failed:
+   - run `./scripts/release-forensics-read-model-drill.sh` locally
+   - inspect tenant isolation, pagination cap, large event stream, and experimental route gate logs
+8. If RBAC/redaction/retention drill failed:
+   - run `./scripts/release-rbac-redaction-retention-drill.sh` locally
+   - inspect role matrix, tenant/RBAC HTTP matrix, redacted export, and retention replay invariant logs
+9. If compliance report drill failed:
+   - run `./scripts/release-compliance-report-drill.sh` locally
+   - inspect template versioning, signed evidence binding, unsupported control visibility, and HTTP validation logs
+10. Re-run full gate only after root cause is fixed and documented.

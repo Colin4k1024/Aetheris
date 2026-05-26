@@ -31,19 +31,22 @@ Every capability must be labeled with one of these states:
 
 ### 3.2 Forensics and compliance lane (M1-M3)
 
-- Evidence export/verify: `integrated` to `production-ready` (release gates exist)
-- Forensics query/evidence graph APIs: `integrated` but currently experimental exposure policy
-- RBAC/redaction/retention: `integrated` (operational hardening still required for broad multi-tenant rollout)
+- Evidence export/verify: `production-ready`, including signed evidence ZIP export with env-injected Ed25519 keys and offline public-key verification
+- Forensics query/evidence graph/audit-log APIs: `integrated` with read-model release drill; exposed only when `api.forensics.experimental=true`
+- RBAC/redaction/retention: `production-ready` for tenant-scoped RBAC checks, redacted evidence export, and retention GC replay invariants
+- Compliance reports: `integrated` as signed-evidence-bound report generators with template versioning and explicit unsupported controls; exposed only when `api.forensics.experimental=true`
+- AI-forensics APIs: `prototype`, gated with the experimental forensics surface
 
 ### 3.3 Enterprise lane (M4 / 3.0 candidates)
 
-The following are currently treated as `prototype` unless explicitly promoted:
+The following are currently treated as `prototype` unless explicitly promoted by a vertical slice:
 
-- `pkg/signature`
 - `pkg/distributed`
 - `pkg/ai_forensics`
 - `pkg/monitoring`
 - `pkg/compliance`
+
+`pkg/signature` is promoted only for evidence ZIP signing. Broader signing/key-management surfaces remain outside GA scope.
 
 `prototype` means “technical reserve”, not “GA”.
 
@@ -84,6 +87,8 @@ A 3.0 capability may be promoted from `prototype` to `integrated` only when all 
 
 No “docs-only complete” claims without these artifacts.
 
+Promotion order and required vertical slices are tracked in [prototype-promotion-backlog.md](artifacts/2026-05-25-architecture-review/prototype-promotion-backlog.md).
+
 ## 7. Doc Governance Rules
 
 To avoid roadmap confusion:
@@ -96,4 +101,4 @@ To avoid roadmap confusion:
 
 1. Harden 2.x gates in CI/release pipeline (make P0 gates non-optional for release jobs).
 2. Close multi-tenant operational gaps (isolation tests, authz drills, runbook evidence).
-3. Productize exactly one 3.0 slice first (recommended: signature flow end-to-end).
+3. Next 3.0 slice candidate: AI-forensics eval dataset and false-positive budget.

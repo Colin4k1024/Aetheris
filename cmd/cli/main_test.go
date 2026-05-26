@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Colin4k1024/Aetheris/v2/pkg/proof"
+	"golang.org/x/crypto/ed25519"
 )
 
 type testJobStore struct {
@@ -112,6 +115,69 @@ func TestVerifyEvidenceZip_Tampered(t *testing.T) {
 	}
 	if !bytes.Contains(stdout.Bytes(), []byte("Verification FAILED")) {
 		t.Fatalf("expected failure output, got: %s", stdout.String())
+	}
+}
+
+func TestVerifyEvidenceZip_SignedWithPublicKey(t *testing.T) {
+	jobID := "job_cli_verify_signed"
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	zipBytes, err := proof.ExportEvidenceZip(
+		context.Background(),
+		jobID,
+		testJobStore{events: makeProofEvents(jobID, 5)},
+		testLedger{},
+		proof.ExportOptions{
+			RuntimeVersion: "test",
+			SchemaVersion:  "2.0",
+			SigningConfig: proof.SigningConfig{
+				PrivateKey: privateKey,
+				KeyID:      "test-key",
+			},
+		},
+	)
+	if err != nil {
+		t.Fatalf("export evidence zip: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	zipPath := filepath.Join(tmpDir, "signed.zip")
+	if err := os.WriteFile(zipPath, zipBytes, 0644); err != nil {
+		t.Fatalf("write zip: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := verifyEvidenceZip(zipPath, &stdout, &stderr, publicKey)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d, stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+	if !bytes.Contains(stdout.Bytes(), []byte("Signature: OK")) {
+		t.Fatalf("expected signature output, got: %s", stdout.String())
+	}
+}
+
+func TestParseEvidenceVerifyArgs_PublicKey(t *testing.T) {
+	publicKey, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	zipPath, parsed, err := parseEvidenceVerifyArgs([]string{
+		"evidence.zip",
+		"--public-key",
+		base64.StdEncoding.EncodeToString(publicKey),
+	})
+	if err != nil {
+		t.Fatalf("parse args: %v", err)
+	}
+	if zipPath != "evidence.zip" {
+		t.Fatalf("zipPath = %q, want evidence.zip", zipPath)
+	}
+	if !bytes.Equal(parsed, publicKey) {
+		t.Fatalf("parsed public key mismatch")
 	}
 }
 

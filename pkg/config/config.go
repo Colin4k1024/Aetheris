@@ -93,10 +93,11 @@ type LLMRateLimitConfig struct {
 
 // SecurityConfig 安全配置
 type SecurityConfig struct {
-	MTLS        MTLSConfig        `mapstructure:"mtls"`
-	APISigning  APISigningConfig  `mapstructure:"api_signing"`
-	IPAllowList IPAllowListConfig `mapstructure:"ip_allowlist"`
-	Secrets     SecretsConfig     `mapstructure:"secrets"`
+	MTLS            MTLSConfig            `mapstructure:"mtls"`
+	APISigning      APISigningConfig      `mapstructure:"api_signing"`
+	EvidenceSigning EvidenceSigningConfig `mapstructure:"evidence_signing"`
+	IPAllowList     IPAllowListConfig     `mapstructure:"ip_allowlist"`
+	Secrets         SecretsConfig         `mapstructure:"secrets"`
 }
 
 // MTLSConfig mTLS 配置
@@ -116,6 +117,14 @@ type APISigningConfig struct {
 	Algorithm     string   `mapstructure:"algorithm"`
 	ClockSkew     string   `mapstructure:"clock_skew"`
 	RequiredPaths []string `mapstructure:"required_paths"`
+}
+
+// EvidenceSigningConfig configures detached evidence-package signing during export.
+type EvidenceSigningConfig struct {
+	Enabled          bool   `mapstructure:"enabled"`
+	KeyID            string `mapstructure:"key_id"`
+	PrivateKeyBase64 string `mapstructure:"private_key_base64"`
+	PublicKeyBase64  string `mapstructure:"public_key_base64"`
 }
 
 // IPAllowListConfig IP 白名单配置
@@ -658,6 +667,19 @@ func replaceEnvVars(config *Config) error {
 			if val := os.Getenv(envVar); val != "" {
 				config.Hermes.MCPHeaders[k] = val
 			}
+		}
+	}
+
+	if strings.HasPrefix(config.Security.EvidenceSigning.PrivateKeyBase64, "$") {
+		envVar := strings.TrimPrefix(strings.TrimSuffix(config.Security.EvidenceSigning.PrivateKeyBase64, "}"), "${")
+		if val := os.Getenv(envVar); val != "" {
+			config.Security.EvidenceSigning.PrivateKeyBase64 = val
+		}
+	}
+	if strings.HasPrefix(config.Security.EvidenceSigning.PublicKeyBase64, "$") {
+		envVar := strings.TrimPrefix(strings.TrimSuffix(config.Security.EvidenceSigning.PublicKeyBase64, "}"), "${")
+		if val := os.Getenv(envVar); val != "" {
+			config.Security.EvidenceSigning.PublicKeyBase64 = val
 		}
 	}
 

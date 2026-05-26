@@ -1,22 +1,35 @@
 # Aetheris Runtime Guarantees — 你可以依赖什么
 
-This document explains what Aetheris guarantees in normal and failure scenarios. For technical details, see [design/execution-guarantees.md](../design/execution-guarantees.md) and [design/scheduler-correctness.md](../design/scheduler-correctness.md).
+This document explains what Aetheris guarantees in normal and failure scenarios. For a mode-by-mode summary, start with the [guarantee matrix](guarantee-matrix.md). For technical details, see [design/execution-guarantees.md](../../design/execution-guarantees.md) and [design/scheduler-correctness.md](../../design/internal/scheduler-correctness.md).
+
+For startup checks that enforce production-safe storage and API settings, see [production runtime gates](production-runtime-gates.md).
 
 ---
 
 ## Normal Scenario Guarantees
 
+These guarantees are conditional. They hold only for the runtime boundary Aetheris controls and only when the required durable stores are configured.
+
 | Scenario                    | Guarantee                                              | Condition                                                     |
 | --------------------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
-| **Worker executes step**    | At-most-once                                           | Configured InvocationLedger + Effect Store                    |
+| **Worker executes step**    | Recorded Runtime Tool side effect is not repeated      | Configured InvocationLedger + Effect Store                    |
 | **Tool calls external API** | Pass idempotency key → downstream dedup                | Tool uses `StepIdempotencyKeyForExternal(ctx, jobID, stepID)` |
 | **LLM generates result**    | Stored in Effect Store; Replay injects (NOT re-called) | Effect Store configured                                       |
 | **Signal sent**             | At-least-once (write wait_completed → Job scheduled)   | WakeupQueue for multi-worker                                  |
 | **Checkpoint saved**        | After each step; crash recovery from latest Checkpoint | CheckpointStore configured                                    |
 
+## Guarantee Boundary by Mode
+
+| Mode | Intended use | What holds | What does not hold |
+| --- | --- | --- | --- |
+| Embedded / memory | Local demos and tests | Basic execution and local trace | Cross-process crash recovery, production at-most-once side-effect boundary |
+| `external_http` | Level 1 migration for existing agents | Durable outer Job, trace, timeout, retry, forwarded idempotency key | Internal payment/email/database writes inside the external agent are opaque to Aetheris |
+| Native Runtime Tool | Production side-effect boundary | Ledger/Effect Store can prevent repeated committed Runtime Tool side effects | Downstream systems must still honor idempotency for their own write semantics |
+| Postgres multi-worker | Production deployment | Lease fencing, recovery, replay, shared ledger/effects | Storage disaster recovery remains infrastructure responsibility |
+
 ### DAG parallel execution (2.0)
 
-When **max parallel steps** is configured (> 0), steps in the same topological level may run in parallel on a single worker. See [design/dag-parallel-execution.md](../design/dag-parallel-execution.md).
+When **max parallel steps** is configured (> 0), steps in the same topological level may run in parallel on a single worker. See [design/dag-parallel-execution.md](../../design/internal/dag-parallel-execution.md).
 
 | Aspect                   | Behavior                                                                                                                                                                                         |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -115,7 +128,7 @@ Step: call_slow_api (timeout 5m)
 **What happens**:
 
 1. **If `wait_completed` NOT written**: Job remains StatusWaiting/StatusParked
-2. **Retry signal**: Idempotent (see [design/runtime-contract.md](../design/runtime-contract.md) § External Event Guarantee)
+2. **Retry signal**: Idempotent (see [design/runtime-contract.md](../../design/internal/runtime-contract.md) § External Event Guarantee)
    - If last event already `wait_completed` with same `correlation_key` → return 200 (already delivered)
 3. **WakeupQueue**: If configured, signal → NotifyReady → Worker immediately claims (no poll delay)
 
@@ -145,7 +158,7 @@ curl -X POST http://localhost:8080/api/jobs/job-xxx/signal \
 
 **What happens**:
 
-1. **Event Store Append**: Validates `attempt_id` (see [design/runtime-contract.md](../design/runtime-contract.md) § Execution Epoch)
+1. **Event Store Append**: Validates `attempt_id` (see [design/runtime-contract.md](../../design/internal/runtime-contract.md) § Execution Epoch)
    - Only Worker with current lease's `attempt_id` can write events
    - Other Worker gets `ErrStaleAttempt` → aborts
 2. **Tool Ledger Acquire**: Same `idempotency_key` → only one Worker can Commit
@@ -154,7 +167,8 @@ curl -X POST http://localhost:8080/api/jobs/job-xxx/signal \
 
 **Guarantees**:
 
-- ✅ Tool executed exactly once (Ledger arbitration)
+- ✅ Tool result is committed once for a stable `idempotency_key`
+- ⚠️ Tool execution itself still depends on adapter-side idempotency if the external system is called before a durable result is committed
 - ✅ Event stream not polluted by stale Worker (attempt_id validation)
 
 **Example**:
@@ -165,7 +179,7 @@ Time 30s: Lease expires
 Time 30.1s: Worker B claims job-123 (attempt_id=attempt-2)
 Time 30.2s: Worker A tries to append event → ErrStaleAttempt (attempt-1 != attempt-2)
 Time 30.3s: Worker B executes tool → Ledger Acquire → AllowExecute → success
-Result: Tool executed once by Worker B
+Result: one committed Tool result for this runtime key
 ```
 
 ---
@@ -205,7 +219,7 @@ Replay (2024-11-20): Inject "Approve" from Effect Store (model=gpt-4o-2024-08-06
 
 1. **First execution**: Tool called → result `$10` recorded
 2. **Replay**: Inject `$10` from Ledger/Effect Store → Tool NOT re-called
-3. **Versioning**: tool_invocation_started includes `tool_version`, `request_schema_hash` (see [design/versioning.md](../design/versioning.md))
+3. **Versioning**: tool_invocation_started includes `tool_version`, `request_schema_hash` (see [design/versioning.md](../../design/internal/versioning.md))
 4. **Audit**: Can explain "why historical execution returned X, now returns Y" (tool version changed)
 
 **Guarantees**:
@@ -300,7 +314,7 @@ wakeup_queue:
     addr: "redis:6379"
 ```
 
-**Guarantees**: All guarantees in [design/execution-guarantees.md](../design/execution-guarantees.md) hold
+**Guarantees**: All guarantees in [design/execution-guarantees.md](../../design/execution-guarantees.md) hold for native Runtime Tools and Aetheris-managed effects. `external_http` internals remain outside the runtime boundary.
 
 **Use for**: Production deployment, multi-worker, crash recovery, audit
 
@@ -308,7 +322,7 @@ wakeup_queue:
 
 ## Failure Matrix (Formal)
 
-A single **fault × guarantee × behavior × config** matrix is maintained in [design/failure-matrix.md](../design/failure-matrix.md). Use it for compliance and operations.
+A single **fault × guarantee × behavior × config** matrix is maintained in [design/failure-matrix.md](../../design/internal/failure-matrix.md). Use it for compliance and operations.
 
 ## Guarantee Summary Table
 
@@ -436,7 +450,7 @@ After a Job completes (or fails), you can run **offline verification** to get an
 
 The **Execution Proof Chain** (Ledger, Confirmation Replay) is the _runtime_ mechanism that enforces at-most-once and deterministic replay. **Verification Mode** is a _post-hoc_, read-only check and summary of the same event stream and derived state. It does not change any state; it only computes and returns hashes and proof results for audit or demo.
 
-See [design/verification-mode.md](../design/verification-mode.md) for the protocol (event chain digest, execution hash formula) and [design/1.0-runtime-semantics.md](../design/1.0-runtime-semantics.md) for the Execution Proof Chain.
+See [design/verification-mode.md](../../design/internal/verification-mode.md) for the protocol (event chain digest, execution hash formula) and [design/1.0-runtime-semantics.md](../../design/internal/1.0-runtime-semantics.md) for the Execution Proof Chain.
 
 ---
 
@@ -477,7 +491,7 @@ See [design/verification-mode.md](../design/verification-mode.md) for the protoc
 
 ### Scenario 4: Violating Step Contract
 
-**If developer breaks [design/step-contract.md](../design/step-contract.md)**:
+**If developer breaks [design/step-contract.md](../../design/internal/step-contract.md)**:
 
 - ❌ Step directly calls external API (not via Tool) → Replay will re-execute → duplicate side effect
 - ❌ Step reads `time.Now()` or `rand.Int()` → Replay non-deterministic
@@ -630,11 +644,11 @@ Expected:
 
 ## References
 
-- [design/execution-guarantees.md](../design/execution-guarantees.md) — Formal guarantees table
-- [design/scheduler-correctness.md](../design/scheduler-correctness.md) — Lease, heartbeat, reclaim
-- [design/step-contract.md](../design/step-contract.md) — How to write correct steps
-- [design/effect-system.md](../design/effect-system.md) — Effect Store, replay, two-phase commit
-- [design/runtime-contract.md](../design/runtime-contract.md) — Blocking, epoch, attempt_id validation
+- [design/execution-guarantees.md](../../design/execution-guarantees.md) — Formal guarantees table
+- [design/scheduler-correctness.md](../../design/internal/scheduler-correctness.md) — Lease, heartbeat, reclaim
+- [design/step-contract.md](../../design/internal/step-contract.md) — How to write correct steps
+- [design/effect-system.md](../../design/internal/effect-system.md) — Effect Store, replay, two-phase commit
+- [design/runtime-contract.md](../../design/internal/runtime-contract.md) — Blocking, epoch, attempt_id validation
 
 ---
 

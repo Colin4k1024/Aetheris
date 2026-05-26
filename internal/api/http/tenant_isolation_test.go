@@ -15,9 +15,12 @@
 package http
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
@@ -84,6 +87,90 @@ func TestTenantIsolation_ListDocumentsCrossTenant(t *testing.T) {
 
 // TestTenantIsolation_ForensicsQuery verifies forensics queries are tenant-scoped
 func TestTenantIsolation_ForensicsQuery(t *testing.T) {
-	// This test verifies ForensicsQuery properly filters by tenant
-	t.Skip("ForensicsQuery integration test - requires full setup")
+	ctx := context.Background()
+	meta := job.NewJobStoreMem()
+	eventStore := jobstore.NewMemoryStore()
+	handler := NewHandler(nil, nil)
+	handler.SetJobStore(meta)
+	handler.SetJobEventStore(eventStore)
+
+	createTenantJob := func(t *testing.T, tenantID, jobID, toolName string, eventType jobstore.EventType) {
+		t.Helper()
+		createdID, err := meta.Create(ctx, &job.Job{
+			ID:       jobID,
+			AgentID:  "shared-agent",
+			Goal:     "forensics query tenant test",
+			Status:   job.StatusPending,
+			TenantID: tenantID,
+		})
+		if err != nil {
+			t.Fatalf("Create %s job: %v", tenantID, err)
+		}
+		if createdID != jobID {
+			t.Fatalf("created job id = %q, want %q", createdID, jobID)
+		}
+
+		_, ver, err := eventStore.ListEvents(ctx, jobID)
+		if err != nil {
+			t.Fatalf("list events for %s: %v", jobID, err)
+		}
+		appendEvent := func(ev jobstore.JobEvent) {
+			ev.JobID = jobID
+			nextVer, err := eventStore.Append(ctx, jobID, ver, ev)
+			if err != nil {
+				t.Fatalf("append %s for %s: %v", ev.Type, jobID, err)
+			}
+			ver = nextVer
+		}
+
+		appendEvent(jobstore.JobEvent{Type: jobstore.JobCreated})
+		finishedPayload, _ := json.Marshal(map[string]interface{}{
+			"invocation_id":   "inv-" + jobID,
+			"idempotency_key": "key-" + jobID,
+			"tool_name":       toolName,
+			"outcome":         "success",
+			"finished_at":     time.Now().UTC().Format(time.RFC3339),
+		})
+		appendEvent(jobstore.JobEvent{Type: jobstore.ToolInvocationFinished, Payload: finishedPayload})
+		appendEvent(jobstore.JobEvent{Type: eventType})
+	}
+
+	createTenantJob(t, "tenant-a", "job-forensics-tenant-a", "stripe.charge", jobstore.PaymentExecuted)
+	createTenantJob(t, "tenant-b", "job-forensics-tenant-b", "sendgrid.send", jobstore.EmailSent)
+
+	s := server.Default(server.WithHostPorts(":0"))
+	s.POST("/api/forensics/query", func(c context.Context, req *app.RequestContext) {
+		c = auth.WithTenantID(c, "tenant-a")
+		handler.ForensicsQuery(c, req)
+	})
+
+	body := []byte(`{
+		"agent_filter":["shared-agent"],
+		"tool_filter":["stripe*"],
+		"event_filter":["payment_executed"],
+		"limit":20,
+		"offset":0
+	}`)
+	w := ut.PerformRequest(s.Engine, "POST", "/api/forensics/query", &ut.Body{Body: bytes.NewReader(body), Len: len(body)})
+	resp := w.Result()
+	if resp.StatusCode() != http.StatusOK {
+		t.Fatalf("ForensicsQuery status got %d, want 200; body=%s", resp.StatusCode(), resp.Body())
+	}
+
+	var out struct {
+		Jobs       []map[string]interface{} `json:"jobs"`
+		TotalCount int                      `json:"total_count"`
+	}
+	if err := json.Unmarshal(resp.Body(), &out); err != nil {
+		t.Fatalf("unmarshal response: %v; body=%s", err, resp.Body())
+	}
+	if out.TotalCount != 1 || len(out.Jobs) != 1 {
+		t.Fatalf("expected exactly one tenant-a job, got total=%d jobs=%v", out.TotalCount, out.Jobs)
+	}
+	if got := out.Jobs[0]["job_id"]; got != "job-forensics-tenant-a" {
+		t.Fatalf("job_id = %v, want tenant-a job", got)
+	}
+	if got := out.Jobs[0]["tenant_id"]; got != "tenant-a" {
+		t.Fatalf("tenant_id = %v, want tenant-a", got)
+	}
 }

@@ -36,6 +36,13 @@ checkpoint_store:
   type: "embedded"
   dsn: "./data/embedded"
 
+security:
+  evidence_signing:
+    enabled: false
+    key_id: "default"
+    private_key_base64: "${AETHERIS_EVIDENCE_SIGNING_PRIVATE_KEY}"
+    public_key_base64: "${AETHERIS_EVIDENCE_SIGNING_PUBLIC_KEY}"
+
 agent:
   job_scheduler:
     enabled: true

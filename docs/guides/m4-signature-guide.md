@@ -29,60 +29,34 @@ ed25519:org_primary_key:SGVsbG8gV29ybGQhIFRoaXMgaXMgYSBzaWdu...
 
 ---
 
-## CLI 使用
+## Current Integrated Path
 
-### 生成密钥对
+The integrated path signs evidence ZIPs during export when API config enables `security.evidence_signing`. See [evidence-signing.md](evidence-signing.md).
+
+### Configure signing
+
+```yaml
+security:
+  evidence_signing:
+    enabled: true
+    key_id: "org_primary_key"
+    private_key_base64: "${AETHERIS_EVIDENCE_SIGNING_PRIVATE_KEY}"
+    public_key_base64: "${AETHERIS_EVIDENCE_SIGNING_PUBLIC_KEY}"
+```
+
+### Export signed evidence
 
 ```bash
-aetheris keygen --id org_primary_key
-
-# 输出
-✓ Key pair generated
-  Key ID: org_primary_key
-  Public Key: ed25519:AAAAC3NzaC1lZDI1NTE5...
-  Private Key: (stored securely)
+aetheris export <job_id> --output evidence.zip
 ```
 
-### 签名证据包
+### Verify signature
 
 ```bash
-aetheris sign evidence.zip --key org_primary_key
-
-# 输出
-✓ Evidence package signed
-  Signature: ed25519:org_primary_key:SGVsbG8...
-  Signed package: evidence-signed.zip
+aetheris verify evidence.zip --public-key <base64-public-key>
 ```
 
-### 验证签名
-
-```bash
-aetheris verify-signature evidence-signed.zip --public-key <public_key>
-
-# 输出
-✓ Signature valid
-  Signed by: org_primary_key
-  Timestamp: 2026-02-12 10:30:00 UTC
-```
-
----
-
-## API 使用
-
-### 导出时签名
-
-```bash
-POST /api/jobs/:id/export?sign=true&key_id=org_primary_key
-```
-
-响应包含签名：
-```json
-{
-  "download_url": "/api/download/evidence.zip",
-  "signature": "ed25519:org_primary_key:...",
-  "signed_at": "2026-02-12T10:30:00Z"
-}
-```
+The CLI verifies file hashes, event hash chain, ledger consistency, and the Ed25519 signature when a public key is supplied.
 
 ---
 
@@ -90,30 +64,17 @@ POST /api/jobs/:id/export?sign=true&key_id=org_primary_key
 
 ### 存储方式
 
-**开发环境**: 文件存储
-```bash
-~/.aetheris/keys/
-├── org_primary_key.pub
-└── org_primary_key.priv (加密)
-```
-
-**生产环境**: HashiCorp Vault
-```bash
-vault kv put secret/aetheris/keys/org_primary_key \
-  private_key=<base64_encoded>
-```
+Current implementation reads raw base64 Ed25519 keys from config/env. KMS/Vault-backed custody is a production-readiness follow-up, not part of the integrated slice yet.
 
 ### 密钥轮换
 
 ```bash
-# 1. 生成新密钥
-aetheris keygen --id org_key_2026
-
-# 2. 更新配置
+# 1. Generate and distribute a new Ed25519 key pair out of band.
+# 2. Update API config/env.
 vi configs/api.yaml
-# signature.key_id: "org_key_2026"
+# security.evidence_signing.key_id: "org_key_2026"
 
-# 3. 旧密钥标记为 retired（保留用于验证历史签名）
+# 3. Keep old public keys for historical evidence verification.
 ```
 
 ---

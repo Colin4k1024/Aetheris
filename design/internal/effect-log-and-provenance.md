@@ -88,7 +88,7 @@
 ### 5.2 验收
 
 - 崩溃发生在「Execute 成功、PutEffect 成功、Append 前」：新 Worker Replay 时从 EffectStore catch-up，写回 command_committed，**不**再次执行 Tool/LLM。
-- 崩溃发生在「Execute 成功、PutEffect 前」：无 effect 记录，Replay 会再次执行该步；此时依赖 Tool 幂等与 StepIdempotencyKeyForExternal 传递，保证外部至多一次。
+- 崩溃发生在「Execute 成功、PutEffect 前」：无 effect 记录时，若事件流已有 `tool_invocation_started` 但无 finished，Activity Log Barrier 不允许盲目重执行；恢复需要 Ledger 结果、下游幂等确认、超时策略或人工介入。详见 [effect-store-contract.md](effect-store-contract.md)。
 
 ---
 

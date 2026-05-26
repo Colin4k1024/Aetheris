@@ -91,6 +91,15 @@ checkpoint_store:
   type: "postgres"   # memory | postgres
   dsn: "postgres://aetheris:aetheris@localhost:5432/aetheris?sslmode=disable"
 
+# Evidence signing is optional. When enabled, exported evidence ZIPs include a
+# signed proof.json that can be verified offline with the public key.
+security:
+  evidence_signing:
+    enabled: false
+    key_id: "default"
+    private_key_base64: "${AETHERIS_EVIDENCE_SIGNING_PRIVATE_KEY}"
+    public_key_base64: "${AETHERIS_EVIDENCE_SIGNING_PUBLIC_KEY}"
+
 # v1 Agent 与 Job 调度（仅 jobstore.type=memory 时生效；postgres 时 API 不拉取，由 Worker 唯一执行）
 agent:
   job_scheduler:

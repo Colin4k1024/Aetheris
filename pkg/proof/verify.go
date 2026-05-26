@@ -156,6 +156,11 @@ func VerifyEvidenceZip(zipBytes []byte, publicKey ...ed25519.PublicKey) VerifyRe
 				result.OK = false
 				result.Errors = append(result.Errors, fmt.Sprintf("proof root_hash mismatch: expected %s, got %s", events[len(events)-1].Hash, signedProof.RootHash))
 			}
+			if signedProof.Signature == "" && pubKey != nil {
+				result.OK = false
+				result.SignatureValid = false
+				result.Errors = append(result.Errors, "signature verification requested but proof is unsigned")
+			}
 			// 如果存在签名且提供了公钥，则验证签名
 			if signedProof.Signature != "" && pubKey != nil {
 				if err := VerifySignatureFromZipWithKey(files, signedProof.Signature, pubKey); err != nil {
