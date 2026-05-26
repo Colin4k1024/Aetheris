@@ -35,15 +35,14 @@ Every capability must be labeled with one of these states:
 - Forensics query/evidence graph/audit-log APIs: `integrated` with read-model release drill; exposed only when `api.forensics.experimental=true`
 - RBAC/redaction/retention: `production-ready` for tenant-scoped RBAC checks, redacted evidence export, and retention GC replay invariants
 - Compliance reports: `integrated` as signed-evidence-bound report generators with template versioning and explicit unsupported controls; exposed only when `api.forensics.experimental=true`
-- AI-forensics APIs: `prototype`, gated with the experimental forensics surface
+- AI-forensics detection: `integrated` as an eval-gated detector with a golden dataset, false-positive budget, severity mapping, event-signal extraction, and release drill; API remains experimental
+- Distributed verifier: `prototype` with root-hash comparison and readiness drill; promotion is blocked until saturation, lease, and recovery evidence exists
+- Monitoring quality scorer: `prototype` offline SRE report utility with alert semantics and release drill; not wired into `/api/observability/*`
 
 ### 3.3 Enterprise lane (M4 / 3.0 candidates)
 
 The following are currently treated as `prototype` unless explicitly promoted by a vertical slice:
 
-- `pkg/distributed`
-- `pkg/ai_forensics`
-- `pkg/monitoring`
 - `pkg/compliance`
 
 `pkg/signature` is promoted only for evidence ZIP signing. Broader signing/key-management surfaces remain outside GA scope.
@@ -101,4 +100,4 @@ To avoid roadmap confusion:
 
 1. Harden 2.x gates in CI/release pipeline (make P0 gates non-optional for release jobs).
 2. Close multi-tenant operational gaps (isolation tests, authz drills, runbook evidence).
-3. Next 3.0 slice candidate: AI-forensics eval dataset and false-positive budget.
+3. Next 3.0 slice candidate: implement the offline compliance report CLI slice defined in [compliance-surface-definition](artifacts/2026-05-26-compliance-surface-definition/README.md).

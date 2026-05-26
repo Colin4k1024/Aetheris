@@ -32,6 +32,9 @@ func TestVerifyAcrossOrgs_Consensus(t *testing.T) {
 	if !res.Consensus {
 		t.Fatalf("expected consensus=true, divergences=%v", res.Divergences)
 	}
+	if res.RootByOrg["org_a"] != "root" || res.RootByOrg["org_b"] != "root" {
+		t.Fatalf("expected root_by_org to expose accepted roots: %+v", res.RootByOrg)
+	}
 }
 
 func TestVerifyAcrossOrgs_Divergence(t *testing.T) {
@@ -150,6 +153,61 @@ func TestMultiOrgVerifyResult(t *testing.T) {
 	}
 	if !result.Consensus {
 		t.Error("expected consensus=true")
+	}
+}
+
+func TestDistributedVerifierReleaseDrill_AcceptedAndDivergentRoots(t *testing.T) {
+	accepted := NewDistributedVerifier().WithEventSource(&fakeOrgEventSource{
+		events: map[string][]Event{
+			"org_a": {{Hash: "root"}},
+			"org_b": {{Hash: "root"}},
+		},
+	})
+	acceptedResult, err := accepted.VerifyAcrossOrgs(context.Background(), "job_release", []string{"org_a", "org_b"})
+	if err != nil {
+		t.Fatalf("accepted verify failed: %v", err)
+	}
+	if !acceptedResult.Consensus {
+		t.Fatalf("expected accepted roots to reach consensus: %+v", acceptedResult)
+	}
+
+	divergent := NewDistributedVerifier().WithEventSource(&fakeOrgEventSource{
+		events: map[string][]Event{
+			"org_a": {{Hash: "root_a"}},
+			"org_b": {{Hash: "root_b"}},
+		},
+	})
+	divergentResult, err := divergent.VerifyAcrossOrgs(context.Background(), "job_release", []string{"org_a", "org_b"})
+	if err != nil {
+		t.Fatalf("divergent verify failed: %v", err)
+	}
+	if divergentResult.Consensus {
+		t.Fatalf("expected divergent roots to fail consensus")
+	}
+	if len(divergentResult.Divergences) == 0 {
+		t.Fatalf("expected divergence details")
+	}
+}
+
+func TestDistributedVerifierReleaseDrill_ReadinessRequiresOperationalEvidence(t *testing.T) {
+	notReady := AssessPromotionReadiness(PromotionEvidence{
+		RootHashDrillCovered: true,
+	})
+	if notReady.Ready {
+		t.Fatalf("distributed verifier should stay prototype without saturation, lease, and recovery evidence")
+	}
+	if len(notReady.Missing) != 3 {
+		t.Fatalf("missing evidence count = %d, want 3: %+v", len(notReady.Missing), notReady.Missing)
+	}
+
+	ready := AssessPromotionReadiness(PromotionEvidence{
+		SingleNodeSaturationObserved: true,
+		LeaseFailureModesCovered:     true,
+		RecoveryFailureModesCovered:  true,
+		RootHashDrillCovered:         true,
+	})
+	if !ready.Ready {
+		t.Fatalf("expected readiness when all evidence is present: %+v", ready)
 	}
 }
 

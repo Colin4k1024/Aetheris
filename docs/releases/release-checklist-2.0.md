@@ -81,6 +81,9 @@ aetheris verify evidence.zip --public-key <base64-public-key>  # when evidence s
 - [ ] Forensics read model drill executed and recorded (`docs/releases/forensics-read-model-release-drill.md`)
 - [ ] RBAC/redaction/retention drill executed and recorded (`docs/releases/rbac-redaction-retention-release-drill.md`)
 - [ ] Compliance report drill executed and recorded (`docs/releases/compliance-report-release-drill.md`)
+- [ ] AI forensics eval drill executed and recorded (`docs/releases/ai-forensics-eval-release-drill.md`)
+- [ ] Distributed verifier drill executed and recorded (`docs/releases/distributed-verifier-release-drill.md`)
+- [ ] Monitoring quality scorer drill executed and recorded (`docs/releases/monitoring-quality-scorer-release-drill.md`)
 
 ### 6.1 Execute P0 performance gate
 
@@ -157,6 +160,33 @@ Artifact:
 Artifact:
 - `artifacts/release/compliance-report-drill-*.md`
 
+### 6.9 Execute AI forensics eval drill
+
+```bash
+./scripts/release-ai-forensics-eval-drill.sh
+```
+
+Artifact:
+- `artifacts/release/ai-forensics-eval-drill-*.md`
+
+### 6.10 Execute distributed verifier drill
+
+```bash
+./scripts/release-distributed-verifier-drill.sh
+```
+
+Artifact:
+- `artifacts/release/distributed-verifier-drill-*.md`
+
+### 6.11 Execute monitoring quality scorer drill
+
+```bash
+./scripts/release-monitoring-quality-scorer-drill.sh
+```
+
+Artifact:
+- `artifacts/release/monitoring-quality-scorer-drill-*.md`
+
 ## 7. Failure triage (when release gate fails)
 
 1. Check workflow artifact bundle (`artifacts/release/*`) first:
@@ -186,4 +216,13 @@ Artifact:
 9. If compliance report drill failed:
    - run `./scripts/release-compliance-report-drill.sh` locally
    - inspect template versioning, signed evidence binding, unsupported control visibility, and HTTP validation logs
-10. Re-run full gate only after root cause is fixed and documented.
+10. If AI forensics eval drill failed:
+   - run `./scripts/release-ai-forensics-eval-drill.sh` locally
+   - inspect golden eval cases, false-positive budget, severity mapping, and HTTP signal extraction logs
+11. If distributed verifier drill failed:
+   - run `./scripts/release-distributed-verifier-drill.sh` locally
+   - inspect accepted/divergent root hash comparisons and promotion readiness evidence
+12. If monitoring quality scorer drill failed:
+   - run `./scripts/release-monitoring-quality-scorer-drill.sh` locally
+   - inspect healthy, degraded, critical, and noisy alert semantic tests
+13. Re-run full gate only after root cause is fixed and documented.

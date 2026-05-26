@@ -53,6 +53,7 @@ func (v *DistributedVerifier) VerifyAcrossOrgs(ctx context.Context, jobID string
 		JobID:         jobID,
 		Organizations: append([]string(nil), orgs...),
 		Consensus:     true,
+		RootByOrg:     map[string]string{},
 	}
 	if jobID == "" {
 		return nil, fmt.Errorf("job_id is required")
@@ -81,6 +82,7 @@ func (v *DistributedVerifier) VerifyAcrossOrgs(ctx context.Context, jobID string
 			continue
 		}
 		rootByOrg[orgID] = lastHash
+		result.RootByOrg[orgID] = lastHash
 	}
 
 	var expected string
@@ -104,8 +106,9 @@ func (v *DistributedVerifier) VerifyAcrossOrgs(ctx context.Context, jobID string
 
 // MultiOrgVerifyResult 多方验证结果
 type MultiOrgVerifyResult struct {
-	JobID         string   `json:"job_id"`
-	Organizations []string `json:"organizations"`
-	Consensus     bool     `json:"consensus"`
-	Divergences   []string `json:"divergences,omitempty"`
+	JobID         string            `json:"job_id"`
+	Organizations []string          `json:"organizations"`
+	Consensus     bool              `json:"consensus"`
+	Divergences   []string          `json:"divergences,omitempty"`
+	RootByOrg     map[string]string `json:"root_by_org,omitempty"`
 }

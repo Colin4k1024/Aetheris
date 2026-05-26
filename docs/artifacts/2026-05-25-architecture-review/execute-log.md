@@ -29,6 +29,9 @@ status: completed
 | P3-03 | Productionize forensics read model gate | Added [forensics-read-model.md](../../guides/forensics-read-model.md), tenant isolation/pagination/large-event tests, release drill, and release script integration |
 | P3-04 | Productionize RBAC/redaction/retention hardening gate | Added [rbac-redaction-retention-hardening.md](../../guides/rbac-redaction-retention-hardening.md), redacted evidence export, retention replay invariant, release drill, and release script integration |
 | P3-05 | Promote compliance reports as evidence-bound report generators | Added [compliance-reporting.md](../../guides/compliance-reporting.md), signed evidence binding, template versioning, explicit unsupported controls, HTTP export tests, and release drill integration |
+| P3-06 | Promote AI forensics detection as an eval-gated detector | Added [ai-forensics-eval.md](../../guides/ai-forensics-eval.md), golden eval dataset, false-positive budget, severity mapping, retry/tamper signal extraction, HTTP tests, and release drill integration |
+| P3-07 | Gate distributed verifier promotion with operational readiness evidence | Added [distributed-verifier-readiness.md](../../guides/distributed-verifier-readiness.md), root-hash consensus/divergence tests, readiness assessment, and release drill integration |
+| P3-08 | Define monitoring quality scorer SRE semantics | Added [monitoring-quality-scorer.md](../../guides/monitoring-quality-scorer.md), healthy/degraded/critical/noisy alert semantics, tests, and release drill integration |
 
 ## Code Change
 
@@ -50,6 +53,9 @@ status: completed
 ./scripts/release-forensics-read-model-drill.sh
 ./scripts/release-rbac-redaction-retention-drill.sh
 ./scripts/release-compliance-report-drill.sh
+./scripts/release-ai-forensics-eval-drill.sh
+./scripts/release-distributed-verifier-drill.sh
+./scripts/release-monitoring-quality-scorer-drill.sh
 ```
 
 Result: executor, app/api, and app/worker package tests passed.
@@ -60,3 +66,6 @@ Evidence signing release drill: passed and wrote an artifact under `artifacts/re
 Forensics read model drill: passed and wrote an artifact under `artifacts/release/`.
 RBAC/redaction/retention drill: passed and wrote an artifact under `artifacts/release/`.
 Compliance report drill: passed and wrote an artifact under `artifacts/release/`.
+AI forensics eval drill: passed and wrote an artifact under `artifacts/release/`.
+Distributed verifier drill: passed and wrote an artifact under `artifacts/release/`.
+Monitoring quality scorer drill: passed and wrote an artifact under `artifacts/release/`.

@@ -85,6 +85,56 @@ type QualityScore struct {
 	Recommendations      []string `json:"recommendations"`
 }
 
+// AlertLevel is the SRE-facing quality alert class.
+type AlertLevel string
+
+const (
+	AlertHealthy  AlertLevel = "healthy"
+	AlertDegraded AlertLevel = "degraded"
+	AlertCritical AlertLevel = "critical"
+	AlertNoisy    AlertLevel = "noisy"
+)
+
+// QualityAssessment translates a score into SRE alert semantics.
+type QualityAssessment struct {
+	Level   AlertLevel `json:"level"`
+	Alert   bool       `json:"alert"`
+	Reasons []string   `json:"reasons,omitempty"`
+}
+
+// AssessQualityScore maps decision quality scores to alert semantics.
+func AssessQualityScore(score *QualityScore) QualityAssessment {
+	if score == nil {
+		return QualityAssessment{
+			Level:   AlertCritical,
+			Alert:   true,
+			Reasons: []string{"quality score is missing"},
+		}
+	}
+
+	reasons := make([]string, 0, 4)
+	if score.EvidenceCompleteness >= 80 && score.Confidence < 50 {
+		reasons = append(reasons, "high evidence coverage but low confidence; inspect signal noise or calibration")
+		return QualityAssessment{Level: AlertNoisy, Alert: true, Reasons: reasons}
+	}
+	if score.Overall < 50 ||
+		score.EvidenceCompleteness < 40 ||
+		score.EvidenceQuality < 40 ||
+		score.Confidence < 40 ||
+		score.HumanOversight < 40 {
+		reasons = append(reasons, "quality score is below critical threshold")
+		return QualityAssessment{Level: AlertCritical, Alert: true, Reasons: reasons}
+	}
+	if score.Overall < 70 || len(score.Recommendations) > 0 {
+		reasons = append(reasons, score.Recommendations...)
+		if len(reasons) == 0 {
+			reasons = append(reasons, "quality score is below degraded threshold")
+		}
+		return QualityAssessment{Level: AlertDegraded, Alert: true, Reasons: reasons}
+	}
+	return QualityAssessment{Level: AlertHealthy, Alert: false}
+}
+
 func defaultDecisionInput(stepID string) DecisionInput {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(stepID))

@@ -14,7 +14,7 @@ EMBED_WORKER_PID := $(BIN_DIR)/worker.embedded.pid
 EMBED_API_LOG := $(BIN_DIR)/api.embedded.log
 EMBED_WORKER_LOG := $(BIN_DIR)/worker.embedded.log
 
-.PHONY: build run run-all run-api run-worker run-embedded run-embedded-api run-embedded-worker stop stop-embedded clean test test-integration vet fmt fmt-check tidy docker-build docker-run docker-stop run-embedded-docker stop-embedded-docker release-2.0 evidence-signing-drill forensics-read-model-drill rbac-redaction-retention-drill compliance-report-drill ci-local help
+.PHONY: build run run-all run-api run-worker run-embedded run-embedded-api run-embedded-worker stop stop-embedded clean test test-integration vet fmt fmt-check tidy docker-build docker-run docker-stop run-embedded-docker stop-embedded-docker release-2.0 evidence-signing-drill forensics-read-model-drill rbac-redaction-retention-drill compliance-report-drill ai-forensics-eval-drill distributed-verifier-drill monitoring-quality-scorer-drill ci-local help
 
 # 默认目标：帮助
 help:
@@ -40,6 +40,9 @@ help:
 	@echo "  make forensics-read-model-drill - 执行取证查询 read model 发布演练"
 	@echo "  make rbac-redaction-retention-drill - 执行 RBAC/脱敏/留存发布演练"
 	@echo "  make compliance-report-drill - 执行合规报告发布演练"
+	@echo "  make ai-forensics-eval-drill - 执行 AI 取证评估发布演练"
+	@echo "  make distributed-verifier-drill - 执行分布式验证器发布演练"
+	@echo "  make monitoring-quality-scorer-drill - 执行监控质量评分发布演练"
 	@echo "  make ci-local  - 本地复现核心 CI 流程（含 Postgres 集成测试）"
 	@echo "  make vet     - go vet"
 	@echo "  make fmt       - gofmt -w"
@@ -143,6 +146,15 @@ rbac-redaction-retention-drill:
 
 compliance-report-drill:
 	./scripts/release-compliance-report-drill.sh
+
+ai-forensics-eval-drill:
+	./scripts/release-ai-forensics-eval-drill.sh
+
+distributed-verifier-drill:
+	./scripts/release-distributed-verifier-drill.sh
+
+monitoring-quality-scorer-drill:
+	./scripts/release-monitoring-quality-scorer-drill.sh
 
 ci-local:
 	@echo "[ci-local] fmt-check"

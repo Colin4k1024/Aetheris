@@ -6,6 +6,12 @@ Compliance reports are experimental auditor-facing summaries generated from Aeth
 
 `POST /api/compliance/report` is available only when `api.forensics.experimental=true`.
 
+Aetheris' broader compliance surface is defined in
+[`docs/artifacts/2026-05-26-compliance-surface-definition`](../artifacts/2026-05-26-compliance-surface-definition/README.md).
+Only the signed-evidence-bound report generator is currently integrated; the
+broader `pkg/compliance` package remains prototype until the offline CLI path,
+tests, and release drill are implemented.
+
 A report must be bound to a signed evidence package verification result:
 
 - `evidence_package_id` identifies the ZIP or artifact being referenced.
@@ -42,3 +48,4 @@ Reports include:
 - Aetheris does not certify legal compliance.
 - Aetheris does not replace legal counsel, GRC tooling, policy evidence, or external auditor judgment.
 - Unsupported controls must remain visible; do not silently count them as compliant.
+- `POST /api/compliance/apply` is not a promoted runtime apply path. Treat it as experimental/prototype until it is renamed to a check/preview API or backed by real policy-enforcement semantics.
