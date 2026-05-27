@@ -1,4 +1,3 @@
-package main
 // Package main implements a minimal OpenAI-compatible mock LLM server for CI testing.
 //
 // It handles POST /v1/chat/completions and GET /v1/models requests, returning valid
