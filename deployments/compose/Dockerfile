@@ -6,10 +6,11 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -o /bin/api ./cmd/api
 RUN CGO_ENABLED=0 go build -o /bin/worker ./cmd/worker
+RUN CGO_ENABLED=0 go build -o /bin/llm-mock ./cmd/llm-mock
 
 FROM alpine:3.18
 RUN apk add --no-cache ca-certificates
-COPY --from=builder /bin/api /bin/worker /usr/local/bin/
+COPY --from=builder /bin/api /bin/worker /bin/llm-mock /usr/local/bin/
 COPY --from=builder /app/configs /app/configs
 WORKDIR /app
 EXPOSE 8080 9093

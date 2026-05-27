@@ -1,0 +1,53 @@
+# CI compose override — adds a mock LLM so perf/drill gates run without Ollama or OpenAI.
+#
+# This file is layered on top of docker-compose.yml by scripts/local-2.0-stack.sh
+# when the CI=true environment variable is present (set automatically by GitHub Actions).
+#
+# It:
+#   1. Adds an `llm-mock` service built from the same Dockerfile, running the
+#      `/usr/local/bin/llm-mock` binary (a minimal OpenAI-compatible echo server).
+#   2. Overrides MODEL_LLM_PROVIDERS_OPENAI_BASE_URL for api/worker1/worker2 to
+#      point to the in-network mock instead of host.docker.internal:11434.
+#   3. Makes api/worker1/worker2 depend on llm-mock being healthy before starting.
+#
+# Usage (automatic via local-2.0-stack.sh):
+#   CI=true ./scripts/local-2.0-stack.sh start
+#
+# Manual usage:
+#   docker compose -f deployments/compose/docker-compose.yml \
+#                  -f deployments/compose/docker-compose.ci.yml \
+#                  up -d --build
+
+services:
+  llm-mock:
+    build:
+      context: ../..
+      dockerfile: deployments/compose/Dockerfile
+    command: ["/usr/local/bin/llm-mock"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:11434/health || exit 1"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+      start_period: 5s
+
+  api:
+    environment:
+      MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://llm-mock:11434/v1"
+    depends_on:
+      llm-mock:
+        condition: service_healthy
+
+  worker1:
+    environment:
+      MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://llm-mock:11434/v1"
+    depends_on:
+      llm-mock:
+        condition: service_healthy
+
+  worker2:
+    environment:
+      MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://llm-mock:11434/v1"
+    depends_on:
+      llm-mock:
+        condition: service_healthy

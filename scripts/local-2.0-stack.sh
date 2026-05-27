@@ -4,6 +4,20 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="${COMPOSE_FILE:-$ROOT_DIR/deployments/compose/docker-compose.yml}"
 
+# Auto-detect CI environment (GitHub Actions sets CI=true).
+# When running in CI, overlay docker-compose.ci.yml to add the mock LLM service
+# (replacing host.docker.internal:11434 which is unavailable in Linux runners).
+CI_COMPOSE_FILE="${ROOT_DIR}/deployments/compose/docker-compose.ci.yml"
+CI_COMPOSE_OVERRIDE=""
+if [ "${CI:-}" = "true" ] && [ -f "$CI_COMPOSE_FILE" ]; then
+  CI_COMPOSE_OVERRIDE="-f $CI_COMPOSE_FILE"
+  echo "[stack] CI mode detected — using CI overlay ($CI_COMPOSE_FILE)"
+fi
+
+# In CI allow longer wait for the mock LLM service to build and become healthy.
+HEALTH_WAIT_SECS="${HEALTH_WAIT_SECS:-${CI:+90}}"
+HEALTH_WAIT_SECS="${HEALTH_WAIT_SECS:-30}"
+
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "error: required command not found: $1" >&2
@@ -13,11 +27,13 @@ require_cmd() {
 
 compose_cmd() {
   if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-    docker compose -f "$COMPOSE_FILE" "$@"
+    # shellcheck disable=SC2086
+    docker compose -f "$COMPOSE_FILE" $CI_COMPOSE_OVERRIDE "$@"
     return
   fi
   if command -v docker-compose >/dev/null 2>&1; then
-    docker-compose -f "$COMPOSE_FILE" "$@"
+    # shellcheck disable=SC2086
+    docker-compose -f "$COMPOSE_FILE" $CI_COMPOSE_OVERRIDE "$@"
     return
   fi
   echo "error: neither 'docker compose' nor 'docker-compose' is available" >&2
@@ -41,8 +57,8 @@ cmd_start() {
   require_cmd curl
   echo "[stack] starting local 2.0 stack..."
   compose_cmd up -d --build
-  echo "[stack] waiting for API health..."
-  for i in {1..30}; do
+  echo "[stack] waiting for API health (max ${HEALTH_WAIT_SECS}s)..."
+  for i in $(seq 1 "$HEALTH_WAIT_SECS"); do
     if curl -fsS "http://localhost:8080/api/health" >/dev/null 2>&1; then
       echo "[stack] API is healthy"
       compose_cmd ps
@@ -50,7 +66,7 @@ cmd_start() {
     fi
     sleep 1
   done
-  echo "[stack] API health check timed out" >&2
+  echo "[stack] API health check timed out after ${HEALTH_WAIT_SECS}s" >&2
   compose_cmd ps || true
   exit 1
 }
