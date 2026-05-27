@@ -188,3 +188,15 @@ mcp:
     #   headers:
     #     Authorization: "Bearer ${MCP_TOKEN}"
     #   timeout: "30s"
+
+# 预定义 Agent（与 configs/agents.yaml 中的 agents 对应，api.yaml 加载时注册）
+agents:
+  agents:
+    conversation:
+      type: "react"
+      description: "简单对话智能体，用于性能基准测试"
+      llm: "default"
+      max_iterations: 5
+      tools: []
+      system_prompt: |
+        You are a helpful conversational assistant. Respond concisely and clearly.
