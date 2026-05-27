@@ -39,6 +39,7 @@ func main() {
 // handleCompletions handles POST /v1/chat/completions.
 // It discards the request body and returns a minimal valid OpenAI completion.
 func handleCompletions(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	io.Copy(io.Discard, r.Body) //nolint:errcheck
 
 	resp := map[string]any{

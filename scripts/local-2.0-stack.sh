@@ -15,8 +15,11 @@ if [ "${CI:-}" = "true" ] && [ -f "$CI_COMPOSE_FILE" ]; then
 fi
 
 # In CI allow longer wait for the mock LLM service to build and become healthy.
-HEALTH_WAIT_SECS="${HEALTH_WAIT_SECS:-${CI:+90}}"
-HEALTH_WAIT_SECS="${HEALTH_WAIT_SECS:-30}"
+DEFAULT_HEALTH_WAIT_SECS=30
+if [ -n "$CI_COMPOSE_OVERRIDE" ]; then
+  DEFAULT_HEALTH_WAIT_SECS=90
+fi
+HEALTH_WAIT_SECS="${HEALTH_WAIT_SECS:-$DEFAULT_HEALTH_WAIT_SECS}"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -58,7 +61,7 @@ cmd_start() {
   echo "[stack] starting local 2.0 stack..."
   compose_cmd up -d --build
   echo "[stack] waiting for API health (max ${HEALTH_WAIT_SECS}s)..."
-  for i in $(seq 1 "$HEALTH_WAIT_SECS"); do
+  for ((i = 1; i <= HEALTH_WAIT_SECS; i++)); do
     if curl -fsS "http://localhost:8080/api/health" >/dev/null 2>&1; then
       echo "[stack] API is healthy"
       compose_cmd ps
