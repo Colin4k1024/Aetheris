@@ -31,7 +31,15 @@ func main() {
 	mux.HandleFunc("GET /health", handleHealth)
 
 	log.Printf("[llm-mock] CI mock LLM server listening on %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("[llm-mock] server error: %v", err)
 	}
 }
