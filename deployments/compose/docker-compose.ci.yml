@@ -43,9 +43,10 @@ services:
     environment:
       MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://llm-mock:11434/v1"
     depends_on:
+      postgres:
+        condition: service_healthy
       llm-mock:
         condition: service_healthy
-
   worker2:
     environment:
       MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://llm-mock:11434/v1"
