@@ -15,8 +15,11 @@ if [ "${CI:-}" = "true" ] && [ -f "$CI_COMPOSE_FILE" ]; then
 fi
 
 # In CI allow longer wait for the mock LLM service to build and become healthy.
-HEALTH_WAIT_SECS="${HEALTH_WAIT_SECS:-${CI:+90}}"
-HEALTH_WAIT_SECS="${HEALTH_WAIT_SECS:-30}"
+if [ "${CI:-}" = "true" ]; then
+  HEALTH_WAIT_SECS="${HEALTH_WAIT_SECS:-90}"
+else
+  HEALTH_WAIT_SECS="${HEALTH_WAIT_SECS:-30}"
+fi
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
