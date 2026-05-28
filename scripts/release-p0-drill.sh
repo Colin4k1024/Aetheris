@@ -10,6 +10,7 @@ DRILL_POLL_MAX="${DRILL_POLL_MAX:-90}"
 DRILL_POLL_INTERVAL="${DRILL_POLL_INTERVAL:-2}"
 DRILL_DB_OUTAGE_SECONDS="${DRILL_DB_OUTAGE_SECONDS:-5}"
 RUN_DB_DRILL="${RUN_DB_DRILL:-0}"
+DRILL_AGENT_ID="${DRILL_AGENT_ID:-conversation}"
 ARTIFACT_DIR="${DRILL_ARTIFACT_DIR:-artifacts/release}"
 COMPOSE_FILE="${DRILL_COMPOSE_FILE:-deployments/compose/docker-compose.yml}"
 
@@ -148,25 +149,14 @@ create_job() {
 create_job_resilient() {
   local agent_id="$1"
   local message="$2"
-  local ts="$3"
   local job_id
   if job_id="$(create_job "$agent_id" "$message")"; then
     echo "$agent_id|$job_id"
     return 0
   fi
 
-  # API 重启后内存态 Agent 可能丢失（404）；重建 Agent 后重试一次，避免误报 Drill 失败。
-  if [[ "$RESPONSE_CODE" != "404" ]]; then
-    return 1
-  fi
-  local recreated_agent_id
-  if ! recreated_agent_id="$(create_agent "drill-agent-$ts-recovered")"; then
-    return 1
-  fi
-  if ! job_id="$(create_job "$recreated_agent_id" "$message")"; then
-    return 1
-  fi
-  echo "$recreated_agent_id|$job_id"
+  # Agents are config-driven and always available; 404 is a real failure.
+  return 1
 }
 
 wait_terminal() {
@@ -224,16 +214,13 @@ main() {
     exit 1
   fi
 
-  local agent_id
-  if ! agent_id="$(create_agent "drill-agent-$ts")"; then
-    echo "[drill] create agent failed" >&2
-    exit 1
-  fi
+  local agent_id="$DRILL_AGENT_ID"
+  echo "[drill] using pre-configured agent: $agent_id"
 
   echo "[drill] Drill A: worker restart during processing"
   local job_a
   local pair_a
-  if ! pair_a="$(create_job_resilient "$agent_id" "drill-a: please respond with one short sentence" "$ts")"; then
+  if ! pair_a="$(create_job_resilient "$agent_id" "drill-a: please respond with one short sentence")"; then
     record_result "$result_file" "Drill A (worker crash recovery)" "FAIL" "create job failed code=$RESPONSE_CODE"
     failed=$((failed + 1))
   else
@@ -253,7 +240,7 @@ main() {
   echo "[drill] Drill B: API restart"
   local job_b
   local pair_b
-  if ! pair_b="$(create_job_resilient "$agent_id" "drill-b: please respond with one short sentence" "$ts")"; then
+  if ! pair_b="$(create_job_resilient "$agent_id" "drill-b: please respond with one short sentence")"; then
     record_result "$result_file" "Drill B (api restart)" "FAIL" "create job failed code=$RESPONSE_CODE"
     failed=$((failed + 1))
   else
@@ -289,7 +276,7 @@ main() {
     else
       local job_c
       local pair_c
-      if ! pair_c="$(create_job_resilient "$agent_id" "drill-c: please respond with one short sentence" "$ts")"; then
+      if ! pair_c="$(create_job_resilient "$agent_id" "drill-c: please respond with one short sentence")"; then
         record_result "$result_file" "Drill C (postgres outage)" "FAIL" "create job failed code=$RESPONSE_CODE"
         failed=$((failed + 1))
       else
@@ -309,13 +296,9 @@ main() {
 
   echo "[drill] Drill D: replay and trace availability"
   local job_d
-  local agent_d
-  if ! agent_d="$(create_agent "drill-agent-$ts-d")"; then
-    record_result "$result_file" "Drill D (replay/trace)" "FAIL" "create agent failed code=$RESPONSE_CODE"
-    failed=$((failed + 1))
-  else
+  local agent_d="$DRILL_AGENT_ID"
   local pair_d
-  if ! pair_d="$(create_job_resilient "$agent_d" "drill-d: please respond with one short sentence" "$ts")"; then
+  if ! pair_d="$(create_job_resilient "$agent_d" "drill-d: please respond with one short sentence")"; then
     record_result "$result_file" "Drill D (replay/trace)" "FAIL" "create job failed code=$RESPONSE_CODE"
     failed=$((failed + 1))
   else
@@ -340,17 +323,12 @@ main() {
       failed=$((failed + 1))
     fi
   fi
-  fi
 
   echo "[drill] Drill E: forensics export + verify endpoint"
   local job_e
-  local agent_e
-  if ! agent_e="$(create_agent "drill-agent-$ts-e")"; then
-    record_result "$result_file" "Drill E (forensics)" "FAIL" "create agent failed code=$RESPONSE_CODE"
-    failed=$((failed + 1))
-  else
+  local agent_e="$DRILL_AGENT_ID"
   local pair_e
-  if ! pair_e="$(create_job_resilient "$agent_e" "drill-e: please respond with one short sentence" "$ts")"; then
+  if ! pair_e="$(create_job_resilient "$agent_e" "drill-e: please respond with one short sentence")"; then
     record_result "$result_file" "Drill E (forensics)" "FAIL" "create job failed code=$RESPONSE_CODE"
     failed=$((failed + 1))
   else
@@ -375,7 +353,6 @@ main() {
       record_result "$result_file" "Drill E (forensics)" "FAIL" "terminal=$terminal_e export_ok=$export_ok verify_ok=$verify_ok"
       failed=$((failed + 1))
     fi
-  fi
   fi
 
   {
