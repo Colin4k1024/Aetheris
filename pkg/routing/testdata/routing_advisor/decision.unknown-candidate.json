@@ -1,0 +1,42 @@
+{
+  "schema_version": "routing.advisor.decision.v1alpha1",
+  "decision_id": "dec-fixture-003",
+  "decision_key": "job-fixture-001:node-1:step-1",
+  "decision_hash": "deadbeef",
+  "job_id": "job-fixture-001",
+  "run_id": "run-fixture-001",
+  "tenant_id": "tenant-fixture",
+  "plan_id": "plan-fixture-001",
+  "node_id": "node-1",
+  "step_id": "step-1",
+  "advisor": {
+    "name": "noop",
+    "version": "v1",
+    "adapter": "noop"
+  },
+  "selected": {
+    "capability_id": "tool:unknown_capability_not_in_candidates",
+    "kind": "tool",
+    "provider": "builtin",
+    "score": 0.99,
+    "rank": 1
+  },
+  "candidates": [
+    {
+      "capability_id": "tool:calculator",
+      "kind": "tool",
+      "provider": "builtin",
+      "score": 0.60,
+      "rank": 2
+    },
+    {
+      "capability_id": "tool:web_search",
+      "kind": "tool",
+      "provider": "builtin",
+      "score": 0.95,
+      "rank": 1
+    }
+  ],
+  "fallback_policy": "fail_open",
+  "created_at": "2026-05-26T10:00:00Z"
+}
