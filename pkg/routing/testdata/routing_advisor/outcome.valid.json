@@ -1,0 +1,10 @@
+{
+  "decision_id": "dec-fixture-001",
+  "decision_key": "job-fixture-001:node-1:step-1",
+  "job_id": "job-fixture-001",
+  "tenant_id": "tenant-fixture",
+  "selected_capability_id": "tool:web_search",
+  "success": true,
+  "latency_ms": 312,
+  "recorded_at": "2026-05-26T10:00:05Z"
+}

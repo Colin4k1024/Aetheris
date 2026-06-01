@@ -1,0 +1,33 @@
+{
+  "schema_version": "routing.advisor.request.v1alpha1",
+  "job_id": "job-fixture-001",
+  "run_id": "run-fixture-001",
+  "tenant_id": "tenant-fixture",
+  "plan_id": "plan-fixture-001",
+  "node_id": "node-1",
+  "step_id": "step-1",
+  "decision_key": "job-fixture-001:node-1:step-1",
+  "goal": "search for information about Aetheris durable agent runtime",
+  "constraints": {
+    "max_latency_ms": 2000,
+    "required_capabilities": ["tool"]
+  },
+  "candidates": [
+    {
+      "capability_id": "tool:web_search",
+      "kind": "tool",
+      "provider": "builtin",
+      "score": 0.95,
+      "rank": 1,
+      "reason_codes": ["historical_success", "lowest_expected_latency"]
+    },
+    {
+      "capability_id": "tool:calculator",
+      "kind": "tool",
+      "provider": "builtin",
+      "score": 0.60,
+      "rank": 2,
+      "reason_codes": ["low_cost"]
+    }
+  ]
+}
