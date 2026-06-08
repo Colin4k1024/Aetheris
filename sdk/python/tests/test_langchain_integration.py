@@ -39,7 +39,7 @@ def test_adapter_invoke_returns_expected_shape():
     assert result == {
         "answer": "done",
         "final": True,
-        "metadata": {"job_id": "job-123"},
+        "metadata": {"job_id": "job-123", "framework": "langchain"},
     }
 
 

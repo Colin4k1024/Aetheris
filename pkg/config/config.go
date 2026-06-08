@@ -192,9 +192,17 @@ type AgentDefConfig struct {
 
 // AgentExternalConfig HTTP 黑盒 Agent 的接入配置。
 type AgentExternalConfig struct {
-	URL      string `mapstructure:"url"`
-	Timeout  string `mapstructure:"timeout"`
-	TokenEnv string `mapstructure:"token_env"`
+	URL          string `mapstructure:"url"`
+	Timeout      string `mapstructure:"timeout"`
+	TokenEnv     string `mapstructure:"token_env"`
+	Mode         string `mapstructure:"mode"`
+	ManifestPath string `mapstructure:"manifest_path"`
+	ManifestURL  string `mapstructure:"manifest_url"`
+	// Framework identifies the source framework behind this HTTP endpoint.
+	// Empty/generic means an arbitrary external HTTP agent. Known values such as
+	// langchain and langgraph are metadata only; they do not change the runtime
+	// guarantee boundary.
+	Framework string `mapstructure:"framework"`
 	// Protocol 控制请求/响应协议。
 	// ""/"json" = 默认 JSON 协议（发送 JSON body，接收 {"answer","final"} JSON）。
 	// "sse_legacy" = SSE 流式协议（兼容 superagent-base /api/v1/chat/stream）：
@@ -203,6 +211,49 @@ type AgentExternalConfig struct {
 	// AgentID 仅 sse_legacy 协议使用，填充请求中的 agent_id 字段。
 	// 未设置时使用远端默认值（superagent-base 默认 "research-agent"）。
 	AgentID string `mapstructure:"agent_id"`
+}
+
+// IsExternalAgentType reports whether the configured agent should be handled
+// through the external HTTP runtime boundary instead of the local Eino factory.
+func IsExternalAgentType(agentType string) bool {
+	switch strings.ToLower(strings.TrimSpace(agentType)) {
+	case "external_http", "langchain", "langgraph", "autogen", "crewai", "semantic_kernel":
+		return true
+	default:
+		return false
+	}
+}
+
+// ExternalFramework returns the normalized framework label sent to downstream
+// adapters. For framework-specific type aliases, the type itself is the label.
+func ExternalFramework(agent AgentDefConfig) string {
+	framework := strings.ToLower(strings.TrimSpace(agent.External.Framework))
+	if framework != "" {
+		return framework
+	}
+	agentType := strings.ToLower(strings.TrimSpace(agent.Type))
+	if agentType == "external_http" {
+		return "generic"
+	}
+	if IsExternalAgentType(agentType) {
+		return agentType
+	}
+	return ""
+}
+
+// ExternalMode returns the normalized external runtime mode.
+func ExternalMode(agent AgentDefConfig) string {
+	mode := strings.ToLower(strings.TrimSpace(agent.External.Mode))
+	if mode == "" {
+		return "blackbox"
+	}
+	return mode
+}
+
+// IsEmbeddedExternalAgent reports whether an external framework agent should be
+// planned from an embedded framework manifest instead of a single black-box call.
+func IsEmbeddedExternalAgent(agent AgentDefConfig) bool {
+	return IsExternalAgentType(agent.Type) && ExternalMode(agent) == "embedded"
 }
 
 // AgentLLMConfig 默认 LLM 配置（用于本地 Agent）
@@ -638,24 +689,27 @@ func LoadConfig(configPath string) (*Config, error) {
 	return &config, nil
 }
 
-// ValidateExternalAgents validates external_http agent definitions before startup.
+// ValidateExternalAgents validates external framework agent definitions before startup.
 func ValidateExternalAgents(cfg *AgentsConfig) error {
 	if cfg == nil {
 		return nil
 	}
 	for name, agent := range cfg.Agents {
-		if agent.Type != "external_http" {
+		if !IsExternalAgentType(agent.Type) {
 			continue
 		}
-		if strings.TrimSpace(agent.External.URL) == "" {
+		mode := ExternalMode(agent)
+		if strings.TrimSpace(agent.External.URL) == "" && mode != "embedded" {
 			return fmt.Errorf("agents.%s.external.url is required", name)
 		}
-		parsed, err := url.Parse(agent.External.URL)
-		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-			return fmt.Errorf("agents.%s.external.url is invalid", name)
-		}
-		if parsed.Scheme != "http" && parsed.Scheme != "https" {
-			return fmt.Errorf("agents.%s.external.url must use http or https scheme", name)
+		if strings.TrimSpace(agent.External.URL) != "" {
+			parsed, err := url.Parse(agent.External.URL)
+			if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+				return fmt.Errorf("agents.%s.external.url is invalid", name)
+			}
+			if parsed.Scheme != "http" && parsed.Scheme != "https" {
+				return fmt.Errorf("agents.%s.external.url must use http or https scheme", name)
+			}
 		}
 		if agent.External.Timeout != "" {
 			d, err := time.ParseDuration(agent.External.Timeout)
@@ -671,6 +725,30 @@ func ValidateExternalAgents(cfg *AgentsConfig) error {
 				log.Printf("WARNING: agents.%s.external.token_env %q is not set; requests will fail at execution time", name, agent.External.TokenEnv)
 			}
 		}
+		switch mode {
+		case "blackbox", "embedded":
+			// valid
+		default:
+			return fmt.Errorf("agents.%s.external.mode %q is not supported; allowed values: \"\", \"blackbox\", \"embedded\"", name, agent.External.Mode)
+		}
+		if mode == "embedded" {
+			if strings.TrimSpace(agent.External.ManifestPath) == "" && strings.TrimSpace(agent.External.ManifestURL) == "" && strings.TrimSpace(agent.External.URL) == "" {
+				return fmt.Errorf("agents.%s.external.manifest_path, manifest_url, or url is required when mode=embedded", name)
+			}
+			if agent.External.ManifestURL != "" {
+				parsedManifest, err := url.Parse(agent.External.ManifestURL)
+				if err != nil || parsedManifest.Scheme == "" || parsedManifest.Host == "" {
+					return fmt.Errorf("agents.%s.external.manifest_url is invalid", name)
+				}
+				if parsedManifest.Scheme != "http" && parsedManifest.Scheme != "https" {
+					return fmt.Errorf("agents.%s.external.manifest_url must use http or https scheme", name)
+				}
+			}
+		}
+		framework := ExternalFramework(agent)
+		if framework != "" && !isValidExternalFrameworkLabel(framework) {
+			return fmt.Errorf("agents.%s.external.framework %q is invalid; use lowercase letters, digits, dot, dash, or underscore", name, framework)
+		}
 		proto := strings.ToLower(strings.TrimSpace(agent.External.Protocol))
 		switch proto {
 		case "", "json", "sse_legacy":
@@ -683,6 +761,16 @@ func ValidateExternalAgents(cfg *AgentsConfig) error {
 		}
 	}
 	return nil
+}
+
+func isValidExternalFrameworkLabel(label string) bool {
+	for _, r := range label {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '.' || r == '-' || r == '_' {
+			continue
+		}
+		return false
+	}
+	return label != ""
 }
 
 func setRuntimeOpsDefaults(v *viper.Viper) {

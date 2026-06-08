@@ -96,7 +96,7 @@ func (f *AgentFactory) GetOrCreateFromConfig(ctx context.Context, agentsCfg *con
 		return nil
 	}
 	for name, ac := range agentsCfg.Agents {
-		if ac.Type == "external_http" {
+		if config.IsExternalAgentType(ac.Type) {
 			continue
 		}
 		cfg := AgentBuildConfig{

@@ -122,6 +122,11 @@ func (a *LLMNodeAdapter) runNode(ctx context.Context, taskID string, cfg map[str
 		if g, ok := cfg["goal"].(string); ok && g != "" {
 			prompt = g
 		}
+		if key, ok := cfg["prompt_key"].(string); ok && key != "" {
+			if value, found := p.Results[key]; found {
+				prompt = promptFromResultValue(value)
+			}
+		}
 	}
 	jobID := JobIDFromContext(ctx)
 	// Replay 防御：若 Effect Store 已有该 command 的结果，直接注入不调用 LLM（Runner 层已跳过已提交命令，此处为 defence in depth）
@@ -225,6 +230,25 @@ func (a *LLMNodeAdapter) runNode(ctx context.Context, taskID string, cfg map[str
 		agent.Session.AddMessage("assistant", resp)
 	}
 	return p, nil
+}
+
+func promptFromResultValue(value any) string {
+	switch v := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return v
+	case map[string]any:
+		for _, key := range []string{"prompt", "output", "answer", "content", "text"} {
+			if nested, ok := v[key]; ok {
+				return promptFromResultValue(nested)
+			}
+		}
+		b, _ := json.Marshal(v)
+		return string(b)
+	default:
+		return fmt.Sprint(v)
+	}
 }
 
 func resolveLLMModelInfo(ctx context.Context, llm LLMGen) LLMModelInfo {

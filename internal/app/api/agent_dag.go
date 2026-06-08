@@ -170,6 +170,10 @@ func NewDAGCompilerWithOptions(llmClient llm.Client, toolsReg *tools.Registry, e
 	if commandEventSink != nil {
 		workflowAdapter.CommandEventSink = commandEventSink
 	}
+	frameworkCallableAdapter := &agentexec.FrameworkCallableNodeAdapter{}
+	if commandEventSink != nil {
+		frameworkCallableAdapter.CommandEventSink = commandEventSink
+	}
 
 	// 创建 ToolCallingChatModel 用于 Eino Agent
 	var toolCallingLLM agentexec.EinoToolCallingChatModel
@@ -206,12 +210,13 @@ func NewDAGCompilerWithOptions(llmClient llm.Client, toolsReg *tools.Registry, e
 	}
 
 	adapters := map[string]agentexec.NodeAdapter{
-		planner.NodeLLM:       llmAdapter,
-		planner.NodeTool:      toolAdapter,
-		planner.NodeWorkflow:  workflowAdapter,
-		planner.NodeWait:      &agentexec.WaitNodeAdapter{},
-		planner.NodeApproval:  &agentexec.ApprovalNodeAdapter{},
-		planner.NodeCondition: &agentexec.ConditionNodeAdapter{},
+		planner.NodeLLM:               llmAdapter,
+		planner.NodeTool:              toolAdapter,
+		planner.NodeWorkflow:          workflowAdapter,
+		planner.NodeFrameworkCallable: frameworkCallableAdapter,
+		planner.NodeWait:              &agentexec.WaitNodeAdapter{},
+		planner.NodeApproval:          &agentexec.ApprovalNodeAdapter{},
+		planner.NodeCondition:         &agentexec.ConditionNodeAdapter{},
 		// Eino Agent 节点类型
 		planner.NodeEinoReact: einoReactAdapter,
 		planner.NodeEinoDEER:  einoDEERAdapter,

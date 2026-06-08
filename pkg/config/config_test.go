@@ -650,6 +650,69 @@ func TestAgentsConfig_ExternalHTTP_SSELegacy(t *testing.T) {
 	}
 }
 
+func TestAgentsConfig_ExternalFrameworkAliases(t *testing.T) {
+	cfg := AgentsConfig{
+		Agents: map[string]AgentDefConfig{
+			"research_chain": {
+				Type: "langchain",
+				External: AgentExternalConfig{
+					URL: "http://langchain-agent:9000/invoke",
+				},
+			},
+			"research_graph": {
+				Type: "external_http",
+				External: AgentExternalConfig{
+					URL:       "http://langgraph-agent:9001/invoke",
+					Framework: "langgraph",
+				},
+			},
+		},
+	}
+	if err := ValidateExternalAgents(&cfg); err != nil {
+		t.Fatalf("ValidateExternalAgents returned error for framework agents: %v", err)
+	}
+	if !IsExternalAgentType(cfg.Agents["research_chain"].Type) {
+		t.Fatalf("expected langchain alias to be treated as external agent type")
+	}
+	if got := ExternalFramework(cfg.Agents["research_chain"]); got != "langchain" {
+		t.Fatalf("expected langchain framework from type alias, got %q", got)
+	}
+	if got := ExternalFramework(cfg.Agents["research_graph"]); got != "langgraph" {
+		t.Fatalf("expected explicit langgraph framework, got %q", got)
+	}
+}
+
+func TestAgentsConfig_EmbeddedFrameworkMode(t *testing.T) {
+	cfg := AgentsConfig{
+		Agents: map[string]AgentDefConfig{
+			"research_agent": {
+				Type: "langchain",
+				External: AgentExternalConfig{
+					Mode:         "embedded",
+					ManifestPath: "./configs/framework-agents/research_agent.manifest.json",
+				},
+			},
+			"remote_manifest_agent": {
+				Type: "langgraph",
+				External: AgentExternalConfig{
+					Mode:        "embedded",
+					URL:         "http://langgraph-agent:9000",
+					ManifestURL: "http://langgraph-agent:9000/aetheris/manifest",
+				},
+			},
+		},
+	}
+	if err := ValidateExternalAgents(&cfg); err != nil {
+		t.Fatalf("ValidateExternalAgents returned error for embedded framework agents: %v", err)
+	}
+	if got := ExternalMode(cfg.Agents["research_agent"]); got != "embedded" {
+		t.Fatalf("expected embedded mode, got %q", got)
+	}
+	if !IsEmbeddedExternalAgent(cfg.Agents["remote_manifest_agent"]) {
+		t.Fatalf("expected remote manifest agent to be embedded")
+	}
+}
+
 func TestValidateExternalAgents_Errors(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -698,6 +761,27 @@ func TestValidateExternalAgents_Errors(t *testing.T) {
 			agent: AgentDefConfig{Type: "external_http", External: AgentExternalConfig{
 				URL:     "http://customer-bot:9000/invoke",
 				AgentID: "some-agent",
+			}},
+		},
+		{
+			name: "invalid framework label",
+			agent: AgentDefConfig{Type: "external_http", External: AgentExternalConfig{
+				URL:       "http://customer-bot:9000/invoke",
+				Framework: "Lang Chain",
+			}},
+		},
+		{
+			name: "invalid mode",
+			agent: AgentDefConfig{Type: "langchain", External: AgentExternalConfig{
+				URL:  "http://customer-bot:9000/invoke",
+				Mode: "native",
+			}},
+		},
+		{
+			name: "invalid manifest url",
+			agent: AgentDefConfig{Type: "langgraph", External: AgentExternalConfig{
+				Mode:        "embedded",
+				ManifestURL: "ftp://agent/manifest",
 			}},
 		},
 	}

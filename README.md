@@ -126,6 +126,28 @@ from aetheris.integrations.langchain import serve
 serve(agent, port=9000)   # Aetheris will call this endpoint durably
 ```
 
+```yaml
+agents:
+  agents:
+    my_langchain_agent:
+      type: "langchain"
+      external:
+        url: "http://localhost:9000/invoke"
+```
+
+When you need Aetheris to own LangChain/LangGraph internal steps, switch to embedded mode and expose an explicit manifest from the Python adapter:
+
+```yaml
+agents:
+  agents:
+    my_langchain_agent:
+      type: "langchain"
+      external:
+        mode: "embedded"
+        url: "http://localhost:9000"
+        manifest_path: "./configs/framework-agents/my_langchain_agent.manifest.json"
+```
+
 → [Full LangChain integration guide](docs/adapters/langchain.md)
 
 ### Any HTTP service

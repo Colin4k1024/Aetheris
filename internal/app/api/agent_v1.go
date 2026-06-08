@@ -143,7 +143,7 @@ func PlanGoalForJobFunc(manager *runtime.Manager, p planGoaler) func(context.Con
 	return PlanGoalForJobFuncWithExternalAgents(manager, p, nil)
 }
 
-// PlanGoalForJobFuncWithExternalAgents returns a static single-tool plan for external_http agents.
+// PlanGoalForJobFuncWithExternalAgents returns a static single-tool plan for external framework agents.
 func PlanGoalForJobFuncWithExternalAgents(manager *runtime.Manager, p planGoaler, cfg *config.AgentsConfig) func(context.Context, string, string) (*planner.TaskGraph, error) {
 	return func(ctx context.Context, agentID, goal string) (*planner.TaskGraph, error) {
 		agent, _ := manager.Get(ctx, agentID)
@@ -151,15 +151,23 @@ func PlanGoalForJobFuncWithExternalAgents(manager *runtime.Manager, p planGoaler
 			return nil, fmt.Errorf("agent not found: %s", agentID)
 		}
 		if cfg != nil {
-			if agentCfg, ok := cfg.Agents[agentID]; ok && agentCfg.Type == "external_http" {
+			if agentCfg, ok := cfg.Agents[agentID]; ok && config.IsExternalAgentType(agentCfg.Type) {
+				if config.IsEmbeddedExternalAgent(agentCfg) {
+					manifest, err := LoadFrameworkManifestForAgent(ctx, agentID, agentCfg)
+					if err != nil {
+						return nil, err
+					}
+					return FrameworkManifestToTaskGraph(agentID, agentCfg, manifest)
+				}
 				return &planner.TaskGraph{
 					Nodes: []planner.TaskNode{{
 						ID:       "external_agent_call",
 						Type:     planner.NodeTool,
 						ToolName: ExternalAgentCallToolName,
 						Config: map[string]any{
-							"agent_id": agentID,
-							"message":  goal,
+							"agent_id":  agentID,
+							"message":   goal,
+							"framework": config.ExternalFramework(agentCfg),
 						},
 					}},
 				}, nil

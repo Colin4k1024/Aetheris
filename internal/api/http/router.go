@@ -175,6 +175,8 @@ func (r *Router) Build(addr string, opts ...config.Option) *server.Hertz {
 		jobs.GET("/:id/trace", r.authChainWith(auth.PermissionTraceView, r.handler.GetJobTrace)...)
 		jobs.GET("/:id/trace/cognition", r.authChainWith(auth.PermissionTraceView, r.handler.GetJobCognitionTrace)...)
 		jobs.GET("/:id/nodes/:node_id", r.authChainWith(auth.PermissionTraceView, r.handler.GetJobNode)...)
+		jobs.POST("/:id/runtime/tools/:name/invoke", r.authChainWith(auth.PermissionToolExecute, r.handler.RuntimeToolInvoke)...)
+		jobs.POST("/:id/runtime/llm/invoke", r.authChainWith(auth.PermissionJobCreate, r.handler.RuntimeLLMInvoke)...)
 		jobs.GET("/:id/trace/page", r.authChainWith(auth.PermissionTraceView, r.handler.GetJobTracePage)...)
 		jobs.POST("/:id/export", r.authChainWith(auth.PermissionJobExport, r.handler.ExportJobForensics)...)
 		if r.forensicsExperimental {

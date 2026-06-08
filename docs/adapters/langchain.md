@@ -25,14 +25,19 @@ Aetheris wraps your LangChain agent with a durable execution shell that handles 
                    └─────────────┘
 ```
 
-Aetheris calls your agent via HTTP. Your agent processes one message and returns an answer. Aetheris handles the durable shell around that outer call:
+Aetheris supports two integration levels:
+
+- `external.mode: "blackbox"` (default): Aetheris calls your agent via HTTP. Your agent processes one message and returns an answer. Aetheris handles the durable shell around that outer call.
+- `external.mode: "embedded"`: your LangChain/LangGraph service exposes an explicit manifest. Aetheris converts that manifest into a `TaskGraph` and executes framework-internal nodes through the normal Runtime path.
+
+Black-box mode provides:
 
 - Durable submission and job status tracking
 - Retry/error handling for the outer `external_http` invocation
 - At-most-once delivery for that invocation via the idempotency key
 - Audit trail for the job, events, and trace APIs
 
-For step-level checkpointing *inside* the work itself, move high-risk side effects or long-running substeps into Aetheris Runtime Tools or native workflows. Black-box `external_http` agents remain a single external call from the runtime's perspective.
+Embedded mode additionally gives node-level checkpointing for declared internal steps. `runtime_tool` and `runtime_llm` nodes reuse the same Tool/LLM adapters, Invocation Ledger, Effect Store, command events, and trace path as native Aetheris nodes. `remote_callable` nodes are checkpointed at the node boundary; their internal side effects remain opaque unless they call back through `AetherisRuntimeTool`.
 
 ## Installation
 
@@ -81,7 +86,7 @@ Register it in Aetheris config:
 agents:
   agents:
     research_agent:
-      type: "external_http"
+      type: "langchain"
       description: "LangChain ReAct research agent"
       external:
         url: "http://localhost:9000"
@@ -99,7 +104,66 @@ result = job.wait(timeout=300)
 print(result.output)
 ```
 
-## Option 2: `AetherisLangChainAdapter` — low-level control
+## Option 2: `serve_embedded()` — expose internal steps as Runtime nodes
+
+Use embedded mode when you want Aetheris to execute the framework's internal graph instead of treating the whole LangChain/LangGraph run as one HTTP call.
+
+```python
+from aetheris.integrations.langchain import EmbeddedAgentManifest, serve_embedded
+
+def load_question(input, prior_results, context):
+    return {"prompt": input["goal"]}
+
+def final_answer(input, prior_results, context):
+    return prior_results.get("search", {})
+
+manifest = EmbeddedAgentManifest(
+    name="research_agent",
+    framework="langchain",
+    input_node="load_question",
+    output_node="final_answer",
+)
+manifest.remote_node("load_question", callable=load_question)
+manifest.runtime_llm("reason", prompt_key="load_question", model="default")
+manifest.runtime_tool("search", tool_name="knowledge.search")
+manifest.remote_node("final_answer", callable=final_answer)
+manifest.edge("load_question", "reason")
+manifest.edge("reason", "search")
+manifest.edge("search", "final_answer")
+manifest.save("./configs/framework-agents/research_agent.manifest.json")
+
+serve_embedded(manifest, port=9000)
+```
+
+Register the embedded agent with a base service URL. Do not point `external.url` at `/invoke`; Aetheris will call `/aetheris/manifest` and `/aetheris/nodes/{node_id}/invoke` on that service.
+
+```yaml
+agents:
+  agents:
+    research_agent:
+      type: "langchain"
+      description: "Embedded LangChain research agent"
+      external:
+        mode: "embedded"
+        url: "http://localhost:9000"
+        timeout: "120s"
+        manifest_path: "./configs/framework-agents/research_agent.manifest.json"
+```
+
+Manifest nodes map directly to Aetheris Runtime nodes:
+
+| Manifest kind | Aetheris node |
+| ------------- | ------------- |
+| `runtime_tool` | `tool` |
+| `runtime_llm` | `llm` |
+| `runtime_workflow` | `workflow` |
+| `wait` | `wait` |
+| `approval` | `approval` |
+| `remote_callable` | `framework_callable` |
+
+The manifest is explicit by design. LangChain AgentExecutor, LCEL, and LangGraph compiled graphs are not auto-reflected in v1; declare the finite DAG you want Aetheris to own.
+
+## Option 3: `AetherisLangChainAdapter` — low-level control
 
 For custom HTTP frameworks or when you need more control over request handling:
 
@@ -117,7 +181,7 @@ result = adapter.invoke(request_body)  # request_body = Aetheris job envelope
 # Returns: {"answer": "...", "final": True, "metadata": {...}}
 ```
 
-## Option 3: LCEL chains
+## Option 4: LCEL chains
 
 Works with any LangChain Runnable, not just AgentExecutor:
 
@@ -137,6 +201,35 @@ serve(chain, port=9000)
 ```
 
 For chains that don't return dicts, the adapter converts the output via `str()`.
+
+## LangGraph compiled graphs
+
+LangGraph agents use the same AgentRuntime boundary. Expose the compiled graph with the LangGraph adapter:
+
+```python
+from langgraph.prebuilt import create_react_agent
+from langchain_openai import ChatOpenAI
+from aetheris.integrations.langgraph import serve
+
+graph = create_react_agent(ChatOpenAI(model="gpt-4o-mini"), tools=[])
+
+serve(graph, port=9001)
+```
+
+Register the graph with the `langgraph` type alias:
+
+```yaml
+agents:
+  agents:
+    research_graph:
+      type: "langgraph"
+      description: "LangGraph research agent"
+      external:
+        url: "http://localhost:9001"
+        timeout: "120s"
+```
+
+By default the adapter calls `graph.invoke({"messages": [{"role": "user", "content": message}]})` and extracts the answer from the last returned message. If your graph has a different state shape, pass a custom `message_factory`.
 
 ## Request/response format
 
@@ -213,10 +306,12 @@ agents:
       type: "external_http"
       external:
         url: "http://localhost:9000"
+        framework: "langchain"
     summarizer_agent:
       type: "external_http"
       external:
         url: "http://localhost:9001"
+        framework: "langchain"
 ```
 
 ## What's next?

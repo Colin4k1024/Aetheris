@@ -22,6 +22,7 @@ func TestExternalAgentCallTool_Execute(t *testing.T) {
 		IdempotencyKey string
 		JobID          string
 		AgentID        string
+		Framework      string
 		Body           externalAgentRequest
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -29,6 +30,7 @@ func TestExternalAgentCallTool_Execute(t *testing.T) {
 		got.IdempotencyKey = r.Header.Get("Idempotency-Key")
 		got.JobID = r.Header.Get("X-Aetheris-Job-ID")
 		got.AgentID = r.Header.Get("X-Aetheris-Agent-ID")
+		got.Framework = r.Header.Get("X-Aetheris-Framework")
 		if err := json.NewDecoder(r.Body).Decode(&got.Body); err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
@@ -42,9 +44,10 @@ func TestExternalAgentCallTool_Execute(t *testing.T) {
 
 	tool := NewExternalAgentCallTool(map[string]config.AgentExternalConfig{
 		"customer_support_bot": {
-			URL:      server.URL,
-			Timeout:  "2s",
-			TokenEnv: "CUSTOMER_BOT_TOKEN",
+			URL:       server.URL,
+			Timeout:   "2s",
+			TokenEnv:  "CUSTOMER_BOT_TOKEN",
+			Framework: "langchain",
 		},
 	})
 	ctx := agentexec.WithJobID(context.Background(), "job-123")
@@ -79,6 +82,9 @@ func TestExternalAgentCallTool_Execute(t *testing.T) {
 	if got.AgentID != "customer_support_bot" {
 		t.Errorf("expected agent id header, got %q", got.AgentID)
 	}
+	if got.Framework != "langchain" {
+		t.Errorf("expected framework header, got %q", got.Framework)
+	}
 	if got.Body.Message != "hi" {
 		t.Errorf("expected message body, got %q", got.Body.Message)
 	}
@@ -87,6 +93,9 @@ func TestExternalAgentCallTool_Execute(t *testing.T) {
 	}
 	if got.Body.Metadata["agent_id"] != "customer_support_bot" {
 		t.Errorf("expected metadata agent_id, got %v", got.Body.Metadata["agent_id"])
+	}
+	if got.Body.Metadata["framework"] != "langchain" {
+		t.Errorf("expected metadata framework, got %v", got.Body.Metadata["framework"])
 	}
 }
 

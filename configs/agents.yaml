@@ -54,6 +54,32 @@ agents:
   #     timeout: "120s"
   #     token_env: "CUSTOMER_BOT_TOKEN"
 
+  # Python framework agents - LangChain/LangGraph 等框架生成的 agent
+  # 可直接用框架类型别名注册；运行时会生成 external_agent_call 节点接入 AgentRuntime。
+  # langchain_research_agent:
+  #   type: "langchain"
+  #   description: "Existing LangChain ReAct agent"
+  #   external:
+  #     url: "http://localhost:9000/invoke"
+  #     timeout: "120s"
+  #
+  # langgraph_research_agent:
+  #   type: "langgraph"
+  #   description: "Existing LangGraph compiled graph"
+  #   external:
+  #     url: "http://localhost:9001/invoke"
+  #     timeout: "120s"
+  #
+  # Embedded framework agent - 显式 manifest 声明内部节点，由 Aetheris TaskGraph 执行
+  # embedded_langchain_research_agent:
+  #   type: "langchain"
+  #   description: "Embedded LangChain agent with Runtime-owned internal steps"
+  #   external:
+  #     mode: "embedded"
+  #     url: "http://localhost:9000"
+  #     timeout: "120s"
+  #     manifest_path: "./configs/framework-agents/research_agent.manifest.json"
+
   # superagent-base 集成 —— 开源 AI Agent 平台（SSE 流式协议）
   # 项目地址：https://github.com/Colin4k1024/superagent-base
   # 启动 superagent-base 服务后取消注释即可接入。

@@ -233,7 +233,7 @@ Agent 定义配置文件，由 `AgentFactory` 在启动时加载。路径：`con
 ```yaml
 agents:
   <agent_name>:
-    type: "react"              # Agent 类型：react, deer, manus, chain, graph, workflow, external_http
+    type: "react"              # Agent 类型：react, deer, manus, chain, graph, workflow, external_http, langchain, langgraph
     description: "描述"         # Agent 描述
     llm: "default"             # LLM 配置引用
     max_iterations: 10         # ReAct 最大迭代步数
@@ -257,11 +257,46 @@ agents:
       token_env: "CUSTOMER_BOT_TOKEN"
 ```
 
+LangChain/LangGraph 等框架生成的 Python agent 可以直接使用框架类型别名。它们仍然走同一条 `external_agent_call` Runtime Tool 路径：
+
+```yaml
+agents:
+  research_agent:
+    type: "langchain"
+    description: "Existing LangChain ReAct agent"
+    external:
+      url: "http://localhost:9000/invoke"
+      timeout: "120s"
+
+  research_graph:
+    type: "langgraph"
+    description: "Existing LangGraph compiled graph"
+    external:
+      url: "http://localhost:9001/invoke"
+      timeout: "120s"
+```
+
+如果希望 Aetheris 接管框架内部步骤，而不是只包裹一次外部调用，使用 embedded manifest 模式：
+
+```yaml
+agents:
+  research_agent:
+    type: "langchain"
+    description: "Embedded LangChain research agent"
+    external:
+      mode: "embedded"
+      url: "http://localhost:9000"
+      timeout: "120s"
+      manifest_path: "./configs/framework-agents/research_agent.manifest.json"
+```
+
+`mode=embedded` 会读取 `manifest_path`、`manifest_url`，或回退请求 `GET {external.url}/aetheris/manifest`，再把 manifest 转成 Aetheris `TaskGraph`。`external.url` 在 embedded 模式下表示框架服务 base URL，Runtime 会调用 `POST {external.url}/aetheris/nodes/{node_id}/invoke`。
+
 ### agents 字段说明
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `type` | string | Yes | Agent 类型。`react` = ReAct 循环；`deer` = 增强推理；`manus` = 自主执行；`chain` = 简单链式；`graph` = DAG；`workflow` = 线性工作流；`external_http` = HTTP 黑盒 Agent |
+| `type` | string | Yes | Agent 类型。`react` = ReAct 循环；`deer` = 增强推理；`manus` = 自主执行；`chain` = 简单链式；`graph` = DAG；`workflow` = 线性工作流；`external_http` = HTTP 黑盒 Agent；`langchain` / `langgraph` = 框架 agent HTTP 接入别名 |
 | `description` | string | No | Agent 描述，用于标识 |
 | `llm` | string | No | LLM 配置引用，`"default"` 使用 `model.yaml` 中的默认配置 |
 | `max_iterations` | int | No | ReAct 最大迭代步数，超过则停止。默认 10 |
@@ -270,11 +305,26 @@ agents:
 | `chain_type` | string | No | 当 `type=chain` 时的链类型（如 `conversation`） |
 | `graph_type` | string | No | 当 `type=graph` 时的图类型（如 `directed`） |
 | `workflow_type` | string | No | 当 `type=workflow` 时的工作流类型（如 `linear`） |
-| `external.url` | string | `external_http` required | 外部 Agent HTTP invoke endpoint |
+| `external.url` | string | external agent required | 外部 Agent HTTP invoke endpoint |
 | `external.timeout` | string | No | 单次调用超时，如 `120s`；默认 120s |
 | `external.token_env` | string | No | Bearer token 来源环境变量；配置后启动时必须存在 |
+| `external.mode` | string | No | 外部 Agent 模式。默认 `blackbox`；`embedded` 表示读取 framework manifest 并生成多节点 `TaskGraph` |
+| `external.manifest_path` | string | No | Embedded 模式本地 manifest JSON 路径；优先级高于 `manifest_url` 和 `url` 回退 |
+| `external.manifest_url` | string | No | Embedded 模式远程 manifest URL；未配置时可通过 `external.url + /aetheris/manifest` 获取 |
+| `external.framework` | string | No | 外部框架标签。`type=langchain/langgraph` 时自动填充；`type=external_http` 时可手动设置，如 `langchain`、`langgraph` |
 
 `external_http` 的可靠性边界是分层的：Aetheris 负责外层 Job、事件、Trace、重试、超时和 `external_agent_call` 工具调用幂等；外部 Agent 内部的支付、写库、发信等副作用需要继续迁移成 Runtime Tool，才获得 Invocation Ledger / Effect Store 的 at-most-once 保证。
+
+Embedded manifest 支持以下节点类型：
+
+| Manifest kind | TaskGraph node |
+|---------------|----------------|
+| `runtime_tool` | `tool` |
+| `runtime_llm` | `llm` |
+| `runtime_workflow` | `workflow` |
+| `wait` | `wait` |
+| `approval` | `approval` |
+| `remote_callable` | `framework_callable` |
 
 ### AgentFactory 加载流程
 
