@@ -29,7 +29,23 @@ import json
 import threading
 from typing import Any, Dict, Optional
 
-__all__ = ["AetherisLangChainAdapter", "serve"]
+from .embedded import (
+    AetherisChatModel,
+    AetherisRuntimeContext,
+    AetherisRuntimeTool,
+    EmbeddedAgentManifest,
+    serve_embedded,
+)
+
+__all__ = [
+    "AetherisLangChainAdapter",
+    "AetherisRuntimeContext",
+    "AetherisRuntimeTool",
+    "AetherisChatModel",
+    "EmbeddedAgentManifest",
+    "serve",
+    "serve_embedded",
+]
 
 
 class AetherisLangChainAdapter:
@@ -107,7 +123,10 @@ class AetherisLangChainAdapter:
         return {
             "answer": answer,
             "final": True,
-            "metadata": {"job_id": metadata.get("job_id", "")},
+            "metadata": {
+                "job_id": metadata.get("job_id", ""),
+                "framework": "langchain",
+            },
         }
 
     def __call__(self, envelope: Dict[str, Any]) -> Dict[str, Any]:
@@ -229,14 +248,14 @@ def serve(
 
     if block:
         print(f"[aetheris] LangChain agent listening on http://localhost:{port}")
-        print(f"[aetheris] Add to runtime config:")
-        print(f"[aetheris]   agents:")
-        print(f"[aetheris]     agents:")
-        print(f"[aetheris]       my_agent:")
-        print(f"[aetheris]         type: external_http")
-        print(f"[aetheris]         external:")
+        print("[aetheris] Add to runtime config:")
+        print("[aetheris]   agents:")
+        print("[aetheris]     agents:")
+        print("[aetheris]       my_agent:")
+        print("[aetheris]         type: langchain")
+        print("[aetheris]         external:")
         print(f"[aetheris]           url: http://localhost:{port}")
-        print(f"[aetheris]           timeout: 120s")
+        print("[aetheris]           timeout: 120s")
         print()
         try:
             server.serve_forever()

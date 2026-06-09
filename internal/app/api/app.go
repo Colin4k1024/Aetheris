@@ -517,6 +517,7 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 	}
 	dagCompiler = NewDAGCompilerWithOptions(llmClientForAgent, toolsReg, engine, nodeEventSink, nodeEventSink, invocationStore, effectStore, resourceVerifier, NewAttemptValidator(jobEventStore), toolRateLimiter, agentsConfig)
 	dagRunner = NewDAGRunner(dagCompiler)
+	handler.SetRuntimeBridge(NewRuntimeBridgeInvoker(llmClientForAgent, toolsReg, nodeEventSink, invocationStore, effectStore, NewAttemptValidator(jobEventStore), toolRateLimiter))
 	var agentStateStore runtime.AgentStateStore
 	if bootstrap.Config != nil && bootstrap.Config.JobStore.Type == "postgres" && bootstrap.Config.JobStore.DSN != "" {
 		pgState, errState := runtime.NewAgentStateStorePg(context.Background(), bootstrap.Config.JobStore.DSN)

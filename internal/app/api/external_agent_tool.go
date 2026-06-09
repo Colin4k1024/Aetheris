@@ -91,8 +91,12 @@ func collectExternalAgentConfigs(cfg *config.AgentsConfig) map[string]config.Age
 	}
 	out := make(map[string]config.AgentExternalConfig)
 	for name, agent := range cfg.Agents {
-		if agent.Type == "external_http" {
-			out[name] = agent.External
+		if config.IsExternalAgentType(agent.Type) {
+			external := agent.External
+			if external.Framework == "" {
+				external.Framework = config.ExternalFramework(agent)
+			}
+			out[name] = external
 		}
 	}
 	if len(out) == 0 {
@@ -120,6 +124,10 @@ func (t *externalAgentCallTool) Schema() map[string]any {
 				"description": "Optional upstream idempotency key; defaults to the runtime tool execution key.",
 			},
 			"metadata": map[string]any{"type": "object", "description": "Optional metadata forwarded to the external agent."},
+			"framework": map[string]any{
+				"type":        "string",
+				"description": "Optional framework label supplied by the runtime plan, e.g. langchain or langgraph.",
+			},
 		},
 		"required": []any{"agent_id", "message"},
 	}
@@ -175,6 +183,10 @@ func (t *externalAgentCallTool) Execute(ctx context.Context, sess *session.Sessi
 		metadata = make(map[string]any)
 	}
 	metadata["agent_id"] = agentID
+	framework := strings.ToLower(strings.TrimSpace(agentCfg.Framework))
+	if framework != "" {
+		metadata["framework"] = framework
+	}
 	if jobID != "" {
 		metadata["job_id"] = jobID
 	}
@@ -231,6 +243,9 @@ func (t *externalAgentCallTool) Execute(ctx context.Context, sess *session.Sessi
 		req.Header.Set("X-Aetheris-Job-ID", jobID)
 	}
 	req.Header.Set("X-Aetheris-Agent-ID", agentID)
+	if framework != "" {
+		req.Header.Set("X-Aetheris-Framework", framework)
+	}
 	if agentCfg.TokenEnv != "" {
 		token := os.Getenv(agentCfg.TokenEnv)
 		if token == "" {

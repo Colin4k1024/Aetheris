@@ -131,6 +131,32 @@ type Handler struct {
 	rbac auth.RBACChecker
 	// approvalStore 审批存储（可选）；非 nil 时启用审批 API
 	approvalStore approval.ApprovalStore
+	runtimeBridge RuntimeBridgeInvoker
+}
+
+type RuntimeBridgeToolRequest struct {
+	JobID        string         `json:"job_id"`
+	NodeID       string         `json:"node_id"`
+	ToolName     string         `json:"tool_name"`
+	SessionID    string         `json:"session_id,omitempty"`
+	Input        map[string]any `json:"input,omitempty"`
+	PriorResults map[string]any `json:"prior_results,omitempty"`
+	Metadata     map[string]any `json:"metadata,omitempty"`
+}
+
+type RuntimeBridgeLLMRequest struct {
+	JobID        string         `json:"job_id"`
+	NodeID       string         `json:"node_id"`
+	SessionID    string         `json:"session_id,omitempty"`
+	Prompt       string         `json:"prompt,omitempty"`
+	PromptKey    string         `json:"prompt_key,omitempty"`
+	PriorResults map[string]any `json:"prior_results,omitempty"`
+	Metadata     map[string]any `json:"metadata,omitempty"`
+}
+
+type RuntimeBridgeInvoker interface {
+	InvokeTool(ctx context.Context, req RuntimeBridgeToolRequest) (map[string]any, error)
+	InvokeLLM(ctx context.Context, req RuntimeBridgeLLMRequest) (map[string]any, error)
 }
 
 // NewHandler 创建新的 HTTP 处理器
@@ -227,6 +253,10 @@ func (h *Handler) SetWakeupQueue(q job.WakeupQueue) {
 // SetSignalInbox 设置 signal 收件箱；非 nil 时 JobSignal 先写 inbox 再 Append wait_completed，保证 at-least-once 送达
 func (h *Handler) SetSignalInbox(inbox signal.SignalInbox) {
 	h.signalInbox = inbox
+}
+
+func (h *Handler) SetRuntimeBridge(invoker RuntimeBridgeInvoker) {
+	h.runtimeBridge = invoker
 }
 
 // SetObservabilityReader 设置可观测性数据源；非 nil 时提供 GET /api/observability/summary

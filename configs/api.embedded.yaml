@@ -80,6 +80,31 @@ agents:
     #   external:
     #     url: "http://127.0.0.1:9000/invoke"
     #     timeout: "30s"
+    #
+    # LangChain/LangGraph framework agents can use type aliases. Start the
+    # Python adapter with aetheris.integrations.langchain.serve(...) or
+    # aetheris.integrations.langgraph.serve(...), then register it here.
+    # langchain_research_agent:
+    #   type: "langchain"
+    #   external:
+    #     url: "http://127.0.0.1:9000/invoke"
+    #     timeout: "120s"
+    #
+    # langgraph_research_agent:
+    #   type: "langgraph"
+    #   external:
+    #     url: "http://127.0.0.1:9001/invoke"
+    #     timeout: "120s"
+    #
+    # Embedded mode turns a declared LangChain/LangGraph manifest into a native
+    # Aetheris TaskGraph. Use a base URL here, not an /invoke endpoint.
+    # embedded_langchain_research_agent:
+    #   type: "langchain"
+    #   external:
+    #     mode: "embedded"
+    #     url: "http://127.0.0.1:9000"
+    #     timeout: "120s"
+    #     manifest_path: "./configs/framework-agents/research_agent.manifest.json"
 
 storage:
   metadata:

@@ -41,7 +41,7 @@ print(result.output)
 
 ## LangChain integration
 
-Make any LangChain agent durable in minutes:
+Make any LangChain agent durable in minutes. The default `serve()` path is black-box mode: Aetheris owns the outer job and HTTP call.
 
 ```python
 from langchain_openai import ChatOpenAI
@@ -66,7 +66,7 @@ Then add it to your Aetheris config:
 agents:
   agents:
     my_langchain_agent:
-      type: "external_http"
+      type: "langchain"
       external:
         url: "http://localhost:9000"
         timeout: "120s"
@@ -80,6 +80,43 @@ from aetheris import AetherisClient
 client = AetherisClient()
 job = client.run("my_langchain_agent", "Explain quantum entanglement simply")
 print(job.wait().output)
+```
+
+For framework-internal runtime ownership, declare an embedded manifest and expose it with `serve_embedded()`:
+
+```python
+from aetheris.integrations.langchain import EmbeddedAgentManifest, serve_embedded
+
+def load_question(input, prior_results, context):
+    return {"prompt": input["goal"]}
+
+manifest = EmbeddedAgentManifest(
+    name="my_langchain_agent",
+    framework="langchain",
+    input_node="load_question",
+    output_node="final_answer",
+)
+manifest.remote_node("load_question", callable=load_question)
+manifest.runtime_llm("reason", prompt_key="load_question", model="default")
+manifest.runtime_tool("search", tool_name="knowledge.search")
+manifest.remote_node("final_answer", callable=lambda input, prior, context: prior["search"])
+manifest.edge("load_question", "reason")
+manifest.edge("reason", "search")
+manifest.edge("search", "final_answer")
+manifest.save("./configs/framework-agents/my_langchain_agent.manifest.json")
+
+serve_embedded(manifest, port=9000)
+```
+
+```yaml
+agents:
+  agents:
+    my_langchain_agent:
+      type: "langchain"
+      external:
+        mode: "embedded"
+        url: "http://localhost:9000"
+        manifest_path: "./configs/framework-agents/my_langchain_agent.manifest.json"
 ```
 
 ---
@@ -161,6 +198,7 @@ job = client.run(
 pip install aetheris              # requests included (recommended)
 pip install aetheris[httpx]       # use httpx instead
 pip install aetheris[langchain]   # include langchain for integrations
+pip install aetheris[langgraph]   # include langgraph for integrations
 ```
 
 ---
