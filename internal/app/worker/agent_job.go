@@ -310,7 +310,15 @@ func (r *AgentJobRunner) executeJob(ctx context.Context, jobID string, attemptID
 		metrics.JobFailTotal.WithLabelValues("failed").Inc()
 		metrics.JobsTotal.WithLabelValues(tenant, "failed").Inc()
 		metrics.JobLatencySeconds.WithLabelValues(tenant, "failed").Observe(dur)
-		// Append job_failed so event stream has terminal event; include result_type when available
+		if current, getErr := r.jobStore.Get(ctx, jobID); getErr == nil && current != nil {
+			switch current.Status {
+			case job.StatusPending, job.StatusRetrying, job.StatusWaiting, job.StatusParked, job.StatusFailed:
+				// runJob 已经完成重试/等待/终态写回；外层不能再追加 job_failed，
+				// 否则事件流会把可重试 Job 误判为终态。
+				return
+			}
+		}
+		// 兜底：兼容未自行写回状态的 runJob，实现事件流与 metadata 同步失败终态。
 		if r.jobEventStore != nil {
 			_, ver, _ := r.jobEventStore.ListEvents(ctx, jobID)
 			pl := map[string]interface{}{"goal": j.Goal, "error": err.Error()}
@@ -323,6 +331,7 @@ func (r *AgentJobRunner) executeJob(ctx context.Context, jobID string, attemptID
 			payload, _ := json.Marshal(pl)
 			_, _ = r.jobEventStore.Append(runCtx, jobID, ver, jobstore.JobEvent{JobID: jobID, Type: jobstore.JobFailed, Payload: payload})
 		}
+		_ = r.jobStore.UpdateStatus(ctx, jobID, job.StatusFailed)
 		return
 	}
 	dur := time.Since(start).Seconds()

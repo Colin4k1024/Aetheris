@@ -61,34 +61,40 @@ func (a *AuditMiddleware) AuditAccess() app.HandlerFunc {
 		start := time.Now()
 		userID := auth.GetUserID(ctx)
 		tenantID := auth.GetTenantID(ctx)
+		method := strings.Clone(string(c.Method()))
+		path := strings.Clone(string(c.Path()))
+		clientIP := strings.Clone(c.ClientIP())
+		userAgent := strings.Clone(string(c.Request.Header.UserAgent()))
 
 		// Extract or generate request ID for tracing
-		requestID := string(c.GetHeader("X-Request-ID"))
+		requestID := strings.Clone(string(c.GetHeader("X-Request-ID")))
 		if requestID == "" {
 			requestID = uuid.New().String()
 		}
 
 		c.Next(ctx)
+		statusCode := c.Response.StatusCode()
+		durationMS := time.Since(start).Milliseconds()
+		action := determineAction(method, path)
+		resourceType, resourceID := extractResource(path)
 
-		// 记录访问日志（异步，不阻塞请求）
-		go func() {
-			action := determineAction(string(c.Method()), string(c.Path()))
-			resourceType, resourceID := extractResource(string(c.Path()))
-
-			_ = a.auditStore.LogAccess(context.Background(), AuditLog{
-				TenantID:     tenantID,
-				UserID:       userID,
-				Action:       action,
-				ResourceType: resourceType,
-				ResourceID:   resourceID,
-				Success:      c.Response.StatusCode() < 400,
-				DurationMS:   time.Since(start).Milliseconds(),
-				ClientIP:     c.ClientIP(),
-				UserAgent:    string(c.Request.Header.UserAgent()),
-				RequestID:    requestID,
-				CreatedAt:    time.Now().UTC(),
-			})
-		}()
+		// 记录访问日志（异步，不阻塞请求）；goroutine 不再访问 Hertz RequestContext，
+		// 避免 handler 返回后请求对象被复用导致 race。
+		go func(log AuditLog) {
+			_ = a.auditStore.LogAccess(context.Background(), log)
+		}(AuditLog{
+			TenantID:     tenantID,
+			UserID:       userID,
+			Action:       action,
+			ResourceType: resourceType,
+			ResourceID:   resourceID,
+			Success:      statusCode < 400,
+			DurationMS:   durationMS,
+			ClientIP:     clientIP,
+			UserAgent:    userAgent,
+			RequestID:    requestID,
+			CreatedAt:    time.Now().UTC(),
+		})
 	}
 }
 
