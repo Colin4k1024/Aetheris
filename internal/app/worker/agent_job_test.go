@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -50,6 +51,66 @@ func TestExecuteJob_ReturnsAfterRunJob(t *testing.T) {
 	case <-done:
 	case <-time.After(500 * time.Millisecond):
 		t.Fatal("executeJob blocked after runJob returned")
+	}
+}
+
+func TestExecuteJob_DoesNotAppendTerminalFailureAfterRequeue(t *testing.T) {
+	logger, err := log.NewLogger(&log.Config{Level: "error"})
+	if err != nil {
+		t.Fatalf("new logger: %v", err)
+	}
+	meta := job.NewJobStoreMem()
+	ev := jobstore.NewMemoryStore()
+	r := NewAgentJobRunner(
+		"worker-test",
+		ev,
+		meta,
+		func(ctx context.Context, j *job.Job) error {
+			if err := meta.Requeue(ctx, j); err != nil {
+				t.Fatalf("requeue: %v", err)
+			}
+			return errors.New("transient model failure")
+		},
+		10*time.Millisecond,
+		100*time.Millisecond,
+		1,
+		nil,
+		logger,
+	)
+
+	jid, err := meta.Create(context.Background(), &job.Job{
+		AgentID: "a1",
+		Goal:    "g1",
+		Status:  job.StatusPending,
+	})
+	if err != nil {
+		t.Fatalf("create job: %v", err)
+	}
+	payload := []byte(`{"goal":"g1"}`)
+	if _, err := ev.Append(context.Background(), jid, 0, jobstore.JobEvent{JobID: jid, Type: jobstore.JobCreated, Payload: payload}); err != nil {
+		t.Fatalf("append job_created: %v", err)
+	}
+
+	r.executeJob(context.Background(), jid, "attempt-test")
+
+	got, err := meta.Get(context.Background(), jid)
+	if err != nil {
+		t.Fatalf("get job: %v", err)
+	}
+	if got.Status != job.StatusPending {
+		t.Fatalf("status = %s, want pending", got.Status)
+	}
+	if got.RetryCount != 1 {
+		t.Fatalf("retry_count = %d, want 1", got.RetryCount)
+	}
+	events, _, err := ev.ListEvents(context.Background(), jid)
+	if err != nil {
+		t.Fatalf("list events: %v", err)
+	}
+	for _, event := range events {
+		if event.Type == jobstore.JobFailed {
+			t.Fatalf("unexpected terminal job_failed event after requeue")
+		}
 	}
 }
 

@@ -1446,7 +1446,7 @@ func (h *Handler) GetJob(ctx context.Context, c *app.RequestContext) {
 		c.JSON(consts.StatusServiceUnavailable, map[string]string{"error": "Job 未启用"})
 		return
 	}
-	jobID := c.Param("id")
+	jobID := strings.Clone(c.Param("id"))
 	j, ok := h.getJobAndCheckTenant(ctx, c, jobID)
 	if !ok {
 		return
@@ -1474,12 +1474,18 @@ func (h *Handler) GetJob(ctx context.Context, c *app.RequestContext) {
 			}
 		}
 	}
-	c.JSON(consts.StatusOK, resp)
+	body, err := json.Marshal(resp)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "MarshalJob: %v", err)
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "序列化 Job failed"})
+		return
+	}
+	c.Data(consts.StatusOK, "application/json; charset=utf-8", body)
 }
 
 // JobStop 请求取消执行中的 Job（POST /api/jobs/:id/stop）；Worker 轮询到后取消 runCtx，Job 进入 CANCELLED
 func (h *Handler) JobStop(ctx context.Context, c *app.RequestContext) {
-	jobID := c.Param("id")
+	jobID := strings.Clone(c.Param("id"))
 	j, ok := h.getJobAndCheckTenant(ctx, c, jobID)
 	if !ok {
 		return
@@ -1519,7 +1525,7 @@ type JobResumeRequest struct {
 
 // JobPause 将 Job 显式置为 Parked 状态，支持后续 correlation_key 恢复。
 func (h *Handler) JobPause(ctx context.Context, c *app.RequestContext) {
-	jobID := c.Param("id")
+	jobID := strings.Clone(c.Param("id"))
 	j, ok := h.getJobAndCheckTenant(ctx, c, jobID)
 	if !ok {
 		return
@@ -1556,7 +1562,7 @@ func (h *Handler) JobPause(ctx context.Context, c *app.RequestContext) {
 
 // JobResume 从 Parked/Waiting 恢复到 Pending。
 func (h *Handler) JobResume(ctx context.Context, c *app.RequestContext) {
-	jobID := c.Param("id")
+	jobID := strings.Clone(c.Param("id"))
 	if _, ok := h.getJobAndCheckTenant(ctx, c, jobID); !ok {
 		return
 	}
@@ -1926,7 +1932,7 @@ func (h *Handler) GetJobEvents(ctx context.Context, c *app.RequestContext) {
 		c.JSON(consts.StatusServiceUnavailable, map[string]string{"error": "事件存储未启用"})
 		return
 	}
-	jobID := c.Param("id")
+	jobID := strings.Clone(c.Param("id"))
 	if _, ok := h.getJobAndCheckTenant(ctx, c, jobID); !ok {
 		return
 	}
@@ -1938,7 +1944,7 @@ func (h *Handler) GetJobEvents(ctx context.Context, c *app.RequestContext) {
 	}
 	out := make([]map[string]interface{}, 0, len(events))
 	for _, e := range events {
-		payload := json.RawMessage(e.Payload)
+		payload := json.RawMessage(append([]byte(nil), e.Payload...))
 		if len(e.Payload) == 0 {
 			payload = []byte("null")
 		}
@@ -1950,10 +1956,16 @@ func (h *Handler) GetJobEvents(ctx context.Context, c *app.RequestContext) {
 			"created_at": e.CreatedAt,
 		})
 	}
-	c.JSON(consts.StatusOK, map[string]interface{}{
+	body, err := json.Marshal(map[string]interface{}{
 		"job_id": jobID,
 		"events": out,
 	})
+	if err != nil {
+		hlog.CtxErrorf(ctx, "MarshalEvents: %v", err)
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "序列化事件failed"})
+		return
+	}
+	c.Data(consts.StatusOK, "application/json; charset=utf-8", body)
 }
 
 // GetJobVerify 返回 Job 执行验证证明（design/verification-mode.md）：execution_hash、event_chain_root_hash、ledger proof、replay proof
@@ -1991,7 +2003,7 @@ func (h *Handler) GetJobTrace(ctx context.Context, c *app.RequestContext) {
 		c.JSON(consts.StatusServiceUnavailable, map[string]string{"error": "事件存储未启用"})
 		return
 	}
-	jobID := c.Param("id")
+	jobID := strings.Clone(c.Param("id"))
 	if _, ok := h.getJobAndCheckTenant(ctx, c, jobID); !ok {
 		return
 	}
@@ -2005,7 +2017,7 @@ func (h *Handler) GetJobTrace(ctx context.Context, c *app.RequestContext) {
 	nodeStarted := make(map[string]time.Time)
 	nodeDurations := make([]map[string]interface{}, 0)
 	for _, e := range events {
-		payload := json.RawMessage(e.Payload)
+		payload := json.RawMessage(append([]byte(nil), e.Payload...))
 		if len(e.Payload) == 0 {
 			payload = []byte("null")
 		}
@@ -2056,7 +2068,13 @@ func (h *Handler) GetJobTrace(ctx context.Context, c *app.RequestContext) {
 			break
 		}
 	}
-	c.JSON(consts.StatusOK, resp)
+	body, err := json.Marshal(resp)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "MarshalTrace: %v", err)
+		c.JSON(consts.StatusInternalServerError, map[string]string{"error": "序列化时间线failed"})
+		return
+	}
+	c.Data(consts.StatusOK, "application/json; charset=utf-8", body)
 }
 
 // GetJobNode 返回某节点的相关事件与 payload（输入/输出等）
