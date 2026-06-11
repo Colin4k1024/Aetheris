@@ -4,7 +4,7 @@ This example demonstrates how to build multi-agent workflows with Aetheris.
 
 ## Prerequisites
 
-- Go 1.25.7+
+- Go 1.26.1+
 - **Cloud LLM**: Set `DASHSCOPE_API_KEY` (Qwen) or `OPENAI_API_KEY` (OpenAI)
 
 ## Overview

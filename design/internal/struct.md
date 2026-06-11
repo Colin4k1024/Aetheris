@@ -3,7 +3,7 @@
 ## 1. 仓库总览
 
 ```
-rag-platform/
+github.com/Colin4k1024/Aetheris/v2/
 ├── cmd/
 ├── internal/
 ├── pkg/

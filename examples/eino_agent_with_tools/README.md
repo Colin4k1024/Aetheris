@@ -12,7 +12,7 @@ This example shows:
 
 ## Prerequisites
 
-- Go 1.25.7+
+- Go 1.26.1+
 - **Cloud LLM (Recommended)**: Set `DASHSCOPE_API_KEY` for Qwen or `OPENAI_API_KEY` for OpenAI
 - **Local LLM (Optional)**: Ollama running locally (e.g., `ollama serve` and `ollama pull qwen3:30b`)
 

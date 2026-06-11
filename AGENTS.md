@@ -8,8 +8,8 @@ This document provides guidelines for AI agents working with the Aetheris codeba
 
 Key technologies:
 
-- **Go 1.25.7** (see `go.mod` and CI)
-- **Go module**: `rag-platform` (import path for all internal packages)
+- **Go 1.26.1** (see `go.mod` and CI)
+- **Go module**: `github.com/Colin4k1024/Aetheris/v2` (import path for all internal packages)
 - **Cloudwego eino**: Workflow/DAG execution, Agent scheduling, Pipeline orchestration
 - **Hertz**: HTTP framework for REST APIs
 - **Viper**: Configuration management
@@ -134,7 +134,7 @@ Organize imports in three groups with blank lines between:
 
 1. Standard library
 2. External packages (github.com/xxx)
-3. Internal packages (rag-platform/xxx)
+3. Internal packages (github.com/Colin4k1024/Aetheris/v2/xxx)
 
 ```go
 import (
@@ -145,8 +145,8 @@ import (
     "github.com/cloudwego/hertz/pkg/app"
     "github.com/cloudwego/hertz/pkg/common/hlog"
 
-    appcore "rag-platform/internal/app"
-    "rag-platform/internal/runtime/eino"
+    appcore "github.com/Colin4k1024/Aetheris/v2/internal/app"
+    "github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
 )
 ```
 

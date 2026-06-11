@@ -1,0 +1,96 @@
+# External HTTP Agent 配置示例
+#
+# 使用场景：将现有的 Python/JS/Go Agent 集成到 Aetheris
+#
+# 使用方法：
+#   CONFIG_PATH=examples/agent-integration/configs/agents-external.yaml make run-embedded
+
+agents:
+  # ==================== External HTTP Agent ====================
+  
+  # 示例 1: 通用 Python Agent
+  my_python_agent:
+    type: "external_http"
+    description: "Python HTTP Agent 示例"
+    external:
+      url: "http://localhost:9001/invoke"
+      timeout: "120s"
+      protocol: "json"
+  
+  # 示例 2: 带认证的 Agent
+  secure_agent:
+    type: "external_http"
+    description: "需要认证的 Agent"
+    external:
+      url: "http://localhost:9003/invoke"
+      timeout: "60s"
+      token_env: "SECURE_AGENT_TOKEN"  # 环境变量中的 Bearer token
+      protocol: "json"
+  
+  # 示例 3: SSE 流式 Agent（如 superagent-base）
+  sse_agent:
+    type: "external_http"
+    description: "SSE 流式 Agent"
+    external:
+      url: "http://localhost:8888/api/v1/chat/stream"
+      timeout: "120s"
+      protocol: "sse_legacy"
+      agent_id: "research-agent"  # sse_legacy 协议使用的 agent_id
+
+  # ==================== 内置 Eino Agent ====================
+  
+  # ReAct Agent - 基础的思考-行动-观察循环
+  react:
+    type: "react"
+    description: "ReAct 智能体"
+    llm: "default"
+    max_iterations: 10
+    tools:
+      - "web_search"
+      - "calculator"
+    system_prompt: |
+      You are a helpful AI assistant.
+      Think step by step to solve problems.
+      Use tools when needed to gather information.
+
+  # DEER Agent - 增强的推理和执行
+  deer:
+    type: "deer"
+    description: "DEER-Go 增强推理智能体"
+    llm: "default"
+    max_iterations: 15
+    tools: []
+    system_prompt: |
+      You are an advanced reasoning agent.
+      Decompose complex problems into smaller steps.
+      Use tools efficiently to gather information.
+
+  # Manus Agent - 自主执行智能体
+  manus:
+    type: "manus"
+    description: "Manus 自主执行智能体"
+    llm: "default"
+    max_iterations: 20
+    tools:
+      - "web_search"
+      - "calculator"
+      - "file_reader"
+      - "http_request"
+    system_prompt: |
+      You are an autonomous agent capable of completing complex tasks.
+      Plan your approach and execute step by step.
+      Always verify your results.
+
+# 默认 LLM 配置
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  api_key: "${OPENAI_API_KEY}"
+
+# 工具配置
+tools:
+  enabled:
+    - "web_search"
+    - "calculator"
+    - "file_reader"
+    - "http_request"

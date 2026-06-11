@@ -1,0 +1,86 @@
+# LangChain Agent 配置示例
+#
+# 使用场景：集成 LangChain/LangGraph Agent
+#
+# 使用方法：
+#   export OPENAI_API_KEY=your_key_here
+#   CONFIG_PATH=examples/agent-integration/configs/agents-langchain.yaml make run-embedded
+
+agents:
+  # ==================== LangChain 框架 Agent ====================
+  
+  # 示例 1: LangChain ReAct Agent
+  langchain_react:
+    type: "langchain"
+    description: "LangChain ReAct Agent"
+    external:
+      url: "http://localhost:9002/invoke"
+      timeout: "120s"
+      framework: "langchain"
+  
+  # 示例 2: LangGraph Agent
+  langgraph_agent:
+    type: "langgraph"
+    description: "LangGraph 编译图 Agent"
+    external:
+      url: "http://localhost:9004/invoke"
+      timeout: "120s"
+      framework: "langgraph"
+  
+  # 示例 3: LangChain 嵌入式模式（Aetheris 管理内部步骤）
+  langchain_embedded:
+    type: "langchain"
+    description: "LangChain 嵌入式 Agent"
+    external:
+      mode: "embedded"
+      url: "http://localhost:9002"
+      manifest_path: "./configs/framework-agents/langchain_agent.manifest.json"
+      framework: "langchain"
+
+  # ==================== 其他框架 Agent ====================
+  
+  # AutoGen Agent
+  autogen_agent:
+    type: "autogen"
+    description: "AutoGen 多 Agent 对话"
+    external:
+      url: "http://localhost:9005/invoke"
+      timeout: "180s"
+      framework: "autogen"
+  
+  # CrewAI Agent
+  crewai_agent:
+    type: "crewai"
+    description: "CrewAI 团队协作 Agent"
+    external:
+      url: "http://localhost:9006/invoke"
+      timeout: "180s"
+      framework: "crewai"
+
+  # ==================== 内置 Eino Agent ====================
+  
+  react:
+    type: "react"
+    description: "ReAct 智能体"
+    llm: "default"
+    max_iterations: 10
+    tools:
+      - "web_search"
+      - "calculator"
+    system_prompt: |
+      You are a helpful AI assistant.
+      Think step by step to solve problems.
+
+# 默认 LLM 配置
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  api_key: "${OPENAI_API_KEY}"
+
+# 工具配置
+tools:
+  enabled:
+    - "web_search"
+    - "calculator"
+    - "file_reader"
+    - "http_request"

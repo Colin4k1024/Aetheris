@@ -2,7 +2,7 @@
 
 > 版本: 1.0  
 > 日期: 2026-03-09  
-> 项目: ~/Desktop/poc/corag (原名 rag-platform)
+> 项目: ~/Desktop/poc/corag (github.com/Colin4k1024/Aetheris/v2)
 
 ---
 

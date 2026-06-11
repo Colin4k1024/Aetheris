@@ -7,7 +7,7 @@
 | 字段 | 内容 |
 |------|------|
 | 项目名 | CoRag (Aetheris) |
-| 模块 | rag-platform |
+| 模块 | github.com/Colin4k1024/Aetheris/v2 |
 | 当前分支 | main |
 | 当前任务 | architecture-analysis |
 

@@ -52,7 +52,7 @@ By partnering with [Cloud Vendor], we can deliver a jointly-optimized CoRag depl
 
 ### 2.2 Technology Stack
 
-- **Language:** Go 1.25+
+- **Language:** Go 1.26.1+
 - **Runtime:** Cloudwego eino for workflow orchestration
 - **HTTP Framework:** Hertz
 - **Configuration:** Viper
