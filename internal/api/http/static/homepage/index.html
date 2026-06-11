@@ -896,6 +896,7 @@
     </a>
     <ul class="nav-links">
       <li><a href="#guarantees">Guarantees</a></li>
+      <li><a href="#advanced-features">Features</a></li>
       <li><a href="#quickstart">Quickstart</a></li>
       <li><a href="#integrations">Integrations</a></li>
       <li><a href="#resources">Docs</a></li>
@@ -922,7 +923,8 @@
     <p class="hero-sub">
       Aetheris wraps long-running agents in durable execution semantics —
       crash recovery, at-most-once side effects, replayable audit trails —
-      without forcing you to rewrite your stack.
+      without forcing you to rewrite your stack. Now with embedded framework
+      bridges for 8+ Go agent frameworks and intelligent routing advisor.
     </p>
     <div class="hero-actions">
       <a class="btn-primary" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/quickstart.md" target="_blank" rel="noreferrer">
@@ -1022,7 +1024,7 @@
         <div class="arch-node">
           <div class="arch-box focal">
             <div class="arch-box-title">Aetheris Runtime</div>
-            <div class="arch-box-sub">Planner → TaskGraph → Executor</div>
+            <div class="arch-box-sub">Planner → RoutingAdvisor → TaskGraph → Executor</div>
           </div>
         </div>
         <div class="arch-arrow">→</div>
@@ -1047,6 +1049,8 @@
         <span class="arch-feature-pill">DAG compiler</span>
         <span class="arch-feature-pill">OpenTelemetry traces</span>
         <span class="arch-feature-pill">Replay engine</span>
+        <span class="arch-feature-pill">Routing advisor</span>
+        <span class="arch-feature-pill">Embedded bridge</span>
       </div>
     </div>
   </div>
@@ -1103,6 +1107,81 @@
 
 <span class="tok-cm">// Deterministic replay in sandbox</span>
 aetheris replay <span class="tok-str">--job</span> <span class="tok-num">job_abc123</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Advanced Features ═══════════════════════════════════ -->
+<section class="section" id="advanced-features">
+  <div class="wrap">
+    <div class="section-label">Advanced Features</div>
+    <h2>Enterprise-grade capabilities<br>for production workloads.</h2>
+    <p class="section-sub">
+      From intelligent routing to embedded framework bridges — Aetheris provides
+      the building blocks for sophisticated agent orchestration.
+    </p>
+    <div class="guarantee-grid">
+      <div class="guarantee-card">
+        <div class="g-icon">🏗️</div>
+        <h3>Embedded Runtime Bridge</h3>
+        <p>
+          Integrate 8+ Go agent frameworks directly as TaskGraph nodes.
+          LangChainGo, LangGraphGo, Google ADK, Firebase Genkit, and more
+          run natively inside the Aetheris runtime with full checkpoint support.
+        </p>
+        <div class="guarantee-snippet"><span class="tok-cm">// Register embedded framework agent</span>
+<span class="tok-kw">agents:</span>
+  my_langchain_agent:
+    <span class="tok-kw">type:</span> <span class="tok-str">"langchaingo"</span>
+    <span class="tok-kw">tools:</span> [<span class="tok-str">"web_search"</span>, <span class="tok-str">"calculator"</span>]</div>
+      </div>
+      <div class="guarantee-card">
+        <div class="g-icon">🧠</div>
+        <h3>Routing Advisor</h3>
+        <p>
+          Intelligent capability routing based on content analysis.
+          The RoutingAdvisor interface enables WisePick-style dynamic
+          tool selection with durable evidence recording for replay safety.
+        </p>
+        <div class="guarantee-snippet"><span class="tok-cm">// Content-hash based routing</span>
+<span class="tok-kw">routing:</span>
+  <span class="tok-kw">advisor:</span>
+    <span class="tok-kw">type:</span> <span class="tok-str">"content_hash"</span>
+    <span class="tok-kw">config:</span>
+      <span class="tok-kw">strategy:</span> <span class="tok-str">"consistent"</span></div>
+      </div>
+      <div class="guarantee-card">
+        <div class="g-icon">🔗</div>
+        <h3>LangGraph Integration</h3>
+        <p>
+          Expose Python LangGraph compiled graphs as Aetheris-compatible
+          HTTP agents. Use embedded manifest mode for step-level control
+          or black-box mode for quick migration.
+        </p>
+        <div class="guarantee-snippet"><span class="tok-cm">// LangGraph as embedded agent</span>
+<span class="tok-kw">agents:</span>
+  research_agent:
+    <span class="tok-kw">type:</span> <span class="tok-str">"langgraph"</span>
+    <span class="tok-kw">external:</span>
+      <span class="tok-kw">mode:</span> <span class="tok-str">"embedded"</span>
+      <span class="tok-kw">manifest:</span> <span class="tok-str">"./manifest.json"</span></div>
+      </div>
+      <div class="guarantee-card">
+        <div class="g-icon">📡</div>
+        <h3>SSE Streaming Protocol</h3>
+        <p>
+          Native support for Server-Sent Events streaming agents.
+          The sse_legacy protocol enables integration with platforms
+          like superagent-base for real-time token streaming.
+        </p>
+        <div class="guarantee-snippet"><span class="tok-cm">// SSE-streaming agent config</span>
+<span class="tok-kw">agents:</span>
+  streaming_agent:
+    <span class="tok-kw">type:</span> <span class="tok-str">"external_http"</span>
+    <span class="tok-kw">external:</span>
+      <span class="tok-kw">protocol:</span> <span class="tok-str">"sse_legacy"</span>
+      <span class="tok-kw">url:</span> <span class="tok-str">"http://agent:8888/stream"</span></div>
       </div>
     </div>
   </div>
@@ -1335,6 +1414,27 @@ job = client.submit(
         </div>
       </div>
       <div class="int-card">
+        <div class="int-icon">🔗</div>
+        <div>
+          <div class="int-name">LangGraph</div>
+          <div class="int-desc">Python graphs as embedded agents</div>
+        </div>
+      </div>
+      <div class="int-card">
+        <div class="int-icon">🏗️</div>
+        <div>
+          <div class="int-name">Embedded Frameworks</div>
+          <div class="int-desc">8 Go frameworks as TaskGraph nodes</div>
+        </div>
+      </div>
+      <div class="int-card">
+        <div class="int-icon">🤖</div>
+        <div>
+          <div class="int-name">superagent-base</div>
+          <div class="int-desc">SSE-streaming via sse_legacy</div>
+        </div>
+      </div>
+      <div class="int-card">
         <div class="int-icon">🐘</div>
         <div>
           <div class="int-name">PostgreSQL</div>
@@ -1363,10 +1463,10 @@ job = client.submit(
         </div>
       </div>
       <div class="int-card">
-        <div class="int-icon">🤖</div>
+        <div class="int-icon">🧠</div>
         <div>
-          <div class="int-name">superagent-base</div>
-          <div class="int-desc">SSE-streaming via sse_legacy</div>
+          <div class="int-name">Routing Advisor</div>
+          <div class="int-desc">Intelligent capability routing</div>
         </div>
       </div>
     </div>
@@ -1429,6 +1529,24 @@ job = client.submit(
         <span class="res-icon">🔌</span>
         <div class="res-title">External HTTP Adapter</div>
         <div class="res-desc">JSON and SSE-streaming protocol modes. Includes superagent-base integration guide.</div>
+        <span class="res-arrow">Read →</span>
+      </a>
+      <a class="res-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/adapters/langchain.md" target="_blank" rel="noreferrer">
+        <span class="res-icon">🔗</span>
+        <div class="res-title">LangGraph Integration</div>
+        <div class="res-desc">Expose Python LangGraph graphs as embedded agents with manifest control.</div>
+        <span class="res-arrow">Read →</span>
+      </a>
+      <a class="res-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/adapters/go-frameworks.md" target="_blank" rel="noreferrer">
+        <span class="res-icon">🏗️</span>
+        <div class="res-title">Go Framework Adapters</div>
+        <div class="res-desc">8 frameworks: LangChainGo, LangGraphGo, Google ADK, Genkit, and more.</div>
+        <span class="res-arrow">Read →</span>
+      </a>
+      <a class="res-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/routing-advisor-contract.md" target="_blank" rel="noreferrer">
+        <span class="res-icon">🧠</span>
+        <div class="res-title">Routing Advisor</div>
+        <div class="res-desc">Intelligent capability routing with durable evidence recording.</div>
         <span class="res-arrow">Read →</span>
       </a>
       <a class="res-card" href="https://github.com/Colin4k1024/Aetheris/blob/main/docs/guides/runtime-guarantees.md" target="_blank" rel="noreferrer">
