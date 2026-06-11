@@ -6,7 +6,7 @@
 
 ## 2. 测试前提
 
-- Go: `1.25.7+`
+- Go: `1.26.1+`
 - 存储: PostgreSQL（与生产同版本）
 - 测试对象: API + Worker + JobStore
 - 测试流量: 混合场景（短任务、工具调用、含 signal/wait 的任务）

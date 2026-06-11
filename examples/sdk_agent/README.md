@@ -13,7 +13,7 @@ This example showcases the full SDK capabilities:
 
 ## Prerequisites
 
-- Go 1.25.7+
+- Go 1.26.1+
 - **Cloud LLM**: Set `DASHSCOPE_API_KEY` (Qwen) or `OPENAI_API_KEY` (OpenAI)
 
 ## Usage

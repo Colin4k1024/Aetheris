@@ -12,13 +12,12 @@ Aetheris aims to be the standard runtime for production-grade AI agents.
 
 ## Version History
 
-- **v2.3.0** (Current) - Performance & Scale
-  - PostgreSQL connection pool optimization (PoolManager)
-  - Redis caching layer for job metadata
-  - gRPC API-Worker communication
-  - Per-tenant rate limiting
-  - Redis-based leader election
-  - Local development mode (--dev flag)
+- **v2.5.3** (Current) - Production Runtime & Multi-Adapter Release
+  - Durable execution / event sourcing: production-ready
+  - Deterministic replay + at-most-once tool execution: production-ready
+  - Multi-Adapter Support (LangChainGo, LangGraphGo, Google ADK, Genkit, etc.)
+  - Evidence export/verify with signed evidence ZIP
+  - RBAC/redaction/retention: production-ready
 
 - **v2.2.0** - Enhanced Observability & Multi-Adapter Release
   - OpenTelemetry integration with Jaeger

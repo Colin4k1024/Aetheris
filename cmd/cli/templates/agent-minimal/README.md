@@ -4,7 +4,7 @@ This project was scaffolded with `aetheris init`. It contains a minimal agent se
 
 ## Next steps
 
-1. **Define your agent**: Add tools and a TaskGraph (see [Getting Started with Agents](https://github.com/your-org/rag-platform/blob/main/docs/getting-started-agents.md) in the Aetheris repo).
+1. **Define your agent**: Add tools and a TaskGraph (see [Getting Started with Agents](https://github.com/Colin4k1024/Aetheris/blob/main/docs/getting-started-agents.md) in the Aetheris repo).
 2. **Configure**: Edit `configs/api.yaml` if you need Postgres or different ports.
 3. **Run**: Start the API and Worker, then create an agent and send messages.
 
@@ -20,5 +20,5 @@ aetheris chat <agent_id>
 
 ## Docs
 
-- [Getting Started with Agents](https://github.com/your-org/rag-platform/blob/main/docs/getting-started-agents.md) — Full refund-approval example, tools, TaskGraph, signals.
-- [Custom Agent Adapter](https://github.com/your-org/rag-platform/blob/main/docs/adapters/custom-agent.md) — Migrate existing agents to Aetheris.
+- [Getting Started with Agents](https://github.com/Colin4k1024/Aetheris/blob/main/docs/getting-started-agents.md) — Full refund-approval example, tools, TaskGraph, signals.
+- [Custom Agent Adapter](https://github.com/Colin4k1024/Aetheris/blob/main/docs/adapters/custom-agent.md) — Migrate existing agents to Aetheris.

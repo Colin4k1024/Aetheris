@@ -14,7 +14,7 @@ Thank you for your interest in contributing to Aetheris!
 
 ### Prerequisites
 
-- **Go 1.25.7+** (see [go.mod](../go.mod) for exact version)
+- **Go 1.26.1+** (see [go.mod](../go.mod) for exact version)
 - **Docker** (for running PostgreSQL and other services)
 - **Make** (optional, for convenience commands)
 

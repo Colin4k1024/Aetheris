@@ -1,0 +1,77 @@
+# Agent Integration Docker Compose
+#
+# 一键启动所有服务进行本地测试
+#
+# 使用方法：
+#   docker-compose up -d
+#   docker-compose logs -f
+#
+# 或者只启动特定服务：
+#   docker-compose up -d aetheris python-agent
+
+version: '3.8'
+
+services:
+  # ==================== Aetheris Runtime ====================
+  
+  aetheris:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - CONFIG_PATH=/app/configs/agents-external.yaml
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - ./configs:/app/configs:ro
+    depends_on:
+      - python-agent
+    networks:
+      - aetheris-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ==================== Python Agent ====================
+  
+  python-agent:
+    build:
+      context: ./python-agent
+      dockerfile: Dockerfile
+    ports:
+      - "9001:9001"
+    environment:
+      - AGENT_PORT=9001
+    networks:
+      - aetheris-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ==================== LangChain Agent ====================
+  
+  langchain-agent:
+    build:
+      context: ./langchain-agent
+      dockerfile: Dockerfile
+    ports:
+      - "9002:9002"
+    environment:
+      - AGENT_PORT=9002
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    networks:
+      - aetheris-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  aetheris-net:
+    driver: bridge

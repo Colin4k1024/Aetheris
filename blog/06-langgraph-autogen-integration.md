@@ -116,7 +116,7 @@ app = graph.compile()
 ```go
 // 1. 引入 LangGraph Adapter
 import (
-    "rag-platform/adapters/langgraph"
+    "github.com/Colin4k1024/Aetheris/v2/adapters/langgraph"
 )
 
 // 2. 创建 Adapter 实例
@@ -444,8 +444,8 @@ import (
     "context"
     "log"
     
-    "rag-platform/adapters/langgraph"
-    "rag-platform/runtime"
+    "github.com/Colin4k1024/Aetheris/v2/adapters/langgraph"
+    "github.com/Colin4k1024/Aetheris/v2/runtime"
 )
 
 func main() {

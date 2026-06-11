@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Aetheris** (also known as CoRag) is an execution runtime for intelligent agents — "Temporal for Agents." It provides a durable, replayable, and observable environment where AI agents can plan, execute, pause, resume, and recover long-running tasks.
 
-- **Go Module:** `rag-platform`
+- **Go Module:** `github.com/Colin4k1024/Aetheris/v2`
 - **CLI:** `aetheris`
 - **Default API Port:** 8080
 

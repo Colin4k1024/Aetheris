@@ -6,7 +6,7 @@
 
 **Architecture:** The system builds on the existing `pkg/proof/` package which already provides ZIP-based evidence export with hash chain validation. New work adds: (1) Ed25519 digital signatures on evidence packages, (2) a compliance policy engine that auto-triggers exports based on job characteristics, (3) a Forensics API for querying evidence, (4) semantic verification to detect "claimed success but actually failed" fraud, and (5) evidence retention/lifecycle management. All evidence operations are scoped to the current tenant.
 
-**Tech Stack:** Go 1.25, Ed25519 (golang.org/x/crypto/ed25519), archive/zip, PostgreSQL (existing jobstore), Viper for config.
+**Tech Stack:** Go 1.26.1, Ed25519 (golang.org/x/crypto/ed25519), archive/zip, PostgreSQL (existing jobstore), Viper for config.
 
 ---
 
