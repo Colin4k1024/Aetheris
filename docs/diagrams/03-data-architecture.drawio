@@ -1,0 +1,408 @@
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- ===== LEFT HALF: DATA MODELS (ER Diagram Style) ===== -->
+
+    <!-- Section Title: Data Models -->
+    <mxCell id="title-left" value="数据模型（Data Models — ER 图）" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#1a237e;" vertex="1" parent="1">
+      <mxGeometry x="40" y="30" width="740" height="30" as="geometry" />
+    </mxCell>
+
+    <!-- PostgreSQL Container -->
+    <mxCell id="pg-container" value="PostgreSQL（主存储）" style="swimlane;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;fontStyle=1;startSize=30;fontColor=#333333;" vertex="1" parent="1">
+      <mxGeometry x="40" y="70" width="740" height="890" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: jobs - -->
+    <mxCell id="entity-jobs" value="&lt;b&gt;jobs&lt;/b&gt;&lt;hr/&gt;id: TEXT (PK)&lt;br/&gt;agent_id: TEXT&lt;br/&gt;tenant_id: TEXT&lt;br/&gt;goal: TEXT&lt;br/&gt;status: INT (JobStatus)&lt;br/&gt;cursor: TEXT (Checkpoint ID)&lt;br/&gt;retry_count: INT&lt;br/&gt;session_id: TEXT&lt;br/&gt;idempotency_key: TEXT&lt;br/&gt;priority: INT&lt;br/&gt;queue_class: TEXT&lt;br/&gt;required_capabilities: TEXT&lt;br/&gt;cancel_requested_at: TIMESTAMPTZ&lt;br/&gt;created_at: TIMESTAMPTZ&lt;br/&gt;updated_at: TIMESTAMPTZ" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="20" y="50" width="220" height="235" as="geometry" />
+    </mxCell>
+
+    <!-- JobStatus annotation -->
+    <mxCell id="status-note" value="&lt;i&gt;JobStatus: Pending / Running /&lt;br/&gt;Completed / Failed / Cancelled /&lt;br/&gt;Waiting / Parked / Retrying&lt;/i&gt;" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;fontSize=10;" vertex="1" parent="pg-container">
+      <mxGeometry x="20" y="295" width="220" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: job_events - -->
+    <mxCell id="entity-job-events" value="&lt;b&gt;job_events&lt;/b&gt; ⚡ append-only&lt;hr/&gt;id: BIGSERIAL (PK)&lt;br/&gt;job_id: TEXT&lt;br/&gt;version: INT (乐观并发)&lt;br/&gt;type: TEXT (EventType)&lt;br/&gt;payload: JSONB&lt;br/&gt;prev_hash: TEXT (防篡改)&lt;br/&gt;hash: TEXT&lt;br/&gt;created_at: TIMESTAMPTZ" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="260" y="50" width="210" height="175" as="geometry" />
+    </mxCell>
+
+    <!-- EventType annotation -->
+    <mxCell id="event-types-note" value="&lt;i&gt;EventType:&lt;br/&gt;JobCreated / PlanGenerated&lt;br/&gt;JobRunning / StepStarted&lt;br/&gt;StepCompleted / ToolCalled&lt;br/&gt;CommandCommitted / JobCompleted&lt;br/&gt;JobFailed / JobWaiting&lt;br/&gt;JobCancelled / JobRequeued&lt;/i&gt;" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;fontSize=10;spacingLeft=4;" vertex="1" parent="pg-container">
+      <mxGeometry x="260" y="235" width="210" height="115" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: job_claims (lease) - -->
+    <mxCell id="entity-job-claims" value="&lt;b&gt;job_claims&lt;/b&gt; 🔒 Scheduler 租约&lt;hr/&gt;job_id: TEXT (PK)&lt;br/&gt;worker_id: TEXT&lt;br/&gt;attempt_id: TEXT (fencing)&lt;br/&gt;expires_at: TIMESTAMPTZ" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="490" y="50" width="210" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: checkpoints - -->
+    <mxCell id="entity-checkpoints" value="&lt;b&gt;checkpoints&lt;/b&gt; 💾 恢复点&lt;hr/&gt;id: TEXT (PK)&lt;br/&gt;agent_id: TEXT&lt;br/&gt;session_id: TEXT&lt;br/&gt;job_id: TEXT&lt;br/&gt;task_graph_state: BYTEA&lt;br/&gt;memory_state: BYTEA&lt;br/&gt;cursor_node: TEXT&lt;br/&gt;payload_results: BYTEA&lt;br/&gt;created_at: TIMESTAMPTZ&lt;br/&gt;updated_at: TIMESTAMPTZ&lt;br/&gt;expires_at: TIMESTAMPTZ" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="490" y="175" width="210" height="180" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: tool_invocations (Ledger) - -->
+    <mxCell id="entity-tool-invocations" value="&lt;b&gt;tool_invocations&lt;/b&gt; 📋 幂等账本&lt;hr/&gt;job_id: TEXT (PK part)&lt;br/&gt;idempotency_key: TEXT (PK part)&lt;br/&gt;invocation_id: TEXT&lt;br/&gt;step_id: TEXT&lt;br/&gt;tool_name: TEXT&lt;br/&gt;args_hash: TEXT&lt;br/&gt;status: TEXT&lt;br/&gt;result: BYTEA&lt;br/&gt;committed: BOOLEAN&lt;br/&gt;external_id: TEXT&lt;br/&gt;created_at: TIMESTAMPTZ&lt;br/&gt;updated_at: TIMESTAMPTZ&lt;br/&gt;confirmed_at: TIMESTAMPTZ" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="20" y="370" width="210" height="215" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: effects - -->
+    <mxCell id="entity-effects" value="&lt;b&gt;effects&lt;/b&gt; ⚙️ Effect Store (两步提交)&lt;hr/&gt;id: BIGSERIAL (PK)&lt;br/&gt;job_id: TEXT&lt;br/&gt;command_id: TEXT&lt;br/&gt;idempotency_key: TEXT&lt;br/&gt;kind: TEXT (LLM / Tool / HTTP)&lt;br/&gt;input: BYTEA&lt;br/&gt;output: BYTEA&lt;br/&gt;error: TEXT&lt;br/&gt;metadata: JSONB&lt;br/&gt;created_at: TIMESTAMPTZ" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="250" y="370" width="210" height="185" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: agent_instances - -->
+    <mxCell id="entity-agent-instances" value="&lt;b&gt;agent_instances&lt;/b&gt; 🤖 Agent 实例&lt;hr/&gt;id: TEXT (PK)&lt;br/&gt;tenant_id: TEXT&lt;br/&gt;name: TEXT&lt;br/&gt;status: TEXT (idle/running)&lt;br/&gt;default_session_id: TEXT&lt;br/&gt;current_job_id: TEXT&lt;br/&gt;behavior_id: TEXT&lt;br/&gt;meta: JSONB&lt;br/&gt;created_at: TIMESTAMPTZ&lt;br/&gt;updated_at: TIMESTAMPTZ" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="490" y="370" width="210" height="185" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: agent_states - -->
+    <mxCell id="entity-agent-states" value="&lt;b&gt;agent_states&lt;/b&gt; 🧠 会话快照&lt;hr/&gt;agent_id: TEXT (PK part)&lt;br/&gt;session_id: TEXT (PK part)&lt;br/&gt;payload: JSONB&lt;br/&gt;updated_at: TIMESTAMPTZ" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="20" y="600" width="210" height="95" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: waiting_info - -->
+    <mxCell id="entity-waiting-info" value="&lt;b&gt;waiting_info&lt;/b&gt; ⏸ 等待状态索引&lt;hr/&gt;job_id: TEXT (PK, FK→jobs)&lt;br/&gt;correlation_key: TEXT UNIQUE&lt;br/&gt;wait_type: TEXT&lt;br/&gt;reason: TEXT&lt;br/&gt;status: INT&lt;br/&gt;created_at: TIMESTAMPTZ&lt;br/&gt;updated_at: TIMESTAMPTZ" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="250" y="570" width="210" height="135" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: signal_inbox - -->
+    <mxCell id="entity-signal-inbox" value="&lt;b&gt;signal_inbox&lt;/b&gt; 📨 信号收件箱&lt;hr/&gt;id: TEXT (PK)&lt;br/&gt;job_id: TEXT&lt;br/&gt;correlation_key: TEXT&lt;br/&gt;payload: JSONB&lt;br/&gt;created_at: TIMESTAMPTZ&lt;br/&gt;acked_at: TIMESTAMPTZ" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="490" y="570" width="210" height="130" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: job_snapshots - -->
+    <mxCell id="entity-job-snapshots" value="&lt;b&gt;job_snapshots&lt;/b&gt; 📸 事件流压缩快照&lt;hr/&gt;job_id: TEXT (PK part)&lt;br/&gt;version: INT (PK part)&lt;br/&gt;snapshot: BYTEA&lt;br/&gt;created_at: TIMESTAMPTZ" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="20" y="715" width="210" height="100" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: memory tables - -->
+    <mxCell id="entity-memory" value="&lt;b&gt;Memory 表组&lt;/b&gt; 🗂 持久化记忆&lt;hr/&gt;&lt;b&gt;agent_long_term_memory&lt;/b&gt;&lt;br/&gt;(agent_id, namespace, key, value)&lt;br/&gt;&lt;br/&gt;&lt;b&gt;agent_episodic_chunks&lt;/b&gt;&lt;br/&gt;(id, agent_id, session_id, job_id,&lt;br/&gt; summary, payload)" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="250" y="720" width="210" height="130" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: tenants + audit - -->
+    <mxCell id="entity-tenants" value="&lt;b&gt;Multi-Tenant 与审计&lt;/b&gt; 🏢&lt;hr/&gt;&lt;b&gt;tenants&lt;/b&gt;: (id, name, status, quota_json)&lt;br/&gt;&lt;b&gt;user_roles&lt;/b&gt;: (user_id, tenant_id, role)&lt;br/&gt;&lt;b&gt;access_audit_log&lt;/b&gt;: (tenant_id,&lt;br/&gt; user_id, action, resource_*)&lt;br/&gt;&lt;b&gt;job_tombstones&lt;/b&gt;: (job_id, tenant_id,&lt;br/&gt; deleted_at, archive_ref)" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="490" y="715" width="210" height="150" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: agent_messages - -->
+    <mxCell id="entity-agent-messages" value="&lt;b&gt;agent_messages&lt;/b&gt; 💬 Agent 消息总线&lt;hr/&gt;id: TEXT (PK)&lt;br/&gt;from_agent_id / to_agent_id: TEXT&lt;br/&gt;channel / kind: TEXT&lt;br/&gt;payload: JSONB&lt;br/&gt;causation_id: TEXT&lt;br/&gt;consumed_by_job_id: TEXT" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="20" y="830" width="210" height="120" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: ingest_tasks - -->
+    <mxCell id="entity-ingest-tasks" value="&lt;b&gt;ingest_tasks&lt;/b&gt; 📥 入库任务队列&lt;hr/&gt;id: TEXT (PK)&lt;br/&gt;payload: JSONB&lt;br/&gt;status: TEXT (pending/done)&lt;br/&gt;worker_id: TEXT&lt;br/&gt;claimed_at / completed_at: TIMESTAMPTZ" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="250" y="865" width="210" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- - Entity: signing_keys / orgs - -->
+    <mxCell id="entity-signing" value="&lt;b&gt;Proof Chain 表组&lt;/b&gt; 🔐&lt;hr/&gt;&lt;b&gt;signing_keys&lt;/b&gt;: (key_id, public_key,&lt;br/&gt; key_type, status, expires_at)&lt;br/&gt;&lt;b&gt;organizations&lt;/b&gt;: (org_id, public_key,&lt;br/&gt; trust_level)&lt;br/&gt;&lt;b&gt;ledger_sync_log&lt;/b&gt;: (job_id,&lt;br/&gt; source_org, target_org, sync_status)" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;" vertex="1" parent="pg-container">
+      <mxGeometry x="490" y="875" width="210" height="145" as="geometry" />
+    </mxCell>
+
+    <!-- ===== ER RELATIONSHIPS ===== -->
+
+    <!-- jobs → job_events (1:N) -->
+    <mxCell id="rel-jobs-events" value="1:N" style=" edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;strokeColor=#d79b00;strokeWidth=2;" edge="1" source="entity-jobs" target="entity-job-events" parent="pg-container">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- jobs → job_claims (1:1) -->
+    <mxCell id="rel-jobs-claims" value="1:1 lease" style=" edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;strokeWidth=1;dashed=1;" edge="1" source="entity-jobs" target="entity-job-claims" parent="pg-container">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- jobs → tool_invocations (1:N) -->
+    <mxCell id="rel-jobs-tools" value="1:N" style=" edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#b85450;strokeWidth=2;" edge="1" source="entity-jobs" target="entity-tool-invocations" parent="pg-container">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- jobs → effects (1:N) -->
+    <mxCell id="rel-jobs-effects" value="1:N" style=" edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#b85450;strokeWidth=2;" edge="1" source="entity-jobs" target="entity-effects" parent="pg-container">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- jobs → checkpoints (1:N) -->
+    <mxCell id="rel-jobs-checkpoints" value="1:N" style=" edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;strokeWidth=2;" edge="1" source="entity-jobs" target="entity-checkpoints" parent="pg-container">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- jobs → waiting_info (1:1) -->
+    <mxCell id="rel-jobs-waiting" value="1:1" style=" edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;strokeWidth=1;dashed=1;" edge="1" source="entity-jobs" target="entity-waiting-info" parent="pg-container">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- agent_instances → jobs (1:N) -->
+    <mxCell id="rel-agent-jobs" value="1:N" style=" edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" source="entity-agent-instances" target="entity-jobs" parent="pg-container">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- job_events → job_snapshots compaction arrow -->
+    <mxCell id="rel-events-snapshots" value="compaction" style=" edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#d79b00;strokeWidth=1;dashed=1;" edge="1" source="entity-job-events" target="entity-job-snapshots" parent="pg-container">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ===== Redis (Optional) ===== -->
+    <mxCell id="redis-container" value="Redis（可选缓存层）" style="swimlane;fillColor=#fff9e6;strokeColor=#d6b656;fontSize=13;fontStyle=1;startSize=30;fontColor=#856404;" vertex="1" parent="1">
+      <mxGeometry x="40" y="980" width="740" height="150" as="geometry" />
+    </mxCell>
+
+    <mxCell id="redis-rag" value="&lt;b&gt;RAG 向量缓存&lt;/b&gt;&lt;br/&gt;热向量 / embedding 结果&lt;br/&gt;TTL-based 淘汰" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3cd;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="redis-container">
+      <mxGeometry x="20" y="45" width="200" height="75" as="geometry" />
+    </mxCell>
+
+    <mxCell id="redis-session" value="&lt;b&gt;Session 热数据&lt;/b&gt;&lt;br/&gt;短期会话缓存&lt;br/&gt;可选，非强依赖" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3cd;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="redis-container">
+      <mxGeometry x="260" y="45" width="200" height="75" as="geometry" />
+    </mxCell>
+
+    <mxCell id="redis-note" value="⚠️ 系统不强依赖 Redis，PostgreSQL 是唯一必须存储" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3cd;strokeColor=#d6b656;fontSize=11;fontStyle=2;" vertex="1" parent="redis-container">
+      <mxGeometry x="490" y="45" width="220" height="75" as="geometry" />
+    </mxCell>
+
+    <!-- ===== RIGHT HALF: DATA FLOW ===== -->
+
+    <!-- Section Title: Data Flow -->
+    <mxCell id="title-right" value="核心数据流（Event Sourcing + Crash Recovery）" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#1a237e;" vertex="1" parent="1">
+      <mxGeometry x="820" y="30" width="794" height="30" as="geometry" />
+    </mxCell>
+
+    <!-- - Step 1: User submits goal - -->
+    <mxCell id="flow-step1" value="① 用户提交目标（POST /api/agents/:id/message）" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="860" y="75" width="380" height="45" as="geometry" />
+    </mxCell>
+
+    <!-- - DB writes for step 1 - -->
+    <mxCell id="flow-db1" value="&lt;b&gt;双写创建&lt;/b&gt;&lt;br/&gt;INSERT jobs (status=Pending)&lt;br/&gt;INSERT job_events (type=JobCreated, version=1)" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;align=left;" vertex="1" parent="1">
+      <mxGeometry x="1280" y="63" width="260" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr1" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-step1" target="flow-db1" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- - Step 2: Scheduler claims job - -->
+    <mxCell id="flow-step2" value="② Scheduler 轮询并 Claim Job（行级锁租约）" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="860" y="160" width="380" height="45" as="geometry" />
+    </mxCell>
+
+    <mxCell id="flow-db2" value="&lt;b&gt;租约写入&lt;/b&gt;&lt;br/&gt;INSERT job_claims (worker_id, attempt_id)&lt;br/&gt;UPDATE jobs SET status=Running" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;align=left;" vertex="1" parent="1">
+      <mxGeometry x="1280" y="150" width="260" height="65" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr2" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-step2" target="flow-db2" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr1-2" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-step1" target="flow-step2" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- - Step 3: Planner generates TaskGraph - -->
+    <mxCell id="flow-step3" value="③ Planner 生成 TaskGraph（PlanGoal）" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="860" y="250" width="380" height="45" as="geometry" />
+    </mxCell>
+
+    <mxCell id="flow-db3" value="&lt;b&gt;事件追加（append-only）&lt;/b&gt;&lt;br/&gt;INSERT job_events (type=PlanGenerated,&lt;br/&gt; payload={task_graph, evidence}, version=2)" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;align=left;" vertex="1" parent="1">
+      <mxGeometry x="1280" y="240" width="260" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr2-3" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-step2" target="flow-step3" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr3" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-step3" target="flow-db3" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- - Step 4: Runner executes steps - -->
+    <mxCell id="flow-step4" value="④ Runner 逐节点执行（DAG Steppable）" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="860" y="345" width="380" height="45" as="geometry" />
+    </mxCell>
+
+    <mxCell id="flow-db4" value="&lt;b&gt;步骤事件追加&lt;/b&gt;&lt;br/&gt;INSERT job_events (type=StepStarted)&lt;br/&gt;INSERT job_events (type=StepCompleted)" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;align=left;" vertex="1" parent="1">
+      <mxGeometry x="1280" y="335" width="260" height="65" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr3-4" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-step3" target="flow-step4" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr4" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-step4" target="flow-db4" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- - Step 5: Tool call (two-phase commit) - -->
+    <mxCell id="flow-step5" value="⑤ Tool 调用（两步提交，at-most-once）" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="860" y="440" width="380" height="45" as="geometry" />
+    </mxCell>
+
+    <mxCell id="flow-db5" value="&lt;b&gt;两步提交写入&lt;/b&gt;&lt;br/&gt;① INSERT tool_invocations (status=started)&lt;br/&gt;② Execute Tool&lt;br/&gt;③ INSERT effects (kind=Tool, output)&lt;br/&gt;④ INSERT job_events (type=CommandCommitted)&lt;br/&gt;⑤ UPDATE tool_invocations SET committed=true" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;align=left;" vertex="1" parent="1">
+      <mxGeometry x="1280" y="420" width="260" height="100" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr4-5" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-step4" target="flow-step5" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr5" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-step5" target="flow-db5" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- - Step 6: Checkpoint - -->
+    <mxCell id="flow-step6" value="⑥ 定期写 Checkpoint（节点完成后）" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="860" y="535" width="380" height="45" as="geometry" />
+    </mxCell>
+
+    <mxCell id="flow-db6" value="&lt;b&gt;检查点持久化&lt;/b&gt;&lt;br/&gt;INSERT checkpoints (task_graph_state,&lt;br/&gt; memory_state, cursor_node)&lt;br/&gt;UPDATE jobs SET cursor=checkpoint_id" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="1">
+      <mxGeometry x="1280" y="525" width="260" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr5-6" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-step5" target="flow-step6" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr6" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-step6" target="flow-db6" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- - Decision: crash? - -->
+    <mxCell id="flow-decision-crash" value="崩溃？" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="940" y="620" width="120" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr6-d" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-step6" target="flow-decision-crash" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- - Crash Recovery Path - -->
+    <mxCell id="flow-recovery" value="⑦-A 崩溃恢复：加载最新 Checkpoint&lt;br/&gt;+ 重放后续 Events（不重执行已提交 Tool/LLM）" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="820" y="730" width="300" height="60" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr-crash-yes" value="YES" style=" edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;fontStyle=1;" edge="1" source="flow-decision-crash" target="flow-recovery" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="flow-recovery-db" value="&lt;b&gt;恢复读取&lt;/b&gt;&lt;br/&gt;SELECT checkpoints WHERE job_id=?&lt;br/&gt; ORDER BY created_at DESC LIMIT 1&lt;br/&gt;SELECT job_events WHERE version &gt; snapshot&lt;br/&gt;Inject results from effects table&lt;br/&gt;Resume from cursor_node" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;align=left;" vertex="1" parent="1">
+      <mxGeometry x="820" y="815" width="300" height="100" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr-recovery" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-recovery" target="flow-recovery-db" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- - Normal completion - -->
+    <mxCell id="flow-step7" value="⑦-B 正常完成" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1160" y="625" width="200" height="45" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr-crash-no" value="NO" style=" edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontStyle=1;" edge="1" source="flow-decision-crash" target="flow-step7" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="flow-db7" value="&lt;b&gt;完成事件&lt;/b&gt;&lt;br/&gt;INSERT job_events (type=JobCompleted)&lt;br/&gt;UPDATE jobs SET status=Completed&lt;br/&gt;DELETE job_claims (释放租约)" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=left;" vertex="1" parent="1">
+      <mxGeometry x="1280" y="615" width="260" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr7" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-step7" target="flow-db7" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- - Human-in-the-Loop Signal - -->
+    <mxCell id="flow-signal-box" value="Human-in-the-Loop / Signal 路径" style="swimlane;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;startSize=28;" vertex="1" parent="1">
+      <mxGeometry x="820" y="940" width="720" height="190" as="geometry" />
+    </mxCell>
+
+    <mxCell id="flow-signal1" value="Job 遇到 Wait 节点&lt;br/&gt;→ UPDATE jobs SET status=Parked&lt;br/&gt;→ INSERT waiting_info (correlation_key)" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="flow-signal-box">
+      <mxGeometry x="20" y="45" width="200" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="flow-signal2" value="外部信号到达&lt;br/&gt;POST /api/jobs/:id/signal&lt;br/&gt;→ INSERT signal_inbox (correlation_key)&lt;br/&gt;→ UPDATE waiting_info.status" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="flow-signal-box">
+      <mxGeometry x="255" y="45" width="200" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="flow-signal3" value="WakeupQueue 唤醒 Job&lt;br/&gt;→ UPDATE jobs SET status=Pending&lt;br/&gt;→ INSERT job_events (type=JobRunning)&lt;br/&gt;→ Scheduler 重新 Claim 继续执行" style=" rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="flow-signal-box">
+      <mxGeometry x="490" y="45" width="210" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr-sig1-2" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-signal1" target="flow-signal2" parent="flow-signal-box">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arr-sig2-3" style=" edgeStyle=orthogonalEdgeStyle;" edge="1" source="flow-signal2" target="flow-signal3" parent="flow-signal-box">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="signal-idempotent-note" value="幂等保证：相同 correlation_key 的重复 signal 为 no-op" style="text;html=1;fillColor=none;strokeColor=none;fontSize=10;fontStyle=2;" vertex="1" parent="flow-signal-box">
+      <mxGeometry x="20" y="148" width="680" height="25" as="geometry" />
+    </mxCell>
+
+    <!-- - Event Sourcing pattern description - -->
+    <mxCell id="es-pattern-box" value="事件溯源（Event Sourcing）模式说明" style="swimlane;fillColor=#fff9c4;strokeColor=#f9a825;fontSize=12;fontStyle=1;startSize=28;" vertex="1" parent="1">
+      <mxGeometry x="1160" y="720" width="380" height="220" as="geometry" />
+    </mxCell>
+
+    <mxCell id="es-line1" value="• job_events 表是 &lt;b&gt;append-only 不可变日志&lt;/b&gt;" style="text;html=1;fillColor=none;strokeColor=none;fontSize=11;align=left;" vertex="1" parent="es-pattern-box">
+      <mxGeometry x="10" y="38" width="360" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="es-line2" value="• 当前状态 = 从 v1 重放到最新 version" style="text;html=1;fillColor=none;strokeColor=none;fontSize=11;align=left;" vertex="1" parent="es-pattern-box">
+      <mxGeometry x="10" y="60" width="360" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="es-line3" value="• Checkpoint = 重放性能优化（避免全量扫描）" style="text;html=1;fillColor=none;strokeColor=none;fontSize=11;align=left;" vertex="1" parent="es-pattern-box">
+      <mxGeometry x="10" y="82" width="360" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="es-line4" value="• prev_hash + hash 链 = 防篡改 Proof Chain" style="text;html=1;fillColor=none;strokeColor=none;fontSize=11;align=left;" vertex="1" parent="es-pattern-box">
+      <mxGeometry x="10" y="104" width="360" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="es-line5" value="• Replay 时：从 effects 注入结果，&lt;b&gt;不重执行&lt;/b&gt; LLM/Tool" style="text;html=1;fillColor=none;strokeColor=none;fontSize=11;align=left;" vertex="1" parent="es-pattern-box">
+      <mxGeometry x="10" y="126" width="360" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="es-line6" value="• job_snapshots = 长跑 Job 的事件流 compaction" style="text;html=1;fillColor=none;strokeColor=none;fontSize=11;align=left;" vertex="1" parent="es-pattern-box">
+      <mxGeometry x="10" y="148" width="360" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="es-line7" value="• attempt_id（lease fencing）防止 stale worker 写入" style="text;html=1;fillColor=none;strokeColor=none;fontSize=11;align=left;" vertex="1" parent="es-pattern-box">
+      <mxGeometry x="10" y="170" width="360" height="22" as="geometry" />
+    </mxCell>
+
+    <!-- - Storage legend - -->
+    <mxCell id="legend" value="图例" style="swimlane;fillColor=#f5f5f5;strokeColor=#999999;fontSize=12;fontStyle=1;startSize=25;" vertex="1" parent="1">
+      <mxGeometry x="1160" y="960" width="380" height="165" as="geometry" />
+    </mxCell>
+
+    <mxCell id="leg1" value="jobs / agent_* 实体" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="legend">
+      <mxGeometry x="10" y="35" width="155" height="28" as="geometry" />
+    </mxCell>
+
+    <mxCell id="leg2" value="job_events / snapshots（Event Log）" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="legend">
+      <mxGeometry x="175" y="35" width="195" height="28" as="geometry" />
+    </mxCell>
+
+    <mxCell id="leg3" value="tool_invocations / effects（Ledger）" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="legend">
+      <mxGeometry x="10" y="73" width="195" height="28" as="geometry" />
+    </mxCell>
+
+    <mxCell id="leg4" value="checkpoints / memory（State）" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="legend">
+      <mxGeometry x="215" y="73" width="155" height="28" as="geometry" />
+    </mxCell>
+
+    <mxCell id="leg5" value="waiting / signal / messages（Coordination）" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="legend">
+      <mxGeometry x="10" y="111" width="230" height="28" as="geometry" />
+    </mxCell>
+
+    <mxCell id="leg6" value="租约 / 多租户 / 审计" style=" rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontSize=10;" vertex="1" parent="legend">
+      <mxGeometry x="250" y="111" width="120" height="28" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>
