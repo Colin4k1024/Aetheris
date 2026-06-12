@@ -1,0 +1,159 @@
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- ===== TITLE ===== -->
+    <mxCell id="2" value="Aetheris — Product Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=22;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
+      <mxGeometry x="40" y="30" width="1574" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="3" value="&#34;Temporal for Agents&#34; — Durable, Replayable, Observable AI Agent Execution Runtime" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontStyle=2;fontColor=#555555;" vertex="1" parent="1">
+      <mxGeometry x="40" y="76" width="1574" height="26" as="geometry" />
+    </mxCell>
+
+    <mxCell id="9" value="" style="rounded=2;whiteSpace=wrap;html=1;fillColor=#f0f4ff;strokeColor=#c5d0e6;opacity=40;" vertex="1" parent="1">
+      <mxGeometry x="140" y="112" width="1474" height="118" as="geometry" />
+    </mxCell>
+    <mxCell id="10" value="" style="rounded=2;whiteSpace=wrap;html=1;fillColor=#f0fff4;strokeColor=#c5e0c5;opacity=40;" vertex="1" parent="1">
+      <mxGeometry x="140" y="256" width="1474" height="124" as="geometry" />
+    </mxCell>
+    <mxCell id="11" value="" style="rounded=2;whiteSpace=wrap;html=1;fillColor=#fffef0;strokeColor=#e0d8a0;opacity=40;" vertex="1" parent="1">
+      <mxGeometry x="140" y="406" width="1474" height="244" as="geometry" />
+    </mxCell>
+    <mxCell id="12" value="" style="rounded=2;whiteSpace=wrap;html=1;fillColor=#fff8f0;strokeColor=#e0c09a;opacity=40;" vertex="1" parent="1">
+      <mxGeometry x="140" y="670" width="1474" height="110" as="geometry" />
+    </mxCell>
+    <mxCell id="13" value="" style="rounded=2;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#cccccc;opacity=40;" vertex="1" parent="1">
+      <mxGeometry x="140" y="800" width="1474" height="110" as="geometry" />
+    </mxCell>
+
+    <mxCell id="4" value="TARGET USERS" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;fontSize=10;fontStyle=1;fontColor=#6c8ebf;" vertex="1" parent="1">
+      <mxGeometry x="40" y="120" width="90" height="100" as="geometry" />
+    </mxCell>
+    <mxCell id="5" value="USE CASES" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;fontSize=10;fontStyle=1;fontColor=#82b366;" vertex="1" parent="1">
+      <mxGeometry x="40" y="270" width="90" height="110" as="geometry" />
+    </mxCell>
+    <mxCell id="6" value="CORE CAPABILITIES" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;fontSize=10;fontStyle=1;fontColor=#d6b656;" vertex="1" parent="1">
+      <mxGeometry x="40" y="440" width="90" height="180" as="geometry" />
+    </mxCell>
+    <mxCell id="7" value="PLATFORM CORE" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;fontSize=10;fontStyle=1;fontColor=#d79b00;" vertex="1" parent="1">
+      <mxGeometry x="40" y="680" width="90" height="80" as="geometry" />
+    </mxCell>
+    <mxCell id="8" value="INFRASTRUCTURE" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;fontSize=10;fontStyle=1;fontColor=#666666;" vertex="1" parent="1">
+      <mxGeometry x="40" y="820" width="90" height="80" as="geometry" />
+    </mxCell>
+
+    <mxCell id="20" value="&lt;b&gt;AI / LLM App Developers&lt;/b&gt;&lt;br/&gt;&lt;font color='#555'&gt;Build reliable multi-step&lt;br/&gt;agent workflows&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="163" y="122" width="270" height="98" as="geometry" />
+    </mxCell>
+    <mxCell id="21" value="&lt;b&gt;Enterprise Agent Teams&lt;/b&gt;&lt;br/&gt;&lt;font color='#555'&gt;Deploy production AI agents&lt;br/&gt;with crash recovery, RBAC&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="600" y="122" width="270" height="98" as="geometry" />
+    </mxCell>
+    <mxCell id="22" value="&lt;b&gt;Compliance &amp;amp; Audit Users&lt;/b&gt;&lt;br/&gt;&lt;font color='#555'&gt;Require immutable execution&lt;br/&gt;proof &amp;amp; decision traceability&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1040" y="122" width="270" height="98" as="geometry" />
+    </mxCell>
+    <mxCell id="23" value="&lt;b&gt;Architects &amp;amp; DevOps&lt;/b&gt;&lt;br/&gt;&lt;font color='#555'&gt;OpenTelemetry &amp;amp; Prometheus&lt;br/&gt;observability integration&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1380" y="122" width="220" height="98" as="geometry" />
+    </mxCell>
+
+    <mxCell id="30" value="&lt;b&gt;Human-in-the-Loop&lt;/b&gt;&lt;br/&gt;Approval flows: legal, finance, HR&lt;br/&gt;Agent parks &amp;amp; waits for signal&lt;br/&gt;&lt;i&gt;Wait + StatusParked + Signal&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="163" y="266" width="340" height="104" as="geometry" />
+    </mxCell>
+    <mxCell id="31" value="&lt;b&gt;Long-Running API Orchestration&lt;/b&gt;&lt;br/&gt;Multi-hour tasks, batch import&lt;br/&gt;Crash recovery from last checkpoint&lt;br/&gt;&lt;i&gt;At-most-once side effects&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="560" y="266" width="380" height="104" as="geometry" />
+    </mxCell>
+    <mxCell id="32" value="&lt;b&gt;Auditable Decision Agents&lt;/b&gt;&lt;br/&gt;Who, when, why each decision&lt;br/&gt;Evidence graph + proof chain&lt;br/&gt;&lt;i&gt;Replay, Verify, Trace&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1000" y="266" width="380" height="104" as="geometry" />
+    </mxCell>
+    <mxCell id="33" value="&lt;b&gt;Multi-Step Reasoning&lt;/b&gt;&lt;br/&gt;Research→Draft→Review→Send&lt;br/&gt;DAG dependency, partial retry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1400" y="266" width="200" height="104" as="geometry" />
+    </mxCell>
+
+    <mxCell id="40" value="&lt;b&gt;Task Planning&lt;/b&gt;&lt;br/&gt;Goal → TaskGraph (DAG)&lt;br/&gt;Dependency management" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="163" y="420" width="240" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="41" value="&lt;b&gt;Durable Execution&lt;/b&gt;&lt;br/&gt;Crash recovery, at-most-once&lt;br/&gt;Pause / Resume / Replay" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="420" y="420" width="240" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="42" value="&lt;b&gt;Human Oversight&lt;/b&gt;&lt;br/&gt;Wait/Signal API for approvals&lt;br/&gt;POST /api/jobs/:id/signal" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="677" y="420" width="240" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="43" value="&lt;b&gt;Observability &amp;amp; Audit&lt;/b&gt;&lt;br/&gt;OTel + Prometheus&lt;br/&gt;Execution proof chain" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="163" y="524" width="240" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="44" value="&lt;b&gt;Agent Intelligence&lt;/b&gt;&lt;br/&gt;Eino ADK + multi-model&lt;br/&gt;Tool Bridge + MCP protocol" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="420" y="524" width="240" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="45" value="&lt;b&gt;RAG Pipeline&lt;/b&gt;&lt;br/&gt;Ingest → Embed → Index&lt;br/&gt;Query → Retrieve → Generate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="677" y="524" width="240" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="46" value="&lt;b&gt;Security &amp;amp; Governance&lt;/b&gt;&lt;br/&gt;RBAC / JWT Auth&lt;br/&gt;Tenant Isolation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="934" y="420" width="240" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="47" value="&lt;b&gt;Developer Experience&lt;/b&gt;&lt;br/&gt;CLI: init, chat, jobs, trace&lt;br/&gt;REST API + gRPC + Docker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="934" y="524" width="240" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="48" value="&lt;b&gt;Multi-Agent &amp;amp; Extensibility&lt;/b&gt;&lt;br/&gt;Multi-agent coordination&lt;br/&gt;Custom plugins, dynamic workers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1191" y="420" width="400" height="194" as="geometry" />
+    </mxCell>
+
+    <mxCell id="50" value="Control Plane" style="swimlane;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;fontStyle=1;startSize=28;" vertex="1" parent="1">
+      <mxGeometry x="163" y="680" width="440" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="51" value="API Server (Hertz :8080)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffd699;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="50">
+      <mxGeometry x="10" y="36" width="130" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="52" value="Auth / RBAC / JWT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffd699;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="50">
+      <mxGeometry x="155" y="36" width="130" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="53" value="CLI / gRPC / SDK" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffd699;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="50">
+      <mxGeometry x="300" y="36" width="130" height="44" as="geometry" />
+    </mxCell>
+
+    <mxCell id="54" value="Runtime Core (Data Plane)" style="swimlane;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;fontStyle=1;startSize=28;" vertex="1" parent="1">
+      <mxGeometry x="620" y="680" width="660" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="55" value="Lease Scheduler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffd699;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="54">
+      <mxGeometry x="10" y="36" width="130" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="56" value="Durable Runner + Checkpoint" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffd699;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="54">
+      <mxGeometry x="155" y="36" width="150" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="57" value="Tool Plane + MCP Host" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffd699;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="54">
+      <mxGeometry x="320" y="36" width="150" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="58" value="Replay / Verify / Trace" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffd699;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="54">
+      <mxGeometry x="485" y="36" width="165" height="44" as="geometry" />
+    </mxCell>
+
+    <mxCell id="59" value="Durable Stores (Event Sourced)" style="swimlane;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;fontStyle=1;startSize=28;" vertex="1" parent="1">
+      <mxGeometry x="1297" y="680" width="307" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="60" value="Event Store" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffd699;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="59">
+      <mxGeometry x="8" y="36" width="88" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="61" value="Checkpoint Store" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffd699;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="59">
+      <mxGeometry x="108" y="36" width="88" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="62" value="Effect Ledger" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffd699;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="59">
+      <mxGeometry x="208" y="36" width="88" height="44" as="geometry" />
+    </mxCell>
+
+    <mxCell id="70" value="&lt;b&gt;PostgreSQL&lt;/b&gt;&lt;br/&gt;Job events, state, checkpoints&lt;br/&gt;Primary durable store (pgx v5)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="163" y="814" width="280" height="82" as="geometry" />
+    </mxCell>
+    <mxCell id="71" value="&lt;b&gt;Redis&lt;/b&gt;&lt;br/&gt;Optional RAG cache &amp;amp; indexer&lt;br/&gt;Session state (go-redis v9)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="470" y="814" width="240" height="82" as="geometry" />
+    </mxCell>
+    <mxCell id="72" value="&lt;b&gt;Vector &amp;amp; Object Store&lt;/b&gt;&lt;br/&gt;Milvus / Pinecone (vectors)&lt;br/&gt;S3 / OSS (documents)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="730" y="814" width="260" height="82" as="geometry" />
+    </mxCell>
+    <mxCell id="73" value="&lt;b&gt;Docker / Container Runtime&lt;/b&gt;&lt;br/&gt;docker-compose local stack&lt;br/&gt;API + Worker + PostgreSQL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1010" y="814" width="260" height="82" as="geometry" />
+    </mxCell>
+    <mxCell id="74" value="&lt;b&gt;Observability Stack&lt;/b&gt;&lt;br/&gt;OpenTelemetry traces&lt;br/&gt;Prometheus + slog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1290" y="814" width="200" height="82" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>
