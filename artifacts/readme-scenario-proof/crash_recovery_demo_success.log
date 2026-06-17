@@ -1,0 +1,32 @@
+
+============================================================
+  Aetheris External HTTP Durability Demo
+============================================================
+
+  This example shows the reliability boundary of external_http:
+  Aetheris tracks the outer job and event trail, while the batch logic
+  itself still runs inside one external HTTP call.
+
+✓ Aetheris reachable at http://localhost:8080
+✓ Starting local external_http demo agent on port 19001...
+
+→ Submitting batch job (20 records)...
+  Job ID: job-20094b04-a0b3-4f39-9ea7-d367fa3b0094
+
+  Monitoring job status while the external agent processes the batch...
+
+  job status=pending    events=3   local records=0  
+→ external_http request received: Process batch of 20 records
+  local agent processed   1/20  local agent processed   2/20  local agent processed   3/20  job status=running    events=7   local records=3    local agent processed   4/20  local agent processed   5/20  local agent processed   6/20  local agent processed   7/20  local agent processed   8/20  local agent processed   9/20  local agent processed  10/20  local agent processed  11/20  local agent processed  12/20  local agent processed  13/20  local agent processed  14/20  local agent processed  15/20  local agent processed  16/20  local agent processed  17/20  local agent processed  18/20  local agent processed  19/20  local agent processed  20/20
+  job status=completed  events=16  local records=20 
+
+  ✓ Job job-20094b04-a0b3-4f39-9ea7-d367fa3b0094
+    Status:        completed
+    Output:        (none yet)
+    Event count:   16
+    Local records: 20
+
+  Inspect the event stream and trace:
+    curl http://localhost:8080/api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094/events
+    curl http://localhost:8080/api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094/trace
+

@@ -1,0 +1,1 @@
+{"agent_id":"crash_demo_batch_processor","created_at":"2026-06-17T10:05:02.391056+08:00","cursor":"cp-8acf4c39-13ed-45fc-b6a7-65e499be22b6","goal":"Process batch of 20 records","id":"job-20094b04-a0b3-4f39-9ea7-d367fa3b0094","retry_count":0,"status":"completed","updated_at":"2026-06-17T10:05:06.742924+08:00"}

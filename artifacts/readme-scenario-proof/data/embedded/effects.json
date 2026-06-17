@@ -1,0 +1,47 @@
+{
+  "by_key": {
+    "job-20094b04-a0b3-4f39-9ea7-d367fa3b0094\u0000b3f31e1fb277c7901b6c08294e35d80e1ac9b58f693d6c562e9e87ccff0f896c": {
+      "JobID": "job-20094b04-a0b3-4f39-9ea7-d367fa3b0094",
+      "CommandID": "bb52405e96ad8d6b",
+      "IdempotencyKey": "b3f31e1fb277c7901b6c08294e35d80e1ac9b58f693d6c562e9e87ccff0f896c",
+      "Kind": "tool",
+      "Input": "eyJhZ2VudF9pZCI6ImNyYXNoX2RlbW9fYmF0Y2hfcHJvY2Vzc29yIiwiZnJhbWV3b3JrIjoiZ2VuZXJpYyIsIm1lc3NhZ2UiOiJQcm9jZXNzIGJhdGNoIG9mIDIwIHJlY29yZHMifQ==",
+      "Output": "eyJkb25lIjp0cnVlLCJlcnJvciI6IiIsIm91dHB1dCI6IntcImFuc3dlclwiOlwie1xcXCJwcm9jZXNzZWRfcmVjb3Jkc1xcXCI6IDIwLCBcXFwibGFzdF9yZWNvcmRfaWRcXFwiOiAyMCwgXFxcInNlc3Npb25fcmVjb3Jkc1xcXCI6IDIwfVwiLFwiZmluYWxcIjp0cnVlLFwibWV0YWRhdGFcIjp7XCJsYXN0X3JlY29yZF9pZFwiOjIwLFwicHJvY2Vzc2VkX3JlY29yZHNcIjoyMCxcInNlc3Npb25fcmVjb3Jkc1wiOjIwfX0iLCJzdGF0ZSI6bnVsbH0=",
+      "Error": "",
+      "Metadata": {
+        "tool_name": "external_agent_call"
+      },
+      "CreatedAt": "2026-06-17T02:05:06.730031Z"
+    },
+    "job-20094b04-a0b3-4f39-9ea7-d367fa3b0094\u0000cmd\u0000bb52405e96ad8d6b": {
+      "JobID": "job-20094b04-a0b3-4f39-9ea7-d367fa3b0094",
+      "CommandID": "bb52405e96ad8d6b",
+      "IdempotencyKey": "b3f31e1fb277c7901b6c08294e35d80e1ac9b58f693d6c562e9e87ccff0f896c",
+      "Kind": "tool",
+      "Input": "eyJhZ2VudF9pZCI6ImNyYXNoX2RlbW9fYmF0Y2hfcHJvY2Vzc29yIiwiZnJhbWV3b3JrIjoiZ2VuZXJpYyIsIm1lc3NhZ2UiOiJQcm9jZXNzIGJhdGNoIG9mIDIwIHJlY29yZHMifQ==",
+      "Output": "eyJkb25lIjp0cnVlLCJlcnJvciI6IiIsIm91dHB1dCI6IntcImFuc3dlclwiOlwie1xcXCJwcm9jZXNzZWRfcmVjb3Jkc1xcXCI6IDIwLCBcXFwibGFzdF9yZWNvcmRfaWRcXFwiOiAyMCwgXFxcInNlc3Npb25fcmVjb3Jkc1xcXCI6IDIwfVwiLFwiZmluYWxcIjp0cnVlLFwibWV0YWRhdGFcIjp7XCJsYXN0X3JlY29yZF9pZFwiOjIwLFwicHJvY2Vzc2VkX3JlY29yZHNcIjoyMCxcInNlc3Npb25fcmVjb3Jkc1wiOjIwfX0iLCJzdGF0ZSI6bnVsbH0=",
+      "Error": "",
+      "Metadata": {
+        "tool_name": "external_agent_call"
+      },
+      "CreatedAt": "2026-06-17T02:05:06.730031Z"
+    }
+  },
+  "by_job": {
+    "job-20094b04-a0b3-4f39-9ea7-d367fa3b0094": [
+      {
+        "JobID": "job-20094b04-a0b3-4f39-9ea7-d367fa3b0094",
+        "CommandID": "bb52405e96ad8d6b",
+        "IdempotencyKey": "b3f31e1fb277c7901b6c08294e35d80e1ac9b58f693d6c562e9e87ccff0f896c",
+        "Kind": "tool",
+        "Input": "eyJhZ2VudF9pZCI6ImNyYXNoX2RlbW9fYmF0Y2hfcHJvY2Vzc29yIiwiZnJhbWV3b3JrIjoiZ2VuZXJpYyIsIm1lc3NhZ2UiOiJQcm9jZXNzIGJhdGNoIG9mIDIwIHJlY29yZHMifQ==",
+        "Output": "eyJkb25lIjp0cnVlLCJlcnJvciI6IiIsIm91dHB1dCI6IntcImFuc3dlclwiOlwie1xcXCJwcm9jZXNzZWRfcmVjb3Jkc1xcXCI6IDIwLCBcXFwibGFzdF9yZWNvcmRfaWRcXFwiOiAyMCwgXFxcInNlc3Npb25fcmVjb3Jkc1xcXCI6IDIwfVwiLFwiZmluYWxcIjp0cnVlLFwibWV0YWRhdGFcIjp7XCJsYXN0X3JlY29yZF9pZFwiOjIwLFwicHJvY2Vzc2VkX3JlY29yZHNcIjoyMCxcInNlc3Npb25fcmVjb3Jkc1wiOjIwfX0iLCJzdGF0ZSI6bnVsbH0=",
+        "Error": "",
+        "Metadata": {
+          "tool_name": "external_agent_call"
+        },
+        "CreatedAt": "2026-06-17T02:05:06.730031Z"
+      }
+    ]
+  }
+}

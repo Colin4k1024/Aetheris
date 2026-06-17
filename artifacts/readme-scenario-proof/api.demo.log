@@ -1,0 +1,31 @@
+{"time":"2026-06-17T10:04:40.012455+08:00","level":"INFO","msg":"默认 Workflow 注册成功","workflows":["ingest_pipeline","query_pipeline"]}
+{"time":"2026-06-17T10:04:40.012978+08:00","level":"INFO","msg":"eino 引擎初始化成功"}
+{"time":"2026-06-17T10:04:40.013299+08:00","level":"INFO","msg":"Workflow 注册成功","name":"query_pipeline"}
+{"time":"2026-06-17T10:04:40.013451+08:00","level":"INFO","msg":"Workflow 注册成功","name":"ingest_pipeline"}
+{"time":"2026-06-17T10:04:40.01461+08:00","level":"INFO","msg":"JobStore 使用 Embedded 后端","path":"./artifacts/readme-scenario-proof/data/embedded"}
+{"time":"2026-06-17T10:04:40.014828+08:00","level":"WARN","msg":"SECURITY: Authentication is disabled. Anonymous users have user privileges. Enable JWT in production."}
+{"time":"2026-06-17T10:04:40.015055+08:00","level":"INFO","msg":"API 服务启动","addr":":8080"}
+{"time":"2026-06-17T10:04:40.016606+08:00","level":"Info","msg":"HERTZ: Using network library=netpoll"}
+{"time":"2026-06-17T10:04:40.017237+08:00","level":"Info","msg":"HERTZ: HTTP server listening on address=[::]:8080"}
+{"time":"2026-06-17T10:04:56.283143+08:00","level":"Info","msg":"GET /api/health ::1 200 1.866209ms"}
+{"time":"2026-06-17T10:05:02.347381+08:00","level":"Info","msg":"GET /api/health ::1 200 40.916µs"}
+{"time":"2026-06-17T10:05:02.393364+08:00","level":"Info","msg":"POST /api/agents/crash_demo_batch_processor/message ::1 202 6.112209ms"}
+{"time":"2026-06-17T10:05:02.395111+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094 ::1 200 261.291µs"}
+{"time":"2026-06-17T10:05:02.396738+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094/events ::1 200 607.167µs"}
+{"time":"2026-06-17T10:05:03.402555+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094 ::1 200 40.583µs"}
+{"time":"2026-06-17T10:05:03.403959+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094/events ::1 200 66.917µs"}
+{"time":"2026-06-17T10:05:04.410494+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094 ::1 200 52.834µs"}
+{"time":"2026-06-17T10:05:04.412348+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094/events ::1 200 73.791µs"}
+{"time":"2026-06-17T10:05:05.414465+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094 ::1 200 27.792µs"}
+{"time":"2026-06-17T10:05:05.416036+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094/events ::1 200 70.166µs"}
+{"time":"2026-06-17T10:05:06.42368+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094 ::1 200 41.125µs"}
+{"time":"2026-06-17T10:05:06.426301+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094/events ::1 200 84.667µs"}
+{"time":"2026-06-17T10:05:07.429839+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094 ::1 200 28.583µs"}
+{"time":"2026-06-17T10:05:07.431246+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094/events ::1 200 96.459µs"}
+{"time":"2026-06-17T10:05:19.929099+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094 ::1 200 23.75µs"}
+{"time":"2026-06-17T10:05:19.936913+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094/events ::1 200 96.334µs"}
+{"time":"2026-06-17T10:05:19.9452+08:00","level":"Info","msg":"GET /api/jobs/job-20094b04-a0b3-4f39-9ea7-d367fa3b0094/trace ::1 200 1.036667ms"}
+{"time":"2026-06-17T10:08:39.020717+08:00","level":"Info","msg":"HERTZ: Begin graceful shutdown, wait at most 5s ..."}
+{"time":"2026-06-17T10:08:39.021881+08:00","level":"Info","msg":"HERTZ: Execute OnShutdownHooks finish"}
+{"time":"2026-06-17T10:08:39.021908+08:00","level":"INFO","msg":"eino 引擎关闭成功"}
+2026/06/17 10:08:39 API 服务已关闭
