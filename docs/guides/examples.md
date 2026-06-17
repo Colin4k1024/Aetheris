@@ -8,6 +8,7 @@ If this is your first time running Aetheris, start with [quickstart.md](quicksta
 
 | Example | Use it for | Run shape |
 | ------- | ---------- | --------- |
+| [customer_support_agent](../../examples/customer_support_agent/) | Real `external_http` business agent with GIF proof | No external API key |
 | [workflow](../../examples/workflow/) | Pure Eino DAG workflow without an agent | `go run ./examples/workflow` |
 | [basic_agent](../../examples/basic_agent/) | Minimal Eino ChatModelAgent | Requires `OPENAI_API_KEY` |
 | [eino_agent_with_tools](../../examples/eino_agent_with_tools/) | Eino agent calling tools | Requires `OPENAI_API_KEY` |

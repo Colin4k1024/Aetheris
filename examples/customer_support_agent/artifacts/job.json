@@ -1,0 +1,10 @@
+{
+  "agent_id": "customer_support_agent",
+  "created_at": "2026-06-17T13:18:38.203295+08:00",
+  "cursor": "cp-8fd3bb18-e13a-4fb4-a3ec-dad058f00e5d",
+  "goal": "Customer says order A-1042 arrived damaged, asks for a refund and a replacement before the weekend.",
+  "id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+  "retry_count": 0,
+  "status": "completed",
+  "updated_at": "2026-06-17T13:18:38.894404+08:00"
+}

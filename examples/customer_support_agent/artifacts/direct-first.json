@@ -1,0 +1,24 @@
+{
+  "answer": "Ticket CS-76A73B1B: I found order A-1042 for the espresso machine. The damage report is inside the 30-day support window, so I approved a replacement and a courtesy refund.\nAction: approve_replacement_and_refund. Priority: normal. Confidence: 0.95.\nInternal note: Low-risk damaged-item policy auto-approved.",
+  "final": true,
+  "metadata": {
+    "agent": "customer_support_agent",
+    "cached": false,
+    "ticket_id": "CS-76A73B1B",
+    "order_id": "A-1042",
+    "intent": "damaged_item",
+    "action": "approve_replacement_and_refund",
+    "priority": "normal",
+    "confidence": 0.95,
+    "job_id": null,
+    "idempotency_key": "customer-direct-001",
+    "tools_used": [
+      "extract_order",
+      "lookup_order",
+      "evaluate_policy",
+      "record_case",
+      "draft_customer_reply"
+    ],
+    "ledger_ticket_count": 1
+  }
+}
