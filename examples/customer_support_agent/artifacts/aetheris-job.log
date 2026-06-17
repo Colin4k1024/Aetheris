@@ -1,0 +1,12 @@
+$ POST /api/agents/customer_support_agent/message
+message: Customer says order A-1042 arrived damaged, asks for a refund and a replacement before the weekend.
+job id: job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55
+poll status=pending events=3
+poll status=pending events=3
+poll status=completed events=16
+final status: completed
+first event: job_created
+last event:  job_completed
+trace steps: 3
+answer: Ticket CS-0CF9FE58: I found order A-1042 for the espresso machine. The damage report is inside the 30-day support window, so I approved a replacement and a courtesy refund.
+PASS Aetheris recorded the real customer support agent run.

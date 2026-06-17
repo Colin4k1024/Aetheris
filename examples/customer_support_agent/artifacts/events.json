@@ -1,0 +1,296 @@
+{
+  "events": [
+    {
+      "created_at": "2026-06-17T13:18:38.203809+08:00",
+      "id": "ev-ab17a5b7-39f0-4d63-abfd-fe710c9aeeb0",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "agent_id": "customer_support_agent",
+        "goal": "Customer says order A-1042 arrived damaged, asks for a refund and a replacement before the weekend."
+      },
+      "type": "job_created"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.204301+08:00",
+      "id": "ev-5077c448-78db-40bc-a80c-a6ca3983545d",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "goal": "Customer says order A-1042 arrived damaged, asks for a refund and a replacement before the weekend.",
+        "plan_hash": "aee95ac91720d1e0744478cfa864a7b149a3d865bda16fab25ab247cb49cce78",
+        "task_graph": {
+          "nodes": [
+            {
+              "id": "external_agent_call",
+              "type": "tool",
+              "config": {
+                "agent_id": "customer_support_agent",
+                "framework": "generic",
+                "message": "Customer says order A-1042 arrived damaged, asks for a refund and a replacement before the weekend."
+              },
+              "tool_name": "external_agent_call"
+            }
+          ],
+          "edges": null
+        }
+      },
+      "type": "plan_generated"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.204727+08:00",
+      "id": "ev-b2dbae02-971c-4c2f-ae43-0793251c8a1c",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "goal": "Customer says order A-1042 arrived damaged, asks for a refund and a replacement before the weekend.",
+        "plan_hash": "aee95ac91720d1e0744478cfa864a7b149a3d865bda16fab25ab247cb49cce78",
+        "task_graph_summary": "{\"nodes\":[{\"id\":\"external_agent_call\",\"type\":\"tool\",\"config\":{\"agent_id\":\"customer_support_agent\",\"framework\":\"generic\",\"message\":\"Customer says order A-1042 arrived damaged, asks for a refund and a replacement before the weekend.\"},\"tool_name\":\"external_agent_call\"}],\"edges\":null}"
+      },
+      "type": "decision_snapshot"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.878428+08:00",
+      "id": "ev-fbd1abf8-ba8a-4325-83c4-a6ea52c6a5ee",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "attempt": 1,
+        "node_id": "external_agent_call",
+        "parent_span_id": "plan",
+        "step_index": 4,
+        "trace_span_id": "external_agent_call"
+      },
+      "type": "node_started"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.880256+08:00",
+      "id": "ev-c1a1e709-1047-4d08-b6c5-2efc63c34bc9",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "arguments_hash": "6b51dbc8b7f28b9f",
+        "idempotency_key": "0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353",
+        "invocation_id": "07ccaf9f-ed12-4b17-9b60-02b058d5787e",
+        "node_id": "04cdedc83c01ee1e",
+        "started_at": "2026-06-17T05:18:38Z",
+        "tool_name": "external_agent_call"
+      },
+      "type": "tool_invocation_started"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.880993+08:00",
+      "id": "ev-883747c1-0b96-4e40-9fca-a9955e375bb3",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "command_id": "external_agent_call",
+        "input": {
+          "agent_id": "customer_support_agent",
+          "framework": "generic",
+          "message": "Customer says order A-1042 arrived damaged, asks for a refund and a replacement before the weekend."
+        },
+        "kind": "tool",
+        "node_id": "04cdedc83c01ee1e",
+        "step_index": 6
+      },
+      "type": "command_emitted"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.881927+08:00",
+      "id": "ev-2e71e1e2-5aa8-4b6b-866f-b73d2ee7e8ce",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "input": {
+          "agent_id": "customer_support_agent",
+          "framework": "generic",
+          "message": "Customer says order A-1042 arrived damaged, asks for a refund and a replacement before the weekend."
+        },
+        "node_id": "04cdedc83c01ee1e",
+        "parent_span_id": "04cdedc83c01ee1e",
+        "step_index": 7,
+        "tool_name": "external_agent_call",
+        "trace_span_id": "04cdedc83c01ee1e:tool:external_agent_call:7"
+      },
+      "type": "tool_called"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.886664+08:00",
+      "id": "ev-f132f304-62b0-480d-8de7-b0f2c027c473",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "finished_at": "2026-06-17T05:18:38Z",
+        "idempotency_key": "0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353",
+        "invocation_id": "07ccaf9f-ed12-4b17-9b60-02b058d5787e",
+        "node_id": "04cdedc83c01ee1e",
+        "outcome": "success",
+        "result": {
+          "done": true,
+          "error": "",
+          "output": "{\"answer\":\"Ticket CS-0CF9FE58: I found order A-1042 for the espresso machine. The damage report is inside the 30-day support window, so I approved a replacement and a courtesy refund.\\nAction: approve_replacement_and_refund. Priority: normal. Confidence: 0.95.\\nInternal note: Low-risk damaged-item policy auto-approved.\",\"final\":true,\"metadata\":{\"action\":\"approve_replacement_and_refund\",\"agent\":\"customer_support_agent\",\"cached\":false,\"confidence\":0.95,\"idempotency_key\":\"0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353\",\"intent\":\"damaged_item\",\"job_id\":\"job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55\",\"ledger_ticket_count\":2,\"order_id\":\"A-1042\",\"priority\":\"normal\",\"ticket_id\":\"CS-0CF9FE58\",\"tools_used\":[\"extract_order\",\"lookup_order\",\"evaluate_policy\",\"record_case\",\"draft_customer_reply\"]}}",
+          "state": null
+        }
+      },
+      "type": "tool_invocation_finished"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.887392+08:00",
+      "id": "ev-dc2dec2c-4907-439f-9de4-a82aa0a0245f",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "command_id": "external_agent_call",
+        "input_hash": "6b51dbc8b7f28b9f",
+        "node_id": "04cdedc83c01ee1e",
+        "result": {
+          "done": true,
+          "error": "",
+          "output": "{\"answer\":\"Ticket CS-0CF9FE58: I found order A-1042 for the espresso machine. The damage report is inside the 30-day support window, so I approved a replacement and a courtesy refund.\\nAction: approve_replacement_and_refund. Priority: normal. Confidence: 0.95.\\nInternal note: Low-risk damaged-item policy auto-approved.\",\"final\":true,\"metadata\":{\"action\":\"approve_replacement_and_refund\",\"agent\":\"customer_support_agent\",\"cached\":false,\"confidence\":0.95,\"idempotency_key\":\"0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353\",\"intent\":\"damaged_item\",\"job_id\":\"job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55\",\"ledger_ticket_count\":2,\"order_id\":\"A-1042\",\"priority\":\"normal\",\"ticket_id\":\"CS-0CF9FE58\",\"tools_used\":[\"extract_order\",\"lookup_order\",\"evaluate_policy\",\"record_case\",\"draft_customer_reply\"]}}",
+          "state": null
+        },
+        "step_id": "external_agent_call",
+        "step_index": 9
+      },
+      "type": "command_committed"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.888666+08:00",
+      "id": "ev-6b24d43b-c6af-4a3d-95c5-eebe9a7fde31",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "node_id": "04cdedc83c01ee1e",
+        "output": {
+          "done": true,
+          "error": "",
+          "output": "{\"answer\":\"Ticket CS-0CF9FE58: I found order A-1042 for the espresso machine. The damage report is inside the 30-day support window, so I approved a replacement and a courtesy refund.\\nAction: approve_replacement_and_refund. Priority: normal. Confidence: 0.95.\\nInternal note: Low-risk damaged-item policy auto-approved.\",\"final\":true,\"metadata\":{\"action\":\"approve_replacement_and_refund\",\"agent\":\"customer_support_agent\",\"cached\":false,\"confidence\":0.95,\"idempotency_key\":\"0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353\",\"intent\":\"damaged_item\",\"job_id\":\"job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55\",\"ledger_ticket_count\":2,\"order_id\":\"A-1042\",\"priority\":\"normal\",\"ticket_id\":\"CS-0CF9FE58\",\"tools_used\":[\"extract_order\",\"lookup_order\",\"evaluate_policy\",\"record_case\",\"draft_customer_reply\"]}}"
+        },
+        "parent_span_id": "04cdedc83c01ee1e",
+        "step_index": 10
+      },
+      "type": "tool_returned"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.889001+08:00",
+      "id": "ev-02da04b3-58d4-4b4c-99a5-d1ceac77aa37",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "idempotent": false,
+        "node_id": "04cdedc83c01ee1e",
+        "step_index": 11,
+        "summary": "{\"answer\":\"Ticket CS-0CF9FE58: I found order A-1042 for the espresso machine. The damage report is inside the 30-day support window, so I approved a replacement and a courtesy refund.\\nAction: approve...",
+        "tool_name": "external_agent_call"
+      },
+      "type": "tool_result_summarized"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.889323+08:00",
+      "id": "ev-b3bf8e64-e560-462c-b0c1-78ea60e37a90",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "attempt": 1,
+        "duration_ms": 9,
+        "node_id": "external_agent_call",
+        "parent_span_id": "plan",
+        "payload_results": {
+          "external_agent_call": {
+            "_evidence": {
+              "tool_invocation_ids": [
+                "0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353"
+              ]
+            },
+            "done": true,
+            "error": "",
+            "output": "{\"answer\":\"Ticket CS-0CF9FE58: I found order A-1042 for the espresso machine. The damage report is inside the 30-day support window, so I approved a replacement and a courtesy refund.\\nAction: approve_replacement_and_refund. Priority: normal. Confidence: 0.95.\\nInternal note: Low-risk damaged-item policy auto-approved.\",\"final\":true,\"metadata\":{\"action\":\"approve_replacement_and_refund\",\"agent\":\"customer_support_agent\",\"cached\":false,\"confidence\":0.95,\"idempotency_key\":\"0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353\",\"intent\":\"damaged_item\",\"job_id\":\"job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55\",\"ledger_ticket_count\":2,\"order_id\":\"A-1042\",\"priority\":\"normal\",\"ticket_id\":\"CS-0CF9FE58\",\"tools_used\":[\"extract_order\",\"lookup_order\",\"evaluate_policy\",\"record_case\",\"draft_customer_reply\"]}}",
+            "state": null
+          }
+        },
+        "result_type": "side_effect_committed",
+        "state": "ok",
+        "step_id": "04cdedc83c01ee1e",
+        "step_index": 12,
+        "trace_span_id": "external_agent_call"
+      },
+      "type": "node_finished"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.889684+08:00",
+      "id": "ev-7a4da14c-1a0a-402c-9988-ba3f95e83b32",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "command_id": "04cdedc83c01ee1e",
+        "node_id": "external_agent_call",
+        "step_id": "04cdedc83c01ee1e"
+      },
+      "type": "step_committed"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.890036+08:00",
+      "id": "ev-356e6097-fc9a-469c-beca-1cf2ecdfd9c7",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "changed_keys": [
+          "external_agent_call"
+        ],
+        "node_id": "external_agent_call",
+        "state_after": {
+          "external_agent_call": {
+            "_evidence": {
+              "tool_invocation_ids": [
+                "0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353"
+              ]
+            },
+            "done": true,
+            "error": "",
+            "output": "{\"answer\":\"Ticket CS-0CF9FE58: I found order A-1042 for the espresso machine. The damage report is inside the 30-day support window, so I approved a replacement and a courtesy refund.\\nAction: approve_replacement_and_refund. Priority: normal. Confidence: 0.95.\\nInternal note: Low-risk damaged-item policy auto-approved.\",\"final\":true,\"metadata\":{\"action\":\"approve_replacement_and_refund\",\"agent\":\"customer_support_agent\",\"cached\":false,\"confidence\":0.95,\"idempotency_key\":\"0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353\",\"intent\":\"damaged_item\",\"job_id\":\"job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55\",\"ledger_ticket_count\":2,\"order_id\":\"A-1042\",\"priority\":\"normal\",\"ticket_id\":\"CS-0CF9FE58\",\"tools_used\":[\"extract_order\",\"lookup_order\",\"evaluate_policy\",\"record_case\",\"draft_customer_reply\"]}}",
+            "state": null
+          }
+        },
+        "state_before": {},
+        "step_index": 14
+      },
+      "type": "state_checkpointed"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.89119+08:00",
+      "id": "ev-693cab28-cc82-4d8f-a855-36717ffbc8d4",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "duration_ms": 9,
+        "evidence": {
+          "tool_invocation_ids": [
+            "0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353"
+          ]
+        },
+        "goal": "Customer says order A-1042 arrived damaged, asks for a refund and a replacement before the weekend.",
+        "node_id": "external_agent_call",
+        "node_type": "tool",
+        "output_keys": [
+          "external_agent_call"
+        ],
+        "state_after": {
+          "external_agent_call": {
+            "_evidence": {
+              "tool_invocation_ids": [
+                "0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353"
+              ]
+            },
+            "done": true,
+            "error": "",
+            "output": "{\"answer\":\"Ticket CS-0CF9FE58: I found order A-1042 for the espresso machine. The damage report is inside the 30-day support window, so I approved a replacement and a courtesy refund.\\nAction: approve_replacement_and_refund. Priority: normal. Confidence: 0.95.\\nInternal note: Low-risk damaged-item policy auto-approved.\",\"final\":true,\"metadata\":{\"action\":\"approve_replacement_and_refund\",\"agent\":\"customer_support_agent\",\"cached\":false,\"confidence\":0.95,\"idempotency_key\":\"0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353\",\"intent\":\"damaged_item\",\"job_id\":\"job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55\",\"ledger_ticket_count\":2,\"order_id\":\"A-1042\",\"priority\":\"normal\",\"ticket_id\":\"CS-0CF9FE58\",\"tools_used\":[\"extract_order\",\"lookup_order\",\"evaluate_policy\",\"record_case\",\"draft_customer_reply\"]}}",
+            "state": null
+          }
+        },
+        "state_before": {},
+        "step_id": "04cdedc83c01ee1e",
+        "timestamp": "2026-06-17T13:18:38+08:00",
+        "tool_name": "external_agent_call"
+      },
+      "type": "reasoning_snapshot"
+    },
+    {
+      "created_at": "2026-06-17T13:18:38.892302+08:00",
+      "id": "ev-666c2298-1ff2-4a06-af4a-1948c3cbc775",
+      "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+      "payload": {
+        "answer": "Ticket CS-0CF9FE58: I found order A-1042 for the espresso machine. The damage report is inside the 30-day support window, so I approved a replacement and a courtesy refund.\nAction: approve_replacement_and_refund. Priority: normal. Confidence: 0.95.\nInternal note: Low-risk damaged-item policy auto-approved.",
+        "goal": "Customer says order A-1042 arrived damaged, asks for a refund and a replacement before the weekend.",
+        "result": "Ticket CS-0CF9FE58: I found order A-1042 for the espresso machine. The damage report is inside the 30-day support window, so I approved a replacement and a courtesy refund.\nAction: approve_replacement_and_refund. Priority: normal. Confidence: 0.95.\nInternal note: Low-risk damaged-item policy auto-approved."
+      },
+      "type": "job_completed"
+    }
+  ],
+  "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55"
+}

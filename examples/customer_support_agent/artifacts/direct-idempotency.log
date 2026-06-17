@@ -1,0 +1,7 @@
+$ python3 agent.py
+agent listening http://127.0.0.1:19002
+$ POST /invoke twice with the same Idempotency-Key
+first ticket:  CS-76A73B1B cached=False
+second ticket: CS-76A73B1B cached=True
+ledger tickets: 1
+PASS direct idempotency reused the same support ticket.

@@ -1,0 +1,68 @@
+{
+  "responses": {
+    "0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353": {
+      "answer": "Ticket CS-0CF9FE58: I found order A-1042 for the espresso machine. The damage report is inside the 30-day support window, so I approved a replacement and a courtesy refund.\nAction: approve_replacement_and_refund. Priority: normal. Confidence: 0.95.\nInternal note: Low-risk damaged-item policy auto-approved.",
+      "final": true,
+      "metadata": {
+        "action": "approve_replacement_and_refund",
+        "agent": "customer_support_agent",
+        "cached": false,
+        "confidence": 0.95,
+        "idempotency_key": "0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353",
+        "intent": "damaged_item",
+        "job_id": "job-4f696b58-77bb-4c34-a6e6-b36eb5a09a55",
+        "ledger_ticket_count": 2,
+        "order_id": "A-1042",
+        "priority": "normal",
+        "ticket_id": "CS-0CF9FE58",
+        "tools_used": [
+          "extract_order",
+          "lookup_order",
+          "evaluate_policy",
+          "record_case",
+          "draft_customer_reply"
+        ]
+      }
+    },
+    "customer-direct-001": {
+      "answer": "Ticket CS-76A73B1B: I found order A-1042 for the espresso machine. The damage report is inside the 30-day support window, so I approved a replacement and a courtesy refund.\nAction: approve_replacement_and_refund. Priority: normal. Confidence: 0.95.\nInternal note: Low-risk damaged-item policy auto-approved.",
+      "final": true,
+      "metadata": {
+        "action": "approve_replacement_and_refund",
+        "agent": "customer_support_agent",
+        "cached": false,
+        "confidence": 0.95,
+        "idempotency_key": "customer-direct-001",
+        "intent": "damaged_item",
+        "job_id": null,
+        "ledger_ticket_count": 1,
+        "order_id": "A-1042",
+        "priority": "normal",
+        "ticket_id": "CS-76A73B1B",
+        "tools_used": [
+          "extract_order",
+          "lookup_order",
+          "evaluate_policy",
+          "record_case",
+          "draft_customer_reply"
+        ]
+      }
+    }
+  },
+  "tickets": [
+    {
+      "action": "approve_replacement_and_refund",
+      "created_at": 1781673516,
+      "idempotency_key": "customer-direct-001",
+      "order_id": "A-1042",
+      "ticket_id": "CS-76A73B1B"
+    },
+    {
+      "action": "approve_replacement_and_refund",
+      "created_at": 1781673518,
+      "idempotency_key": "0bca24b1623421f80e71f071afb4035cbebfeb237261ee72e2749a26dd2f7353",
+      "order_id": "A-1042",
+      "ticket_id": "CS-0CF9FE58"
+    }
+  ]
+}
