@@ -75,6 +75,26 @@ curl -X POST http://localhost:8080/api/agents/my_python_agent/message \
 
 ---
 
+## Verified README scenario GIFs
+
+These GIFs were generated from a real local run of the README quickstart and
+`external_http` batch demo. The raw evidence is available in
+[artifacts/readme-scenario-proof](artifacts/readme-scenario-proof/).
+
+### Embedded quickstart health check
+
+![Aetheris embedded quickstart health check](artifacts/readme-scenario-proof/readme-quickstart-health.gif)
+
+### external_http durable batch job
+
+![Aetheris external_http batch demo](artifacts/readme-scenario-proof/readme-external-http-batch-demo.gif)
+
+### Event log and trace proof
+
+![Aetheris event log and trace proof](artifacts/readme-scenario-proof/readme-event-trace-proof.gif)
+
+---
+
 ## Core guarantees
 
 ### 1. Crash recovery

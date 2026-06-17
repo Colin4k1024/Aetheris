@@ -704,6 +704,75 @@
       color: var(--dim);
     }
 
+    /* ─── Scenario proof ───────────────────────────────── */
+    .proof-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 18px;
+    }
+
+    .proof-card {
+      border-radius: var(--r-lg);
+      border: 1px solid var(--border);
+      background: var(--bg-1);
+      overflow: hidden;
+      transition: border-color 160ms, transform 160ms;
+    }
+
+    .proof-card:hover {
+      border-color: var(--border-hi);
+      transform: translateY(-2px);
+    }
+
+    .proof-media {
+      aspect-ratio: 16 / 9;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .proof-media img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .proof-body {
+      padding: 18px 20px 20px;
+    }
+
+    .proof-body h3 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .proof-body p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .proof-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 14px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .proof-meta::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 10px rgba(52,211,153,0.4);
+    }
+
     /* ─── Integrations ─────────────────────────────────── */
     .integration-grid {
       display: grid;
@@ -898,6 +967,7 @@
       <li><a href="#guarantees">Guarantees</a></li>
       <li><a href="#advanced-features">Features</a></li>
       <li><a href="#quickstart">Quickstart</a></li>
+      <li><a href="#proof">Proof</a></li>
       <li><a href="#integrations">Integrations</a></li>
       <li><a href="#resources">Docs</a></li>
     </ul>
@@ -1371,6 +1441,75 @@ job = client.submit(
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Scenario Proof ═══════════════════════════════════ -->
+<section class="section" id="proof">
+  <div class="wrap">
+    <div class="section-label">Verified Proof</div>
+    <h2>README scenarios, run for real.</h2>
+    <p class="section-sub">
+      These recordings come from the embedded quickstart and the
+      external_http batch demo, with raw job, event, and trace evidence checked
+      into the repository.
+    </p>
+    <div class="proof-grid">
+      <article class="proof-card">
+        <div class="proof-media">
+          <img
+            src="assets/readme-scenario-proof/readme-quickstart-health.gif"
+            alt="Aetheris embedded quickstart health check GIF"
+            loading="lazy"
+            width="1280"
+            height="720">
+        </div>
+        <div class="proof-body">
+          <h3>Embedded quickstart</h3>
+          <p>
+            Starts the embedded API and Worker, then verifies
+            <code>/api/health</code> returns a live runtime response.
+          </p>
+          <span class="proof-meta">health status ok</span>
+        </div>
+      </article>
+      <article class="proof-card">
+        <div class="proof-media">
+          <img
+            src="assets/readme-scenario-proof/readme-external-http-batch-demo.gif"
+            alt="Aetheris external_http durable batch job GIF"
+            loading="lazy"
+            width="1280"
+            height="720">
+        </div>
+        <div class="proof-body">
+          <h3>external_http batch</h3>
+          <p>
+            Submits a durable black-box HTTP agent job and shows the external
+            service processing 20 records through completion.
+          </p>
+          <span class="proof-meta">job completed</span>
+        </div>
+      </article>
+      <article class="proof-card">
+        <div class="proof-media">
+          <img
+            src="assets/readme-scenario-proof/readme-event-trace-proof.gif"
+            alt="Aetheris event log and trace proof GIF"
+            loading="lazy"
+            width="1280"
+            height="720">
+        </div>
+        <div class="proof-body">
+          <h3>Event and trace proof</h3>
+          <p>
+            Shows the recorded event chain from plan generation to tool commit,
+            checkpoint, reasoning snapshot, and final job completion.
+          </p>
+          <span class="proof-meta">16 events recorded</span>
+        </div>
+      </article>
     </div>
   </div>
 </section>
