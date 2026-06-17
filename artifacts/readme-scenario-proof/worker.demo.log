@@ -1,0 +1,15 @@
+{"time":"2026-06-17T10:04:46.644442+08:00","level":"INFO","msg":"默认 Workflow 注册成功","workflows":["ingest_pipeline","query_pipeline"]}
+{"time":"2026-06-17T10:04:46.645311+08:00","level":"INFO","msg":"eino 引擎初始化成功"}
+{"time":"2026-06-17T10:04:46.646526+08:00","level":"INFO","msg":"Worker Agent Job Embedded 模式已启用","path":"./artifacts/readme-scenario-proof/data/embedded"}
+{"time":"2026-06-17T10:04:46.646552+08:00","level":"INFO","msg":"启动 worker 应用"}
+{"time":"2026-06-17T10:04:46.647106+08:00","level":"INFO","msg":"Prometheus /metrics 已启用","addr":":9093"}
+{"time":"2026-06-17T10:04:46.647206+08:00","level":"INFO","msg":"Runtime Snapshot 配置","enabled":true,"interval":3600000000000,"event_threshold":1000,"batch_limit":50,"keep_latest":1}
+{"time":"2026-06-17T10:04:46.647255+08:00","level":"INFO","msg":"Runtime GC 配置","enabled":true,"interval":86400000000000,"ttl_days":90,"batch_size":1000}
+{"time":"2026-06-17T10:04:46.647291+08:00","level":"INFO","msg":"worker 应用启动成功"}
+{"time":"2026-06-17T10:04:46.647793+08:00","level":"INFO","msg":"Storage GC goroutine 已启动","interval":86400000000000}
+{"time":"2026-06-17T10:04:46.647755+08:00","level":"INFO","msg":"Snapshot 自动化 goroutine 已启动","interval":3600000000000,"event_threshold":1000}
+{"time":"2026-06-17T10:08:31.72898+08:00","level":"INFO","msg":"关闭 worker 应用"}
+{"time":"2026-06-17T10:08:31.730117+08:00","level":"INFO","msg":"in-flight Job 已全部完成"}
+{"time":"2026-06-17T10:08:31.730173+08:00","level":"INFO","msg":"eino 引擎关闭成功"}
+{"time":"2026-06-17T10:08:31.730191+08:00","level":"INFO","msg":"worker 应用关闭成功"}
+应用已关闭

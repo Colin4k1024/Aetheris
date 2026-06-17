@@ -1,0 +1,26 @@
+{
+  "by_id": {
+    "job-20094b04-a0b3-4f39-9ea7-d367fa3b0094": {
+      "ID": "job-20094b04-a0b3-4f39-9ea7-d367fa3b0094",
+      "AgentID": "crash_demo_batch_processor",
+      "TenantID": "default",
+      "Goal": "Process batch of 20 records",
+      "Status": 2,
+      "CreatedAt": "2026-06-17T10:05:02.391056+08:00",
+      "UpdatedAt": "2026-06-17T10:05:06.742924+08:00",
+      "Cursor": "cp-8acf4c39-13ed-45fc-b6a7-65e499be22b6",
+      "RetryCount": 0,
+      "SessionID": "session-bebecc5f-d1f9-42c5-b694-c5328eee7772",
+      "CancelRequestedAt": "0001-01-01T00:00:00Z",
+      "IdempotencyKey": "crash-demo-batch-20",
+      "Priority": 0,
+      "QueueClass": "",
+      "RequiredCapabilities": null,
+      "ExecutionVersion": "",
+      "PlannerVersion": ""
+    }
+  },
+  "pending": [],
+  "waiting": {},
+  "waiting_key": {}
+}

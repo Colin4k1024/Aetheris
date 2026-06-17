@@ -1,0 +1,138 @@
+# API embedded local-first config
+api:
+  port: 8080
+  host: "0.0.0.0"
+  timeout: 30s
+  cors:
+    enable: true
+    allow_origins: ["*"]
+  middleware:
+    auth: false
+    rate_limit: true
+    rate_limit_rps: 100
+    jwt_key: ""
+    jwt_timeout: "1h"
+    jwt_max_refresh: "1h"
+  forensics:
+    experimental: false
+  grpc:
+    enable: false
+    port: 9090
+
+runtime:
+  profile: "dev"
+  strict: false
+
+jobstore:
+  type: "embedded"
+  dsn: "./artifacts/readme-scenario-proof/data/embedded"
+  lease_duration: "30s"
+
+effect_store:
+  type: "embedded"
+  dsn: "./artifacts/readme-scenario-proof/data/embedded"
+
+checkpoint_store:
+  type: "embedded"
+  dsn: "./artifacts/readme-scenario-proof/data/embedded"
+
+security:
+  evidence_signing:
+    enabled: false
+    key_id: "default"
+    private_key_base64: "${AETHERIS_EVIDENCE_SIGNING_PRIVATE_KEY}"
+    public_key_base64: "${AETHERIS_EVIDENCE_SIGNING_PUBLIC_KEY}"
+
+agent:
+  job_scheduler:
+    enabled: true
+    max_concurrency: 2
+    retry_max: 2
+    backoff: "1s"
+  adk:
+    enabled: true
+    checkpoint_store: "memory"
+
+# Agent definitions for embedded mode.
+# The crash_demo_batch_processor entry below is an optional external_http batch
+# demo used by examples/crash_recovery/demo.py. It demonstrates the outer-call
+# durability boundary of external_http, not per-record checkpoint resume.
+# In split API/Worker deployments, load the same external_http agent definitions
+# into both configs (or mount a shared config) so the API can accept
+# /api/agents/:id/message and the Worker can execute the job.
+# For a quick external HTTP agent test, add entries under agents.agents:
+#
+agents:
+  agents:
+    # Used by examples/crash_recovery/demo.py
+    # Start the demo agent by running: python examples/crash_recovery/demo.py
+    crash_demo_batch_processor:
+      type: "external_http"
+      description: "Batch processor agent for external_http boundary demo"
+      external:
+        url: "http://127.0.0.1:19001/invoke"
+        timeout: "60s"
+
+    # Generic quickstart HTTP agent — replace url with your own service
+    # quickstart_http:
+    #   type: "external_http"
+    #   description: "Local quickstart HTTP agent"
+    #   external:
+    #     url: "http://127.0.0.1:9000/invoke"
+    #     timeout: "30s"
+    #
+    # LangChain/LangGraph framework agents can use type aliases. Start the
+    # Python adapter with aetheris.integrations.langchain.serve(...) or
+    # aetheris.integrations.langgraph.serve(...), then register it here.
+    # langchain_research_agent:
+    #   type: "langchain"
+    #   external:
+    #     url: "http://127.0.0.1:9000/invoke"
+    #     timeout: "120s"
+    #
+    # langgraph_research_agent:
+    #   type: "langgraph"
+    #   external:
+    #     url: "http://127.0.0.1:19001/invoke"
+    #     timeout: "120s"
+    #
+    # Embedded mode turns a declared LangChain/LangGraph manifest into a native
+    # Aetheris TaskGraph. Use a base URL here, not an /invoke endpoint.
+    # embedded_langchain_research_agent:
+    #   type: "langchain"
+    #   external:
+    #     mode: "embedded"
+    #     url: "http://127.0.0.1:9000"
+    #     timeout: "120s"
+    #     manifest_path: "./configs/framework-agents/research_agent.manifest.json"
+
+storage:
+  metadata:
+    type: "memory"
+    dsn: ""
+    pool_size: 0
+  vector:
+    type: "memory"
+    addr: ""
+    db: ""
+    collection: "default"
+    password: ""
+  object:
+    type: "memory"
+  cache:
+    type: "memory"
+  ingest:
+    batch_size: 100
+    concurrency: 4
+
+log:
+  level: "info"
+  format: "json"
+  file: ""
+
+monitoring:
+  prometheus:
+    enable: true
+    port: 9092
+  tracing:
+    enable: false

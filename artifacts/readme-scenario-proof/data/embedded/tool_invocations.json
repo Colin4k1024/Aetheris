@@ -1,0 +1,17 @@
+{
+  "b3f31e1fb277c7901b6c08294e35d80e1ac9b58f693d6c562e9e87ccff0f896c": {
+    "InvocationID": "f22b9971-1b77-4c78-8670-e1878816fa54",
+    "JobID": "job-20094b04-a0b3-4f39-9ea7-d367fa3b0094",
+    "StepID": "external_agent_call",
+    "ToolName": "external_agent_call",
+    "ArgsHash": "c2434295c82fc866",
+    "IdempotencyKey": "b3f31e1fb277c7901b6c08294e35d80e1ac9b58f693d6c562e9e87ccff0f896c",
+    "Status": "success",
+    "Result": "eyJkb25lIjp0cnVlLCJlcnJvciI6IiIsIm91dHB1dCI6IntcImFuc3dlclwiOlwie1xcXCJwcm9jZXNzZWRfcmVjb3Jkc1xcXCI6IDIwLCBcXFwibGFzdF9yZWNvcmRfaWRcXFwiOiAyMCwgXFxcInNlc3Npb25fcmVjb3Jkc1xcXCI6IDIwfVwiLFwiZmluYWxcIjp0cnVlLFwibWV0YWRhdGFcIjp7XCJsYXN0X3JlY29yZF9pZFwiOjIwLFwicHJvY2Vzc2VkX3JlY29yZHNcIjoyMCxcInNlc3Npb25fcmVjb3Jkc1wiOjIwfX0iLCJzdGF0ZSI6bnVsbH0=",
+    "Committed": true,
+    "CreatedAt": "0001-01-01T00:00:00Z",
+    "UpdatedAt": "0001-01-01T00:00:00Z",
+    "ConfirmedAt": null,
+    "ExternalID": ""
+  }
+}

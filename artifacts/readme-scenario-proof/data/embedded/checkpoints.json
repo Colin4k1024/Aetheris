@@ -1,0 +1,14 @@
+{
+  "cp-8acf4c39-13ed-45fc-b6a7-65e499be22b6": {
+    "ID": "cp-8acf4c39-13ed-45fc-b6a7-65e499be22b6",
+    "AgentID": "crash_demo_batch_processor",
+    "SessionID": "session-bebecc5f-d1f9-42c5-b694-c5328eee7772",
+    "JobID": "job-20094b04-a0b3-4f39-9ea7-d367fa3b0094",
+    "TaskGraphState": "eyJub2RlcyI6W3siaWQiOiJleHRlcm5hbF9hZ2VudF9jYWxsIiwidHlwZSI6InRvb2wiLCJjb25maWciOnsiYWdlbnRfaWQiOiJjcmFzaF9kZW1vX2JhdGNoX3Byb2Nlc3NvciIsImZyYW1ld29yayI6ImdlbmVyaWMiLCJtZXNzYWdlIjoiUHJvY2VzcyBiYXRjaCBvZiAyMCByZWNvcmRzIn0sInRvb2xfbmFtZSI6ImV4dGVybmFsX2FnZW50X2NhbGwifV0sImVkZ2VzIjpudWxsfQ==",
+    "MemoryState": null,
+    "CursorNode": "external_agent_call",
+    "PayloadResults": "eyJleHRlcm5hbF9hZ2VudF9jYWxsIjp7Il9ldmlkZW5jZSI6eyJ0b29sX2ludm9jYXRpb25faWRzIjpbImIzZjMxZTFmYjI3N2M3OTAxYjZjMDgyOTRlMzVkODBlMWFjOWI1OGY2OTNkNmM1NjJlOWU4N2NjZmYwZjg5NmMiXX0sImRvbmUiOnRydWUsImVycm9yIjoiIiwib3V0cHV0Ijoie1wiYW5zd2VyXCI6XCJ7XFxcInByb2Nlc3NlZF9yZWNvcmRzXFxcIjogMjAsIFxcXCJsYXN0X3JlY29yZF9pZFxcXCI6IDIwLCBcXFwic2Vzc2lvbl9yZWNvcmRzXFxcIjogMjB9XCIsXCJmaW5hbFwiOnRydWUsXCJtZXRhZGF0YVwiOntcImxhc3RfcmVjb3JkX2lkXCI6MjAsXCJwcm9jZXNzZWRfcmVjb3Jkc1wiOjIwLFwic2Vzc2lvbl9yZWNvcmRzXCI6MjB9fSIsInN0YXRlIjpudWxsfX0=",
+    "CreatedAt": "2026-06-17T10:05:06.738843+08:00",
+    "ExpiresAt": null
+  }
+}

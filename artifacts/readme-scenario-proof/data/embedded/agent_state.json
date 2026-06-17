@@ -1,0 +1,28 @@
+{
+  "crash_demo_batch_processor\u0000session-bebecc5f-d1f9-42c5-b694-c5328eee7772": {
+    "agent_id": "crash_demo_batch_processor",
+    "session_id": "session-bebecc5f-d1f9-42c5-b694-c5328eee7772",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Process batch of 20 records",
+        "time": "2026-06-17T10:05:02.390513+08:00"
+      },
+      {
+        "role": "tool",
+        "content": "{\"answer\":\"{\\\"processed_records\\\": 20, \\\"last_record_id\\\": 20, \\\"session_records\\\": 20}\",\"final\":true,\"metadata\":{\"last_record_id\":20,\"processed_records\":20,\"session_records\":20}}",
+        "time": "2026-06-17T10:05:06.735239+08:00"
+      }
+    ],
+    "tool_calls": [
+      {
+        "tool_name": "external_agent_call",
+        "input": "{\"agent_id\":\"crash_demo_batch_processor\",\"framework\":\"generic\",\"message\":\"Process batch of 20 records\"}",
+        "output": "{\"answer\":\"{\\\"processed_records\\\": 20, \\\"last_record_id\\\": 20, \\\"session_records\\\": 20}\",\"final\":true,\"metadata\":{\"last_record_id\":20,\"processed_records\":20,\"session_records\":20}}",
+        "at": "2026-06-17T10:05:06.735242+08:00"
+      }
+    ],
+    "last_checkpoint": "cp-8acf4c39-13ed-45fc-b6a7-65e499be22b6",
+    "updated_at": "2026-06-17T10:05:06.739368+08:00"
+  }
+}
