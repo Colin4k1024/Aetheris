@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-06-30T01:33:23.092Z",
+  "config": {
+    "vus": 50,
+    "duration": "1m",
+    "base_url": "http://localhost:8080"
+  },
+  "metrics": {
+    "jobs_created": 4578,
+    "jobs_completed": 0,
+    "jobs_failed": 4,
+    "error_rate": 0,
+    "job_creation_p50": 0,
+    "job_creation_p95": 19,
+    "job_creation_p99": 0,
+    "job_poll_p50": 0,
+    "job_poll_p95": 2,
+    "http_req_duration_p95": 16.290799999999997,
+    "http_req_duration_p99": 0,
+    "http_reqs": 9662
+  }
+}

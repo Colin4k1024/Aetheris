@@ -72,6 +72,9 @@ services:
       MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://host.docker.internal:11434/v1"
       MODEL_LLM_PROVIDERS_OPENAI_API_KEY: "ollama"
       MODEL_LLM_PROVIDERS_OPENAI_MODELS_GPT_35_TURBO_NAME: "${OLLAMA_MODEL:-llama3}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "jaeger:4317"
+      OTEL_SERVICE_NAME: "aetheris-worker-1"
+      OTEL_EXPORTER_INSECURE: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -97,6 +100,9 @@ services:
       MODEL_LLM_PROVIDERS_OPENAI_BASE_URL: "http://host.docker.internal:11434/v1"
       MODEL_LLM_PROVIDERS_OPENAI_API_KEY: "ollama"
       MODEL_LLM_PROVIDERS_OPENAI_MODELS_GPT_35_TURBO_NAME: "${OLLAMA_MODEL:-llama3}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "jaeger:4317"
+      OTEL_SERVICE_NAME: "aetheris-worker-2"
+      OTEL_EXPORTER_INSECURE: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

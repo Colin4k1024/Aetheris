@@ -32,6 +32,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/common/expfmt"
 
+	"github.com/hertz-contrib/obs-opentelemetry/provider"
+
 	"github.com/Colin4k1024/Aetheris/v2/internal/agent/instance"
 	"github.com/Colin4k1024/Aetheris/v2/internal/agent/job"
 	"github.com/Colin4k1024/Aetheris/v2/internal/agent/messaging"
@@ -69,6 +71,12 @@ type App struct {
 	jobEventStore  jobstore.JobStore // 用于 Snapshot 自动化与 GC goroutine（仅 postgres 模式下非 nil）
 	replayBuilder  replay.ReplayContextBuilder
 	mcpManager     *mcp.Manager
+	otelProvider   otelProviderShutdown
+}
+
+// otelProviderShutdown 用于优雅关闭时关闭 OpenTelemetry provider
+type otelProviderShutdown interface {
+	Shutdown(ctx context.Context) error
 }
 
 type runtimeSnapshotOps struct {
@@ -155,6 +163,30 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("初始化日志failed: %w", err)
 	}
 
+	// 初始化 OpenTelemetry（复用 API Server 的 provider 模式，确保 Jaeger 能展示 Worker 侧 trace）
+	appObj := &App{
+		config:  cfg,
+		logger:  logger,
+		shutdown: make(chan struct{}),
+	}
+	exportEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if exportEndpoint != "" {
+		serviceName := os.Getenv("OTEL_SERVICE_NAME")
+		if serviceName == "" {
+			serviceName = "aetheris-worker"
+		}
+		opts := []provider.Option{
+			provider.WithServiceName(serviceName),
+			provider.WithExportEndpoint(exportEndpoint),
+		}
+		if os.Getenv("OTEL_EXPORTER_INSECURE") == "true" {
+			opts = append(opts, provider.WithInsecure())
+		}
+		p := provider.NewOpenTelemetryProvider(opts...)
+		appObj.otelProvider = p
+		logger.Info("Worker 链路追踪已启用", "service_name", serviceName, "endpoint", exportEndpoint)
+	}
+
 	// 初始化存储
 	metadataStore, err := metadata.NewStore(cfg.Storage.Metadata)
 	if err != nil {
@@ -172,14 +204,9 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("初始化 eino 引擎failed: %w", err)
 	}
 
-	appObj := &App{
-		config:        cfg,
-		logger:        logger,
-		engine:        engine,
-		metadataStore: metadataStore,
-		vectorStore:   vectorStore,
-		shutdown:      make(chan struct{}),
-	}
+	appObj.engine = engine
+	appObj.metadataStore = metadataStore
+	appObj.vectorStore = vectorStore
 
 	// Agent Job 模式：jobstore.type=postgres 时，从事件存储 Claim、从元数据存储取 Job、执行 DAG Runner
 	embeddedBaseDir := embeddedDataDir(cfg)
@@ -747,7 +774,12 @@ func (a *App) Shutdown(ctx context.Context) error {
 		_ = a.mcpManager.Close()
 	}
 
-	// 4. 关闭存储
+	// 4. 关闭 OpenTelemetry provider
+	if a.otelProvider != nil {
+		_ = a.otelProvider.Shutdown(ctx)
+	}
+
+	// 5. 关闭存储
 	if err := a.metadataStore.Close(); err != nil {
 		a.logger.Error("关闭元数据存储failed", "error", err)
 	}
@@ -756,7 +788,7 @@ func (a *App) Shutdown(ctx context.Context) error {
 		a.logger.Error("关闭向量存储failed", "error", err)
 	}
 
-	// 5. 关闭 eino 引擎
+	// 6. 关闭 eino 引擎
 	if err := a.engine.Shutdown(); err != nil {
 		a.logger.Error("关闭 eino 引擎failed", "error", err)
 	}
