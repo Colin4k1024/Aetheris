@@ -78,7 +78,6 @@ func BenchmarkAppend(b *testing.B) {
 		_, err := store.Append(ctx, jobID, version, JobEvent{
 			JobID:   jobID,
 			Type:    "bench_step",
-			Payload: []byte(fmt.Sprintf(`{"step":%d}`, i)),
 		})
 		if err != nil {
 			b.Fatalf("Append failed at version %d: %v", version, err)
@@ -113,7 +112,6 @@ func BenchmarkAppendParallel(b *testing.B) {
 			_, err := store.Append(ctx, jobID, versions[localIdx], JobEvent{
 				JobID:   jobID,
 				Type:    "bench_step",
-				Payload: []byte(`{"step":1}`),
 			})
 			if err != nil {
 				// CAS 冲突时重试（预期行为）
