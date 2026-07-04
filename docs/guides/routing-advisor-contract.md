@@ -1,6 +1,6 @@
 # RoutingAdvisor — Evidence-First Capability Routing
 
-> **Status**: draft
+> **Status**: ready-for-review
 > **Since**: v2.5.x
 > **Design**: [Architecture](../artifacts/2026-05-26-routing-advisor-contract/arch-design.md) | [API Contract](../artifacts/2026-05-26-routing-advisor-contract/api-contract.md) | [Test Plan](../artifacts/2026-05-26-routing-advisor-contract/test-plan.md)
 
@@ -175,7 +175,10 @@ Changing any rule = breaking change = schema version bump required.
 - [x] Test plan with 9-step recovery validation suite
 - [x] Replay invariants documented
 - [x] Deterministic serialization rules specified
-- [ ] Implementation (experimental)
+- [x] Go interface definition (internal/agent/routing/advisor.go)
+- [x] Deterministic hash implementation (internal/agent/routing/hash.go)
+- [x] Local fallback advisor (internal/agent/routing/local_fallback.go)
+- [ ] Integration with Planner and JobStore
 - [ ] HTTP/CLI surface
 - [ ] Production promotion (requires tests, config, ops evidence)
 
