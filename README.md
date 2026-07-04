@@ -24,6 +24,73 @@ Aetheris is an open-source runtime that solves all three — without requiring y
 
 ---
 
+## Production Proof
+
+> "Production-ready" is not a claim — it's a testable assertion.
+
+| Evidence | Status | Link |
+|----------|--------|------|
+| Crash Recovery Demo | ✅ | [examples/crash_recovery/](examples/crash_recovery/) |
+| Grafana Dashboard | ✅ | [deployments/compose/grafana/](deployments/compose/grafana/) |
+| k6 Load Test (100 concurrent) | ✅ | [benchmarks/k6/](benchmarks/k6/) |
+| Go Benchmark (JobStore) | ✅ | [benchmarks/reports/](benchmarks/reports/) |
+| Runtime Guarantees Matrix | ✅ | [docs/guides/runtime-guarantees.md](docs/guides/runtime-guarantees.md) |
+
+**Quick verification:**
+
+```bash
+# Start the full observability stack
+make docker-run
+
+# Run benchmarks
+make test
+go test -tags benchmark -bench=. ./internal/runtime/jobstore/
+
+# Try crash recovery
+cd examples/crash_recovery && python demo.py
+```
+
+---
+
+## Architecture
+
+Aetheris is the **L1 execution layer** in a four-layer Agent infrastructure stack:
+
+```
+┌─────────────────────────────────────────────┐
+│  L3: Governance (hermesx)                   │
+│  Policy · Compliance · Audit · Multi-tenant │
+├─────────────────────────────────────────────┤
+│  L2: Orchestration (superagent-base)        │
+│  Agent Lifecycle · Workflow Composition     │
+├─────────────────────────────────────────────┤
+│  L1: Execution (Aetheris) ◀── You are here  │
+│  Durable Jobs · Crash Recovery · Event Log  │
+├─────────────────────────────────────────────┤
+│  L0: Capabilities (Oris / OpenHuman)        │
+│  LLMs · Tools · Data Sources · External API │
+└─────────────────────────────────────────────┘
+```
+
+**What Aetheris owns:**
+- Event-sourced job execution with crash recovery
+- At-most-once tool execution via idempotency ledger
+- Lease-fenced multi-worker scheduling
+- Evidence signing and forensics read model
+- RoutingAdvisor for capability-level routing decisions
+
+**What Aetheris delegates:**
+- Governance policies → L3 (hermesx)
+- Agent lifecycle management → L2 (superagent-base)
+- LLM inference and tool execution → L0 (Oris)
+
+**Integration contracts** are defined in:
+- [ADR-0002: Four-Layer Architecture](docs/adr/ADR-0002-aetheris-four-layer-architecture.md)
+- [Hermesx Integration Contract](docs/architecture/hermesx-integration-contract.md)
+- [RoutingAdvisor Contract](docs/guides/routing-advisor-contract.md)
+
+---
+
 ## Quickstart — no Docker required
 
 **Requirements:** Go 1.26.1+, Git
