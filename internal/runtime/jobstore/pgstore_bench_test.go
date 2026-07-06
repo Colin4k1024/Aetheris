@@ -54,8 +54,8 @@ func seedJob(b *testing.B, store *pgStore) string {
 	ctx := context.Background()
 	jobID := "bench-" + uuid.New().String()
 	_, err := store.Append(ctx, jobID, 0, JobEvent{
-		JobID: jobID,
-		Type:  JobCreated,
+		JobID:   jobID,
+		Type:    JobCreated,
 		Payload: []byte(fmt.Sprintf(`{"goal":"benchmark-%s"}`, jobID[:8])),
 	})
 	if err != nil {
@@ -76,8 +76,8 @@ func BenchmarkAppend(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := store.Append(ctx, jobID, version, JobEvent{
-			JobID: jobID,
-			Type:  "bench_step",
+			JobID:   jobID,
+			Type:    "bench_step",
 			Payload: []byte(fmt.Sprintf(`{"step":%d}`, i)),
 		})
 		if err != nil {
@@ -111,8 +111,8 @@ func BenchmarkAppendParallel(b *testing.B) {
 		for pb.Next() {
 			jobID := jobs[localIdx]
 			_, err := store.Append(ctx, jobID, versions[localIdx], JobEvent{
-				JobID: jobID,
-				Type:  "bench_step",
+				JobID:   jobID,
+				Type:    "bench_step",
 				Payload: []byte(`{"step":1}`),
 			})
 			if err != nil {
