@@ -165,8 +165,8 @@ func NewApp(cfg *config.Config) (*App, error) {
 
 	// 初始化 OpenTelemetry（复用 API Server 的 provider 模式，确保 Jaeger 能展示 Worker 侧 trace）
 	appObj := &App{
-		config:  cfg,
-		logger:  logger,
+		config:   cfg,
+		logger:   logger,
 		shutdown: make(chan struct{}),
 	}
 	exportEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
