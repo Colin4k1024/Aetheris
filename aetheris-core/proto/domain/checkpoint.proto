@@ -1,0 +1,65 @@
+syntax = "proto3";
+package aetheris.domain;
+
+// Checkpoint represents a recovery point for a running job.
+message Checkpoint {
+  string job_id = 1;
+  string attempt_id = 2;
+  int32 version = 3;
+  bytes task_graph_state = 4;  // serialized DAG state
+  bytes memory_state = 5;      // serialized memory snapshot
+  string cursor_node = 6;      // current node in DAG
+  int64 created_at_ms = 7;
+}
+
+// TaskGraph represents the DAG of steps to execute.
+message TaskGraph {
+  string graph_id = 1;
+  repeated TaskNode nodes = 2;
+  repeated Edge edges = 3;
+  string entry_node = 4;
+  bytes metadata = 5;  // JSON-encoded metadata
+}
+
+message TaskNode {
+  string id = 1;
+  string name = 2;
+  NodeType type = 3;
+  bytes config = 4;       // JSON-encoded node config
+  int32 max_retries = 5;
+  int32 timeout_ms = 6;
+}
+
+enum NodeType {
+  NODE_TYPE_UNSPECIFIED = 0;
+  NODE_TYPE_TOOL_CALL = 1;
+  NODE_TYPE_LLM_CALL = 2;
+  NODE_TYPE_CONDITION = 3;
+  NODE_TYPE_PARALLEL = 4;
+  NODE_TYPE_SUBGRAPH = 5;
+  NODE_TYPE_HUMAN_GATE = 6;
+}
+
+message Edge {
+  string from_node = 1;
+  string to_node = 2;
+  string condition = 3;  // optional guard expression
+}
+
+// CursorNode tracks the current execution position in a DAG.
+message CursorNode {
+  string node_id = 1;
+  CursorStatus status = 2;
+  bytes intermediate_result = 3;
+  int32 attempt = 4;
+  int64 started_at_ms = 5;
+}
+
+enum CursorStatus {
+  CURSOR_STATUS_UNSPECIFIED = 0;
+  CURSOR_STATUS_PENDING = 1;
+  CURSOR_STATUS_RUNNING = 2;
+  CURSOR_STATUS_COMPLETED = 3;
+  CURSOR_STATUS_FAILED = 4;
+  CURSOR_STATUS_SKIPPED = 5;
+}

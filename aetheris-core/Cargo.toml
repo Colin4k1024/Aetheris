@@ -1,0 +1,73 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/aetheris-types",
+    "crates/aetheris-jobstore",
+    "crates/aetheris-executor",
+    "crates/aetheris-effects",
+    "crates/aetheris-scheduler",
+    "crates/aetheris-planner",
+    "crates/aetheris-memory",
+    "crates/aetheris-config",
+    "crates/aetheris-auth",
+    "crates/aetheris-metrics",
+    "crates/aetheris-ffi",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/Colin4k1024/Aetheris"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+prost = "0.13"
+
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono", "uuid"] }
+
+# Redis
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Logging / Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Observability
+opentelemetry = "0.27"
+opentelemetry_sdk = "0.27"
+opentelemetry-otlp = "0.27"
+prometheus = "0.13"
+
+# Cryptography
+ed25519-dalek = { version = "2", features = ["serde"] }
+sha2 = "0.10"
+hex = "0.4"
+
+# UUID & Config
+uuid = { version = "1", features = ["v4", "serde"] }
+figment = { version = "0.10", features = ["yaml", "env"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Internal crates
+aetheris-types = { path = "crates/aetheris-types" }
+aetheris-jobstore = { path = "crates/aetheris-jobstore" }
+aetheris-executor = { path = "crates/aetheris-executor" }
+aetheris-effects = { path = "crates/aetheris-effects" }
+aetheris-scheduler = { path = "crates/aetheris-scheduler" }
+aetheris-planner = { path = "crates/aetheris-planner" }
+aetheris-memory = { path = "crates/aetheris-memory" }
+aetheris-config = { path = "crates/aetheris-config" }
+aetheris-auth = { path = "crates/aetheris-auth" }
+aetheris-metrics = { path = "crates/aetheris-metrics" }
+aetheris-ffi = { path = "crates/aetheris-ffi" }

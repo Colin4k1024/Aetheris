@@ -1,0 +1,64 @@
+# E2E test environment with Rust core
+# Run: docker compose -f deployments/compose/docker-compose.rust-core.yml up -d
+
+services:
+  # PostgreSQL for event store
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aetheris
+      POSTGRES_PASSWORD: aetheris
+      POSTGRES_DB: aetheris
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../internal/runtime/jobstore/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aetheris"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # API server (with Rust core)
+  api:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.rust-core
+    command: ["/usr/local/bin/api"]
+    working_dir: /app
+    volumes:
+      - ../../configs:/app/configs:ro
+    environment:
+      API_CONFIG_PATH: /app/configs/api.yaml
+      MODEL_CONFIG_PATH: /app/configs/model.yaml
+      AETHERIS_USE_RUST_CORE: "true"
+      JOBSTORE_DSN: "postgres://aetheris:aetheris@postgres:5432/aetheris?sslmode=disable"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Worker (with Rust core)
+  worker:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.rust-core
+    command: ["/usr/local/bin/worker"]
+    working_dir: /app
+    volumes:
+      - ../../configs:/app/configs:ro
+    environment:
+      WORKER_CONFIG_PATH: /app/configs/worker.yaml
+      MODEL_CONFIG_PATH: /app/configs/model.yaml
+      AETHERIS_USE_RUST_CORE: "true"
+      JOBSTORE_DSN: "postgres://aetheris:aetheris@postgres:5432/aetheris?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+volumes:
+  postgres_data: {}

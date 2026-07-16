@@ -1,0 +1,15 @@
+[package]
+name = "aetheris-config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+aetheris-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+figment.workspace = true
+serde_yaml = "0.9.34"

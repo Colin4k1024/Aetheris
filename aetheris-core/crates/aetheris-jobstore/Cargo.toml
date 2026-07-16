@@ -1,0 +1,21 @@
+[package]
+name = "aetheris-jobstore"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+aetheris-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+oris-runtime = { version = "0.61.0", features = ["kernel-postgres"] }
+async-trait = "0.1.89"
+hex.workspace = true
+sha2.workspace = true

@@ -32,6 +32,7 @@ import (
 	"google.golang.org/grpc"
 
 	apigrpc "github.com/Colin4k1024/Aetheris/v2/internal/api/grpc"
+	"github.com/Colin4k1024/Aetheris/v2/internal/corebridge"
 
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 	hertzslog "github.com/hertz-contrib/logger/slog"
@@ -418,13 +419,22 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 		if err != nil {
 			return nil, fmt.Errorf("初始化 JobStore 事件(postgres) failed: %w", err)
 		}
-		jobEventStore = pgEventStore
+		if corebridge.UseRustCore() {
+			rustStore, err := corebridge.NewRustEventStore(dsn, pgEventStore)
+			if err != nil {
+				return nil, fmt.Errorf("初始化 RustEventStore failed: %w", err)
+			}
+			jobEventStore = rustStore
+			bootstrap.Logger.Info("JobStore 使用 Rust FFI 后端 (Append/Claim 走 Rust, 其余回落 Go)", "dsn", dsn)
+		} else {
+			jobEventStore = pgEventStore
+			bootstrap.Logger.Info("JobStore 使用 PostgreSQL 后端", "dsn", dsn)
+		}
 		pgJobStore, err := job.NewJobStorePg(context.Background(), dsn)
 		if err != nil {
 			return nil, fmt.Errorf("初始化 Job 元数据(postgres) failed: %w", err)
 		}
 		jobStore = pgJobStore
-		bootstrap.Logger.Info("JobStore 使用 PostgreSQL 后端", "dsn", dsn)
 	} else if bootstrap.Config != nil && bootstrap.Config.JobStore.Type == "embedded" {
 		embeddedEventsPath := filepath.Join(embeddedBaseDir, "job_events.json")
 		embeddedJobsPath := filepath.Join(embeddedBaseDir, "jobs.json")

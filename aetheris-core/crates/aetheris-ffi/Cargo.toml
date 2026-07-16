@@ -1,0 +1,25 @@
+[package]
+name = "aetheris-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+aetheris-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+aetheris-jobstore.workspace = true
+aetheris-executor.workspace = true
+aetheris-effects.workspace = true
+aetheris-scheduler.workspace = true
+aetheris-config.workspace = true
+aetheris-auth.workspace = true
+aetheris-metrics.workspace = true
+tokio.workspace = true
+libc = "0.2"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]

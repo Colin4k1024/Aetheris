@@ -1,0 +1,72 @@
+syntax = "proto3";
+package aetheris.domain;
+
+// JobEvent represents a single event in the job event stream (event sourcing).
+message JobEvent {
+  string job_id = 1;
+  int32 version = 2;
+  string type = 3;
+  bytes payload = 4;
+  string prev_hash = 5;
+  string hash = 6;
+  int64 timestamp_ms = 7;
+}
+
+// JobStatus represents the current state of a job.
+enum JobStatus {
+  JOB_STATUS_UNSPECIFIED = 0;
+  JOB_STATUS_CREATED = 1;
+  JOB_STATUS_RUNNING = 2;
+  JOB_STATUS_PAUSED = 3;
+  JOB_STATUS_WAITING = 4;
+  JOB_STATUS_COMPLETED = 5;
+  JOB_STATUS_FAILED = 6;
+  JOB_STATUS_CANCELLED = 7;
+}
+
+// StepResultType classifies the outcome of a single execution step.
+enum StepResultType {
+  STEP_RESULT_UNSPECIFIED = 0;
+  STEP_RESULT_SUCCESS = 1;
+  STEP_RESULT_PURE_RESULT = 2;
+  STEP_RESULT_SIDE_EFFECT_COMMITTED = 3;
+  STEP_RESULT_RETRYABLE_FAILURE = 4;
+  STEP_RESULT_PERMANENT_FAILURE = 5;
+  STEP_RESULT_COMPENSATABLE_FAILURE = 6;
+}
+
+// StepResult is the outcome of executing a single DAG node.
+message StepResult {
+  StepResultType type = 1;
+  bytes output = 2;
+  string error_message = 3;
+  int32 retry_after_ms = 4;
+}
+
+// Event types used in the job event stream.
+message JobCreatedEvent {
+  string agent_id = 1;
+  string goal = 2;
+  string session_id = 3;
+  string tenant_id = 4;
+}
+
+message StepStartedEvent {
+  string node_id = 1;
+  string step_name = 2;
+  bytes input = 3;
+}
+
+message StepCompletedEvent {
+  string node_id = 1;
+  StepResult result = 2;
+}
+
+message JobCompletedEvent {
+  bytes final_output = 1;
+}
+
+message JobFailedEvent {
+  string error_message = 1;
+  bool permanent = 2;
+}

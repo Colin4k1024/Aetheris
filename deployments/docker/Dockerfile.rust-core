@@ -1,0 +1,80 @@
+# Multi-stage build: Rust core + Go services
+# Build: docker build -f deployments/docker/Dockerfile.rust-core -t aetheris:rust .
+
+# ── Stage 1: Build Rust core library ──────────────────────────
+FROM rust:1.93-slim AS rust-builder
+
+RUN for i in 1 2 3 4 5; do apt-get update && break || sleep 5; done && \
+    for i in 1 2 3 4 5; do apt-get install -y protobuf-compiler pkg-config libssl-dev && break || sleep 5; done && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build/aetheris-core
+COPY aetheris-core/ .
+RUN cargo build --release -p aetheris-ffi
+
+# ── Stage 2: Build Go services with CGo ──────────────────────
+FROM golang:1.26-bookworm AS go-builder
+
+# Install CGo dependencies
+RUN for i in 1 2 3 4 5; do apt-get update && break || sleep 5; done && \
+    for i in 1 2 3 4 5; do apt-get install -y gcc musl-dev && break || sleep 5; done && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy Go module files and download dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Cache bust to force Go rebuild when source changes
+ARG CACHEBUST=1
+
+# Copy source code
+COPY . .
+
+# Copy Rust artifacts from stage 1
+COPY --from=rust-builder /build/aetheris-core/target/release/libaetheris_ffi.a /usr/local/lib/
+COPY --from=rust-builder /build/aetheris-core/include/aetheris_core.h /usr/local/include/
+
+# CGo in ffi.go uses ${SRCDIR}/../../aetheris-core/target/release — create symlink
+RUN mkdir -p /app/aetheris-core/target/release && \
+    ln -sf /usr/local/lib/libaetheris_ffi.a /app/aetheris-core/target/release/libaetheris_ffi.a && \
+    mkdir -p /app/aetheris-core/include && \
+    ln -sf /usr/local/include/aetheris_core.h /app/aetheris-core/include/aetheris_core.h
+
+# Update library cache and generate archive index
+RUN ranlib /usr/local/lib/libaetheris_ffi.a 2>/dev/null || true
+RUN ldconfig 2>/dev/null || true
+
+# Build with CGo enabled (required for Rust FFI)
+ENV CGO_ENABLED=1
+ENV AETHERIS_USE_RUST_CORE=true
+
+RUN go build -o /bin/api ./cmd/api
+RUN go build -o /bin/worker ./cmd/worker
+
+# ── Stage 3: Runtime image ────────────────────────────────────
+FROM debian:bookworm-slim
+
+RUN for i in 1 2 3 4 5; do apt-get update && break || sleep 5; done && \
+    for i in 1 2 3 4 5; do apt-get install -y ca-certificates && break || sleep 5; done && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy binaries
+COPY --from=go-builder /bin/api /usr/local/bin/api
+COPY --from=go-builder /bin/worker /usr/local/bin/worker
+
+# Copy configs and schema initialization script
+COPY configs/ /app/configs/
+COPY internal/runtime/jobstore/schema.sql /app/internal/runtime/jobstore/schema.sql
+COPY deployments/docker/entrypoint-rust-core.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+WORKDIR /app
+EXPOSE 8080
+
+# Enable Rust core by default
+ENV AETHERIS_USE_RUST_CORE=true
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["/usr/local/bin/api"]

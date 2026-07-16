@@ -1,0 +1,52 @@
+syntax = "proto3";
+package aetheris.domain;
+
+// AgentState represents the current state of an agent instance.
+message AgentState {
+  string agent_id = 1;
+  string instance_id = 2;
+  AgentStatus status = 3;
+  string current_job_id = 4;
+  bytes config = 5;          // JSON-encoded agent config
+  bytes memory_snapshot = 6;  // JSON-encoded memory state
+  int64 last_heartbeat_ms = 7;
+  int32 retry_count = 8;
+}
+
+enum AgentStatus {
+  AGENT_STATUS_UNSPECIFIED = 0;
+  AGENT_STATUS_IDLE = 1;
+  AGENT_STATUS_RUNNING = 2;
+  AGENT_STATUS_PAUSED = 3;
+  AGENT_STATUS_STOPPED = 4;
+  AGENT_STATUS_ERROR = 5;
+}
+
+// AgentInstance represents a registered agent instance in the system.
+message AgentInstance {
+  string id = 1;
+  string tenant_id = 2;
+  string agent_id = 3;
+  AgentStatus status = 4;
+  string current_job_id = 5;
+  string behavior_id = 6;
+  int64 created_at_ms = 7;
+  int64 updated_at_ms = 8;
+}
+
+// AgentConfig defines the configuration for an agent type.
+message AgentConfig {
+  string agent_id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string capabilities = 4;
+  repeated ToolBinding tool_bindings = 5;
+  bytes model_config = 6;     // JSON-encoded model settings
+  bytes behavior_config = 7;  // JSON-encoded behavior settings
+}
+
+message ToolBinding {
+  string tool_name = 1;
+  string tool_type = 2;  // "builtin", "mcp", "http"
+  bytes config = 3;       // JSON-encoded tool config
+}

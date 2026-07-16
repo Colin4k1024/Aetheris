@@ -57,6 +57,44 @@ build:
 	go build -o $(CLI_BIN) ./cmd/cli
 	@echo "已构建: $(API_BIN) $(WORKER_BIN) $(CLI_BIN)"
 
+# 构建 Rust 核心库（aetheris-ffi）
+build-rust:
+	@echo "构建 Rust 核心库..."
+	cd aetheris-core && PROTOC=$(HOME)/.local/bin/protoc cargo build --release -p aetheris-ffi
+	cbindgen --crate aetheris-ffi --output aetheris-core/include/aetheris_core.h 2>/dev/null || true
+	@echo "Rust 核心库已构建: aetheris-core/target/release/libaetheris_ffi.{a,dylib}"
+
+# 构建 Rust 核心 + Go 二进制（统一构建）
+build-all: build-rust build
+	@echo "全部构建完成（Rust + Go）"
+
+# Docker E2E 测试（Rust 核心）
+docker-e2e-build:
+	@echo "构建 Docker 镜像（含 Rust 核心）..."
+	docker build --build-arg CACHEBUST=$$(date +%s) -f deployments/docker/Dockerfile.rust-core -t aetheris:rust .
+	@echo "镜像构建完成: aetheris:rust"
+
+docker-e2e-up:
+	@echo "启动 E2E 测试环境..."
+	docker compose -f deployments/compose/docker-compose.rust-core.yml up -d
+	@echo "等待服务就绪..."
+	@sleep 10
+	@echo "健康检查: curl http://localhost:8080/api/health"
+
+docker-e2e-test:
+	@echo "运行 E2E 测试..."
+	./scripts/test-e2e-rust-core.sh
+
+docker-e2e-down:
+	@echo "停止 E2E 测试环境..."
+	docker compose -f deployments/compose/docker-compose.rust-core.yml down -v
+
+# 完整 E2E 测试流程
+e2e-rust: docker-e2e-build docker-e2e-up docker-e2e-test
+	@echo "E2E 测试完成，清理环境..."
+	@$(MAKE) docker-e2e-down
+	@echo "E2E 测试全部通过"
+
 # 构建并启动 API + Worker（后台），并写入 PID 与日志
 run: build
 	@$(MAKE) run-api

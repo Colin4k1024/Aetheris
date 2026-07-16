@@ -47,6 +47,7 @@ import (
 	"github.com/Colin4k1024/Aetheris/v2/internal/agent/tools/mcp"
 	"github.com/Colin4k1024/Aetheris/v2/internal/app"
 	"github.com/Colin4k1024/Aetheris/v2/internal/app/api"
+	"github.com/Colin4k1024/Aetheris/v2/internal/corebridge"
 	"github.com/Colin4k1024/Aetheris/v2/internal/ingestqueue"
 	llmmod "github.com/Colin4k1024/Aetheris/v2/internal/model/llm"
 	"github.com/Colin4k1024/Aetheris/v2/internal/runtime/eino"
@@ -221,6 +222,18 @@ func NewApp(cfg *config.Config) (*App, error) {
 		pgEventStore, err := jobstore.NewPostgresStore(context.Background(), dsn, leaseDur)
 		if err != nil {
 			return nil, fmt.Errorf("初始化 JobStore 事件(postgres) failed: %w", err)
+		}
+		if corebridge.UseRustCore() {
+			rustStore, err := corebridge.NewRustEventStore(dsn, pgEventStore)
+			if err != nil {
+				return nil, fmt.Errorf("初始化 RustEventStore failed: %w", err)
+			}
+			// Wrap: all pgEventStore references use Rust FFI for Append/Claim
+			_ = pgEventStore // native store is fallback inside RustEventStore
+			pgEventStore = rustStore
+			logger.Info("Worker JobStore 使用 Rust FFI 后端 (Append/Claim 走 Rust)")
+		} else {
+			logger.Info("Worker JobStore 使用 PostgreSQL 后端")
 		}
 		pgJobStore, err := job.NewJobStorePg(context.Background(), dsn)
 		if err != nil {

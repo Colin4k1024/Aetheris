@@ -8,3 +8,6 @@
 .trae/
 /cli
 /ai-customer-bot
+
+# Rust build artifacts
+aetheris-core/target/

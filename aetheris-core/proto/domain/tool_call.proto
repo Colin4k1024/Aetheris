@@ -1,0 +1,46 @@
+syntax = "proto3";
+package aetheris.domain;
+
+// ToolInvocation represents a recorded tool call in the ledger.
+message ToolInvocation {
+  string id = 1;
+  string job_id = 2;
+  string attempt_id = 3;
+  string tool_name = 4;
+  bytes input = 5;            // JSON-encoded input
+  bytes output = 6;           // JSON-encoded output
+  ToolInvocationStatus status = 7;
+  string idempotency_key = 8;
+  int64 started_at_ms = 9;
+  int64 completed_at_ms = 10;
+  bool confirmed = 11;        // two-phase commit confirmation
+  string error_message = 12;
+}
+
+enum ToolInvocationStatus {
+  TOOL_INVOCATION_STATUS_UNSPECIFIED = 0;
+  TOOL_INVOCATION_STATUS_PENDING = 1;
+  TOOL_INVOCATION_STATUS_EXECUTING = 2;
+  TOOL_INVOCATION_STATUS_COMPLETED = 3;
+  TOOL_INVOCATION_STATUS_FAILED = 4;
+  TOOL_INVOCATION_STATUS_COMPENSATED = 5;
+}
+
+// ToolResult is the outcome of a tool execution.
+message ToolResult {
+  bool success = 1;
+  bytes output = 2;
+  string error_message = 3;
+  int32 retry_after_ms = 4;
+}
+
+// ToolCapability describes what a tool can do.
+message ToolCapability {
+  string name = 1;
+  string description = 2;
+  string category = 3;
+  bytes input_schema = 4;   // JSON Schema
+  bytes output_schema = 5;  // JSON Schema
+  repeated string required_permissions = 6;
+  bool requires_confirmation = 7;
+}

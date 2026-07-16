@@ -1,0 +1,42 @@
+syntax = "proto3";
+package aetheris.domain;
+
+// MemoryEntry represents a single memory unit.
+message MemoryEntry {
+  string id = 1;
+  string agent_id = 2;
+  MemoryNamespace namespace = 3;
+  string key = 4;
+  bytes value = 5;           // JSON-encoded value
+  float relevance_score = 6;
+  int64 created_at_ms = 7;
+  int64 last_accessed_ms = 8;
+  int32 access_count = 9;
+  bytes metadata = 10;       // JSON-encoded metadata
+}
+
+// MemoryNamespace categorizes memory by type and scope.
+enum MemoryNamespace {
+  MEMORY_NAMESPACE_UNSPECIFIED = 0;
+  MEMORY_NAMESPACE_SHORT_TERM = 1;    // current session scope
+  MEMORY_NAMESPACE_WORKING = 2;       // current job scope
+  MEMORY_NAMESPACE_EPISODIC = 3;      // session/job summaries
+  MEMORY_NAMESPACE_LONG_TERM = 4;     // durable across sessions
+}
+
+// MemoryQuery is a request to search or retrieve memories.
+message MemoryQuery {
+  string agent_id = 1;
+  MemoryNamespace namespace = 2;
+  string query_text = 3;       // natural language query
+  int32 max_results = 4;
+  float min_relevance = 5;
+  bytes filter = 6;            // JSON-encoded filter criteria
+}
+
+// MemoryQueryResult is the response from a memory search.
+message MemoryQueryResult {
+  repeated MemoryEntry entries = 1;
+  int32 total_count = 2;
+  float query_time_ms = 3;
+}

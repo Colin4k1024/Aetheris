@@ -1,0 +1,93 @@
+syntax = "proto3";
+package aetheris.domain;
+
+import "domain/job_event.proto";
+
+// ── JobStore Commands ──────────────────────────────────────
+
+message AppendRequest {
+  string job_id = 1;
+  int32 expected_version = 2;
+  JobEvent event = 3;
+}
+
+message AppendResponse {
+  int32 new_version = 1;
+  string hash = 2;
+}
+
+message ClaimRequest {
+  string worker_id = 1;
+}
+
+message ClaimResponse {
+  string job_id = 1;
+  int32 version = 2;
+  string attempt_id = 3;
+  bool claimed = 4;
+}
+
+message ClaimJobRequest {
+  string worker_id = 1;
+  string job_id = 2;
+}
+
+message HeartbeatRequest {
+  string worker_id = 1;
+  string job_id = 2;
+}
+
+message ListEventsRequest {
+  string job_id = 1;
+}
+
+message ListEventsResponse {
+  repeated JobEvent events = 1;
+  int32 latest_version = 2;
+}
+
+message CreateSnapshotRequest {
+  string job_id = 1;
+  int32 up_to_version = 2;
+  bytes snapshot = 3;  // serialized state
+}
+
+message SnapshotResponse {
+  bytes snapshot = 1;
+  int32 version = 2;
+  bool found = 3;
+}
+
+// ── Executor Commands ──────────────────────────────────────
+
+message RunStepRequest {
+  string job_id = 1;
+  string node_id = 2;
+  bytes input = 3;          // JSON-encoded input
+  string attempt_id = 4;
+}
+
+message RunStepResponse {
+  StepResult result = 1;
+  bool needs_retry = 2;
+  int32 retry_after_ms = 3;
+}
+
+// ── Scheduler Commands ─────────────────────────────────────
+
+message ScheduleRequest {
+  string worker_id = 1;
+  int32 max_jobs = 2;
+}
+
+message ScheduleResponse {
+  repeated ClaimResponse claimed_jobs = 1;
+}
+
+// ── Error Codes (for FFI) ──────────────────────────────────
+// 0  = success
+// -1 = invalid input
+// -2 = version conflict (optimistic concurrency)
+// -3 = database error
+// -4 = timeout
+// -5 = internal error

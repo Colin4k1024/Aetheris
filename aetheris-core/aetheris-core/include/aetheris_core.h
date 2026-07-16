@@ -1,0 +1,139 @@
+#include <cstdarg>
+#include <cstdint>
+#include <cstdlib>
+#include <ostream>
+#include <new>
+
+/// Callback function type for Go HTTP calls.
+using GoHttpCallFn = int32_t(*)(const char *url,
+                                const uint8_t *body,
+                                uintptr_t body_len,
+                                uint8_t **out_resp,
+                                uintptr_t *out_resp_len);
+
+/// Callback function type for Go logging.
+using GoLogFn = void(*)(int32_t level, const char *message);
+
+extern "C" {
+
+/// Free a buffer allocated by Rust. Must be called by Go for every
+/// `uint8_t*` returned by FFI functions.
+///
+/// # Safety
+/// `ptr` must have been allocated by Rust (via `Box::into_raw` or similar).
+void aetheris_free(uint8_t *ptr, uintptr_t len);
+
+/// Free a C string allocated by Rust.
+///
+/// # Safety
+/// `ptr` must have been allocated by `CString::into_raw`.
+void aetheris_free_string(char *ptr);
+
+/// Create a new JobStore instance connected to the given DSN.
+///
+/// # Safety
+/// `dsn` must be a valid null-terminated C string.
+/// `out_handle` must be a valid pointer to a `uintptr_t`.
+int32_t aetheris_jobstore_new(const char *dsn, uintptr_t *out_handle);
+
+/// Append an event to a job's event stream.
+///
+/// # Safety
+/// All pointers must be valid. `event_json` must point to `event_len` bytes.
+int32_t aetheris_jobstore_append(uintptr_t _handle,
+                                 const char *job_id,
+                                 int32_t expected_version,
+                                 const uint8_t *event_json,
+                                 uintptr_t event_len,
+                                 int32_t *out_new_version);
+
+/// Claim the next available job for a worker.
+///
+/// # Safety
+/// `worker_id` must be a valid null-terminated C string.
+/// `out_json` and `out_len` must be valid pointers.
+int32_t aetheris_jobstore_claim(uintptr_t _handle,
+                                const char *worker_id,
+                                uint8_t **out_json,
+                                uintptr_t *out_len);
+
+/// Destroy a JobStore handle.
+///
+/// # Safety
+/// `handle` must be a valid handle returned by `aetheris_jobstore_new`.
+void aetheris_jobstore_free(uintptr_t handle);
+
+/// Create a new Executor instance.
+///
+/// # Safety
+/// `jobstore_handle` must be a valid handle from `aetheris_jobstore_new`.
+/// `out_handle` must be a valid pointer.
+int32_t aetheris_executor_new(uintptr_t jobstore_handle, uintptr_t *out_handle);
+
+/// Run a single execution step.
+///
+/// # Safety
+/// All pointers must be valid. `input_json` must point to `input_len` bytes.
+int32_t aetheris_executor_run_step(uintptr_t _handle,
+                                   const char *job_id,
+                                   const uint8_t *input_json,
+                                   uintptr_t input_len,
+                                   uint8_t **out_result,
+                                   uintptr_t *out_result_len);
+
+/// Destroy an Executor handle.
+///
+/// # Safety
+/// `handle` must be a valid handle returned by `aetheris_executor_new`.
+void aetheris_executor_free(uintptr_t handle);
+
+/// Register Go callbacks for Rust to call back into Go.
+///
+/// # Safety
+/// Function pointers must be valid for the lifetime of the process.
+void aetheris_register_callbacks(GoHttpCallFn http_fn, GoLogFn log_fn);
+
+/// Create a new in-memory EffectStore instance.
+///
+/// # Safety
+/// `out_handle` must be a valid pointer.
+int32_t aetheris_effectstore_new(uintptr_t *out_handle);
+
+/// Record a pending effect (Phase 1 of 2PC).
+///
+/// # Safety
+/// All string pointers must be valid null-terminated C strings.
+/// `input_json` must point to `input_len` bytes.
+/// `out_effect_id` must be a valid pointer.
+int32_t aetheris_effectstore_record_pending(uintptr_t _handle,
+                                            const char *job_id,
+                                            const char *attempt_id,
+                                            const char *kind,
+                                            const uint8_t *input_json,
+                                            uintptr_t input_len,
+                                            const char *idempotency_key,
+                                            char **out_effect_id);
+
+/// Confirm a pending effect (Phase 2 — commit).
+///
+/// # Safety
+/// `effect_id` must be a valid null-terminated C string.
+/// `output_json` must point to `output_len` bytes.
+int32_t aetheris_effectstore_confirm(uintptr_t _handle,
+                                     const char *effect_id,
+                                     const uint8_t *output_json,
+                                     uintptr_t output_len);
+
+/// Rollback a pending effect (Phase 2 — abort).
+///
+/// # Safety
+/// `effect_id` and `reason` must be valid null-terminated C strings.
+int32_t aetheris_effectstore_rollback(uintptr_t _handle, const char *effect_id, const char *reason);
+
+/// Destroy an EffectStore handle.
+///
+/// # Safety
+/// `handle` must be a valid handle from `aetheris_effectstore_new`.
+void aetheris_effectstore_free(uintptr_t handle);
+
+}  // extern "C"
