@@ -1,3 +1,5 @@
+//go:build integration
+
 // Copyright 2026 fanjia1024
 //
 // Licensed under the Apache License, Version 2.0 (the "License");

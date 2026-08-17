@@ -65,7 +65,7 @@ var (
 type MemoryStore struct {
 	mu          sync.RWMutex
 	jobs        map[string]*Job
-	events      map[string][]Event   // jobID -> events
+	events      map[string][]Event     // jobID -> events
 	checkpoints map[string]*Checkpoint // jobID -> latest checkpoint
 }
 

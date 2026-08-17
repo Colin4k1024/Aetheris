@@ -40,7 +40,8 @@ type SchemaProvider interface {
 
 // Deprecated: Agent 自定义 Plan→Execute 循环已被 Eino ADK Agent 取代。
 // 新代码应使用 eino.AgentFactory 创建基于 Eino 的 Agent Runner。
-// 此类型保留用于向后兼容，将在未来版本中移除。
+// 此类型仍被 internal/agent/runtime/executor 和 internal/app/api 使用，
+// 在这些依赖迁移完成前不能删除。迁移计划见 design/migration-legacy-agent.md。
 type Agent struct {
 	planner        planner.Planner
 	executor       executor.Executor
