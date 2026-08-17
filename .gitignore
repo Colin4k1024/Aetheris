@@ -8,3 +8,15 @@
 .trae/
 /cli
 /ai-customer-bot
+
+# Rust build artifacts
+target/
+aetheris-core/target/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
