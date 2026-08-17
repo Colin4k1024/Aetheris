@@ -10,6 +10,55 @@ Your agent is processing 1,000 customer records. It reaches record 847 — and t
 
 ---
 
+## ⚡ NEW: Standalone SDK — no server required
+
+The Aetheris durability primitives are now available as a **standalone library**. Import into any Go or Python project — zero framework dependency.
+
+### Go
+
+```bash
+go get github.com/Colin4k1024/Aetheris/durability
+```
+
+```go
+import "github.com/Colin4k1024/Aetheris/durability/core"
+
+store := core.NewMemoryStore()  // zero config
+runner := core.NewRunner(store)
+
+job, _ := runner.Start(ctx, "process-order", map[string]any{"order_id": "123"})
+result, _ := runner.Execute(ctx, job.ID, []core.Step{
+    {ID: "validate", Fn: validateOrder},
+    {ID: "charge", Fn: chargePayment, MaxRetries: 3},
+    {ID: "ship", Fn: createShipment},
+})
+// Process crashed? Call Execute() again — resumes from last checkpoint.
+```
+
+### Python
+
+```bash
+pip install aetheris-durability
+```
+
+```python
+from aetheris_durability import Runner, MemoryStore, Step
+
+store = MemoryStore()
+runner = Runner(store)
+
+job = runner.start("process-order", {"order_id": "123"})
+result = runner.execute(job.id, [
+    Step("validate", validate_order),
+    Step("charge", charge_payment, max_retries=3),
+    Step("ship", create_shipment),
+])
+```
+
+→ [Go SDK docs](sdk/durability/) | [Python SDK docs](sdk/durability-py/)
+
+---
+
 ## The problem with AI agents in production
 
 Every production AI agent eventually hits the same three walls:
@@ -327,7 +376,9 @@ The example shows durable submission and trace visibility around one external HT
 | [cmd/cli](cmd/cli) | CLI: `aetheris trace/replay/jobs/chat` |
 | [configs](configs) | Runtime configs (embedded, Docker, production) |
 | [examples](examples) | Working examples for each integration pattern |
-| [sdk/python](sdk/python) | Python SDK (`pip install aetheris`) |
+| [sdk/durability](sdk/durability) | **Go SDK** — standalone durability library (`go get`) |
+| [sdk/durability-py](sdk/durability-py) | **Python SDK** — standalone durability library (`pip install`) |
+| [sdk/python](sdk/python) | Legacy Python client for Aetheris runtime API |
 | [docs](docs) | Guides, API reference, design notes |
 | [internal/agent](internal/agent) | Core runtime engine |
 
