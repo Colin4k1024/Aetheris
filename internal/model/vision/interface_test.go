@@ -25,8 +25,8 @@ func TestStubClient_Describe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result != "vision stub" {
-		t.Errorf("expected 'vision stub', got %s", result)
+	if result != "vision stub: not implemented" {
+		t.Errorf("expected 'vision stub: not implemented', got %s", result)
 	}
 }
 

@@ -286,11 +286,10 @@ internal/         # Private application code
   splitter/       # Text splitting implementations
   storage/        # Data storage implementations
   tool/           # Tool definitions and implementations
-pkg/              # Public libraries (errors moved to experimental/)
+pkg/              # Public libraries
   config/         # Configuration
   log/            # Logging
   tracing/        # Tracing utilities
-  experimental/   # Unused packages pending 3.0 or removal
 configs/          # Configuration files
   agents.yaml    # Agent definitions (loaded by AgentFactory at startup)
 examples/         # Example code

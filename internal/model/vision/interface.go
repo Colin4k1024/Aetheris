@@ -18,7 +18,10 @@ import (
 	"context"
 )
 
-// Client 视觉模型接口（占位：后续由 adapter 实现多模态）
+// Client 视觉模型接口。
+//
+// 当前状态：接口已定义，StubClient 仅供测试使用。
+// 生产环境需要实现具体的视觉模型 adapter（如 OpenAI Vision、Claude Vision 等）。
 type Client interface {
 	// Describe 描述图像内容
 	Describe(ctx context.Context, imageURLOrBase64 string) (string, error)
@@ -26,15 +29,16 @@ type Client interface {
 	Name() string
 }
 
-// StubClient 占位实现
+// StubClient 是一个测试占位实现，所有调用返回固定值。
+// 不要在生产环境使用。
 type StubClient struct{}
 
-// Describe 占位
+// Describe 返回占位文本
 func (s *StubClient) Describe(ctx context.Context, imageURLOrBase64 string) (string, error) {
-	return "vision stub", nil
+	return "vision stub: not implemented", nil
 }
 
-// Name 占位
+// Name 返回 "stub"
 func (s *StubClient) Name() string {
 	return "stub"
 }

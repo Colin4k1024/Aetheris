@@ -76,7 +76,10 @@ type ExternalStateVerifier interface {
 	Name() string
 }
 
-// ToolLedgerVerifier ToolLedger 验证器 - 验证工具调用的幂等性
+// ToolLedgerVerifier ToolLedger 验证器 - 验证工具调用的幂等性。
+//
+// 当前状态：占位实现，VerifyStateChange 始终返回 match。
+// 完整实现需要注入 ToolLedger store 并查询 idempotency_key 的实际状态。
 type ToolLedgerVerifier struct {
 	// TODO: 注入 ToolLedger store 进行验证
 }
@@ -110,7 +113,10 @@ func (v *ToolLedgerVerifier) VerifyStateChange(ctx context.Context, record State
 	return result, nil
 }
 
-// DatabaseStateVerifier 数据库状态验证器 - 验证数据库记录的版本/ETag
+// DatabaseStateVerifier 数据库状态验证器 - 验证数据库记录的版本/ETag。
+//
+// 当前状态：占位实现，VerifyStateChange 始终返回 match。
+// 完整实现需要注入数据库连接并查询资源的实际版本/ETag。
 type DatabaseStateVerifier struct {
 	// TODO: 注入数据库连接进行验证
 }

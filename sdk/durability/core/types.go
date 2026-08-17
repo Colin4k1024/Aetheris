@@ -29,15 +29,15 @@ const (
 	EventJobCancelled EventType = "job_cancelled"
 
 	// Step events
-	EventStepStarted   EventType = "step_started"
-	EventStepFinished  EventType = "step_finished"
-	EventStepFailed    EventType = "step_failed"
-	EventStepRetried   EventType = "step_retried"
-	EventStepSkipped   EventType = "step_skipped"
+	EventStepStarted  EventType = "step_started"
+	EventStepFinished EventType = "step_finished"
+	EventStepFailed   EventType = "step_failed"
+	EventStepRetried  EventType = "step_retried"
+	EventStepSkipped  EventType = "step_skipped"
 
 	// Checkpoint events
-	EventCheckpointSaved   EventType = "checkpoint_saved"
-	EventCheckpointLoaded  EventType = "checkpoint_loaded"
+	EventCheckpointSaved  EventType = "checkpoint_saved"
+	EventCheckpointLoaded EventType = "checkpoint_loaded"
 
 	// Effect events (idempotency)
 	EventEffectRecorded EventType = "effect_recorded"
@@ -92,11 +92,11 @@ type Job struct {
 // Step represents a single unit of work within a job.
 // A step is a function that takes state and returns updated state.
 type Step struct {
-	ID          string
-	Name        string
-	Fn          StepFunc
-	MaxRetries  int
-	RetryDelay  time.Duration
+	ID         string
+	Name       string
+	Fn         StepFunc
+	MaxRetries int
+	RetryDelay time.Duration
 }
 
 // StepFunc is the function signature for a durable step.
