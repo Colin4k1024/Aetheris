@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "aetheris-durability"
+version = "0.1.0"
+description = "Standalone durability SDK for AI agents — crash recovery, checkpointing, idempotency. Zero framework dependency."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.9"
+keywords = ["ai", "agent", "durable-execution", "crash-recovery", "checkpoint", "idempotent"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = []
+
+[project.optional-dependencies]
+postgres = ["psycopg2-binary>=2.9"]
+dev = ["pytest>=7.0", "pytest-asyncio>=0.21"]
+
+[project.urls]
+Homepage = "https://github.com/Colin4k1024/Aetheris"
+Documentation = "https://github.com/Colin4k1024/Aetheris/blob/main/sdk/durability-py/README.md"
+Repository = "https://github.com/Colin4k1024/Aetheris"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aetheris_durability*"]
