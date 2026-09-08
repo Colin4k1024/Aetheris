@@ -11,9 +11,11 @@ import (
 
 // GCConfig Effect Store GC 配置
 type GCConfig struct {
-	Enable         bool          `yaml:"enable"`
-	TTLDays        int           `yaml:"ttl_days"`
-	ArchiveEnabled bool          `yaml:"archive_enabled"`
+	Enable         bool `yaml:"enable"`
+	TTLDays        int  `yaml:"ttl_days"`
+	ArchiveEnabled bool `yaml:"archive_enabled"`
+	// ArchiveTTLDays 归档副本保留天数；<=0 表示永久保留（默认），不清理归档表
+	ArchiveTTLDays int           `yaml:"archive_ttl_days"`
 	RunInterval    time.Duration `yaml:"run_interval"`
 	BatchSize      int           `yaml:"batch_size"`
 }
@@ -47,6 +49,7 @@ func DefaultGCConfig() GCConfig {
 		Enable:         false,
 		TTLDays:        90,
 		ArchiveEnabled: false,
+		ArchiveTTLDays: 0,
 		RunInterval:    24 * time.Hour,
 		BatchSize:      1000,
 	}
@@ -58,6 +61,13 @@ type CheckpointCleanupStore interface {
 	CleanupCheckpoint(ctx context.Context, cutoff time.Time) (deleted int, err error)
 }
 
+// ArchiveRetentionStore 可选扩展接口：按归档保留策略清理已归档副本
+type ArchiveRetentionStore interface {
+	// DeleteArchivedToolInvocationsBefore 删除 archived_at < cutoff 的归档副本，返回删除行数；
+	// cutoff 为零值表示永久保留，不得删除任何副本
+	DeleteArchivedToolInvocationsBefore(ctx context.Context, cutoff time.Time) (deleted int, err error)
+}
+
 // GC 执行 tool_invocations 表的垃圾回收
 func GC(ctx context.Context, store JobStore, config GCConfig) error {
 	if !config.Enable {
@@ -67,6 +77,16 @@ func GC(ctx context.Context, store JobStore, config GCConfig) error {
 	// 清理 tool_invocations
 	if err := gcToolInvocations(ctx, store, config); err != nil {
 		return err
+	}
+
+	// 清理归档副本：仅在显式配置 ArchiveTTLDays>0 时执行，默认永久保留
+	if config.ArchiveTTLDays > 0 {
+		if arStore, ok := store.(ArchiveRetentionStore); ok {
+			cutoff := time.Now().UTC().AddDate(0, 0, -config.ArchiveTTLDays)
+			if _, err := arStore.DeleteArchivedToolInvocationsBefore(ctx, cutoff); err != nil {
+				return fmt.Errorf("cleanup archived tool invocations: %w", err)
+			}
+		}
 	}
 
 	// 清理 checkpoints（如果实现了 CheckpointCleanupStore）

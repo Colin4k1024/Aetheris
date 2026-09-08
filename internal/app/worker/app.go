@@ -88,10 +88,12 @@ type runtimeSnapshotOps struct {
 }
 
 type runtimeGCOps struct {
-	Enabled   bool
-	Interval  time.Duration
-	TTLDays   int
-	BatchSize int
+	Enabled        bool
+	Interval       time.Duration
+	TTLDays        int
+	BatchSize      int
+	ArchiveEnabled bool
+	ArchiveTTLDays int
 }
 
 func runtimeSnapshotOpsConfig(cfg *config.Config) runtimeSnapshotOps {
@@ -143,7 +145,23 @@ func runtimeGCOpsConfig(cfg *config.Config) runtimeGCOps {
 	if c.BatchSize > 0 {
 		out.BatchSize = c.BatchSize
 	}
+	out.ArchiveEnabled = c.ArchiveEnabled
+	if c.ArchiveTTLDays > 0 {
+		out.ArchiveTTLDays = c.ArchiveTTLDays
+	}
 	return out
+}
+
+// gcJobStoreConfig 将 Worker 运行时 GC 配置映射为 jobstore.GCConfig。
+func gcJobStoreConfig(ops runtimeGCOps) jobstore.GCConfig {
+	return jobstore.GCConfig{
+		Enable:         ops.Enabled,
+		TTLDays:        ops.TTLDays,
+		BatchSize:      ops.BatchSize,
+		RunInterval:    ops.Interval,
+		ArchiveEnabled: ops.ArchiveEnabled,
+		ArchiveTTLDays: ops.ArchiveTTLDays,
+	}
 }
 
 // NewApp 创建新的 Worker 应用
@@ -615,6 +633,8 @@ func (a *App) Start() error {
 		"interval", gcCfg.Interval,
 		"ttl_days", gcCfg.TTLDays,
 		"batch_size", gcCfg.BatchSize,
+		"archive_enabled", gcCfg.ArchiveEnabled,
+		"archive_ttl_days", gcCfg.ArchiveTTLDays,
 	)
 	if a.jobEventStore != nil && gcCfg.Enabled {
 		go a.runGCLoop(gcCfg)
@@ -718,12 +738,7 @@ func (a *App) runGCLoop(cfg runtimeGCOps) {
 
 // runGC 执行一次 GC
 func (a *App) runGC(cfg runtimeGCOps) {
-	gcCfg := jobstore.GCConfig{
-		Enable:      cfg.Enabled,
-		TTLDays:     cfg.TTLDays,
-		BatchSize:   cfg.BatchSize,
-		RunInterval: cfg.Interval,
-	}
+	gcCfg := gcJobStoreConfig(cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
