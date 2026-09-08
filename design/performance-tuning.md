@@ -26,6 +26,7 @@ jobstore:
 - `idx_job_events_job_id` - 事件按 job_id 查询
 - `idx_checkpoints_agent_id` - 按 agent_id 查询 checkpoint
 - `idx_tool_invocations_job_id` - 按 job_id 查询工具调用
+- `idx_tool_invocations_archive_archived_at` - 按归档时间清理归档副本
 
 ### TTL 配置
 
@@ -44,6 +45,32 @@ checkpoint_store:
   type: postgres
   ttl: 7  # checkpoint 保留天数
 ```
+
+### tool_invocations 归档
+
+`gc.ttl_days` 到期后，GC 会清理 `tool_invocations` 账本。若需在清理前保留完整副本，开启归档:
+
+```yaml
+runtime:
+  gc:
+    enabled: true
+    ttl_days: 90
+    batch_size: 1000
+    archive_enabled: true   # 删除前先归档完整副本
+    archive_ttl_days: 0     # 0 = 归档副本永久保留
+```
+
+行为契约（`internal/runtime/jobstore/archive.go`）:
+
+- **先归档、后校验、再删除**：GC 仅在归档副本写入并回读校验通过后才删除源记录。
+- **失败即中止**：归档目标不可用、写入失败或副本校验不一致时，GC 返回错误且**不删除任何源记录**。
+- **未配置即报错**：`archive_enabled: true` 但 JobStore 没有归档目标时返回 `ErrArchiveNotConfigured`，不会静默成功。
+- **幂等可重入**：归档表主键与源表一致（`job_id` + `idempotency_key`），崩溃后重跑 GC 不产生重复副本、不丢数据。
+- **归档表**：`tool_invocations_archive`（`schema.sql` 中以 `CREATE TABLE IF NOT EXISTS` 提供，升级既有库时重跑 schema 即可）。
+- **自定义归档目标**：通过 `jobstore.NewPostgresStoreWithOptions(ctx, dsn, lease, jobstore.WithToolInvocationArchiveSink(sink))`
+  接入独立冷存储；sink 必须保证 `Write` 返回 nil 时副本已可被 `CountPersisted` 读到。
+
+> ⚠️ `archive_ttl_days > 0` 会按 `archived_at` 删除超期归档副本，属于**不可逆**操作。除非有明确留存期限要求，建议保持 0。
 
 ## 缓存策略
 

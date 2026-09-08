@@ -37,10 +37,18 @@ const watchPollInterval = 500 * time.Millisecond
 type pgStore struct {
 	pool     *pgxpool.Pool
 	leaseDur time.Duration
+	// archive tool_invocations 归档目标；nil 表示未配置，归档调用必须显式失败
+	archive ToolInvocationArchiveSink
 }
 
-// NewPostgresStore 创建基于 PostgreSQL 的 JobStore；dsn 为连接串，leaseDuration 为租约时长（≤0 则 30s）
+// NewPostgresStore 创建基于 PostgreSQL 的 JobStore；dsn 为连接串，leaseDuration 为租约时长（≤0 则 30s）。
+// 默认使用同库 tool_invocations_archive 表作为归档目标。
 func NewPostgresStore(ctx context.Context, dsn string, leaseDuration time.Duration) (JobStore, error) {
+	return NewPostgresStoreWithOptions(ctx, dsn, leaseDuration)
+}
+
+// NewPostgresStoreWithOptions 创建 PostgreSQL JobStore 并配置可选能力（如自定义归档目标）。
+func NewPostgresStoreWithOptions(ctx context.Context, dsn string, leaseDuration time.Duration, opts ...pgStoreOption) (JobStore, error) {
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, err
@@ -56,7 +64,11 @@ func NewPostgresStore(ctx context.Context, dsn string, leaseDuration time.Durati
 	if leaseDuration <= 0 {
 		leaseDuration = defaultLeaseDuration
 	}
-	return &pgStore{pool: pool, leaseDur: leaseDuration}, nil
+	s := &pgStore{pool: pool, leaseDur: leaseDuration, archive: NewPostgresToolInvocationArchive(pool)}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s, nil
 }
 
 // Close 关闭连接池（可选，用于优雅退出）
@@ -484,11 +496,6 @@ func (s *pgStore) ListExpiredToolInvocations(ctx context.Context, cutoff time.Ti
 		refs = append(refs, ref)
 	}
 	return refs, rows.Err()
-}
-
-// ArchiveToolInvocations 归档调用记录（当前为 no-op，保留接口兼容性）
-func (s *pgStore) ArchiveToolInvocations(_ context.Context, _ []ToolInvocationRef) error {
-	return nil
 }
 
 // DeleteToolInvocations 批量删除 tool_invocations 记录

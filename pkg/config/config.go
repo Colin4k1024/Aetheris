@@ -70,6 +70,11 @@ type RuntimeGCConfig struct {
 	Interval  string `mapstructure:"interval"`
 	TTLDays   int    `mapstructure:"ttl_days"`
 	BatchSize int    `mapstructure:"batch_size"`
+	// ArchiveEnabled 开启后，GC 删除过期 tool_invocations 前必须先归档完整副本；
+	// 归档目标不可用或未配置时 GC 失败且不删除源记录（避免静默数据丢失）。
+	ArchiveEnabled bool `mapstructure:"archive_enabled"`
+	// ArchiveTTLDays 归档副本保留天数；<=0 表示永久保留（默认）。
+	ArchiveTTLDays int `mapstructure:"archive_ttl_days"`
 }
 
 // RateLimitsConfig 限流配置（Tool + LLM）
@@ -622,10 +627,12 @@ func DefaultDevConfig() *Config {
 				KeepLatest:     1,
 			},
 			GC: RuntimeGCConfig{
-				Enabled:   true,
-				Interval:  "24h",
-				TTLDays:   90,
-				BatchSize: 1000,
+				Enabled:        true,
+				Interval:       "24h",
+				TTLDays:        90,
+				BatchSize:      1000,
+				ArchiveEnabled: false,
+				ArchiveTTLDays: 0,
 			},
 		},
 		API: APIConfig{

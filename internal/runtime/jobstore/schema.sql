@@ -102,6 +102,29 @@ CREATE INDEX IF NOT EXISTS idx_tool_invocations_job_id ON tool_invocations (job_
 -- 工具调用溯源：外部系统返回的 ID（design/effect-log-and-provenance.md）
 ALTER TABLE tool_invocations ADD COLUMN IF NOT EXISTS external_id TEXT;
 
+-- 工具调用归档表（GC 冷副本）：删除 tool_invocations 前必须先在此持久化完整副本。
+-- 主键与源表一致，使重复归档天然幂等（ON CONFLICT DO NOTHING）。
+CREATE TABLE IF NOT EXISTS tool_invocations_archive (
+    job_id          TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    invocation_id   TEXT NOT NULL,
+    step_id         TEXT NOT NULL,
+    tool_name       TEXT NOT NULL,
+    args_hash       TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    result          BYTEA,
+    committed       BOOLEAN NOT NULL DEFAULT false,
+    external_id     TEXT,
+    created_at      TIMESTAMPTZ NOT NULL,
+    updated_at      TIMESTAMPTZ NOT NULL,
+    confirmed_at    TIMESTAMPTZ,
+    archived_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (job_id, idempotency_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tool_invocations_archive_archived_at ON tool_invocations_archive (archived_at);
+CREATE INDEX IF NOT EXISTS idx_tool_invocations_archive_job_id ON tool_invocations_archive (job_id);
+
 -- Effect Store（两步提交第一阶段）：执行完成先写 effect，再写 command_committed
 CREATE TABLE IF NOT EXISTS effects (
     id               BIGSERIAL PRIMARY KEY,

@@ -80,6 +80,11 @@ runtime:
     interval: "24h"
     ttl_days: 90
     batch_size: 1000
+    # 开启后，删除过期 tool_invocations 前必须先归档完整副本并校验；
+    # 归档目标不可用/未配置时 GC 失败且不删除源记录（避免静默数据丢失）
+    archive_enabled: false
+    # 归档副本保留天数；0 表示永久保留
+    archive_ttl_days: 0
 
 # Effect Store（两步提交第一阶段：先写 effect，再写 command_committed）
 effect_store:
