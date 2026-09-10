@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc"
-	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 )
 
@@ -365,61 +364,61 @@ type SAMLConfig struct {
 	AttributeMapping map[string]string // 属性映射
 }
 
-// SAMLClient SAML 客户端（简化实现）
+// SAMLClient SAML 客户端，封装 crewjam/saml ServiceProvider
 type SAMLClient struct {
-	config *SAMLConfig
+	config   *SAMLConfig
+	provider *samlProvider
 }
 
-// NewSAMLClient 创建 SAML 客户端
+// NewSAMLClient 创建 SAML 客户端，验证配置并初始化 ServiceProvider
 func NewSAMLClient(config SAMLConfig) (*SAMLClient, error) {
-	if config.SSOURL == "" || config.Certificate == "" {
-		return nil, fmt.Errorf("SAML SSO URL and certificate are required")
+	prov, err := newSAMLProvider(config)
+	if err != nil {
+		return nil, err
 	}
-
 	return &SAMLClient{
-		config: &config,
+		config:   &config,
+		provider: prov,
 	}, nil
 }
 
-// Exchange 实现 Provider 接口（暂不支持）
-func (c *SAMLClient) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
-	return nil, fmt.Errorf("SAML exchange not implemented, use OIDC")
+// Exchange 解析并验证 SAML Response（签名、受众、时间窗口、重放），存储 session
+func (c *SAMLClient) Exchange(ctx context.Context, samlResponseB64 string) (*oauth2.Token, error) {
+	return c.provider.Exchange(ctx, samlResponseB64)
 }
 
-// GetUserInfo 实现 Provider 接口（暂不支持）
+// GetUserInfo 从已存储的 SAML session 提取用户属性
 func (c *SAMLClient) GetUserInfo(ctx context.Context, token *oauth2.Token) (*UserInfo, error) {
-	return nil, fmt.Errorf("SAML userinfo not implemented, use OIDC")
+	return c.provider.GetUserInfo(ctx, token)
 }
 
-// ValidateUser 实现 Provider 接口
+// ValidateUser 校验 SAML 断言中必须包含 email 属性
 func (c *SAMLClient) ValidateUser(userInfo *UserInfo) error {
-	return nil
+	return c.provider.ValidateUser(userInfo)
 }
 
-// GetLogoutURL 实现 Provider 接口
+// GetLogoutURL 生成 SAML SLO redirect URL
 func (c *SAMLClient) GetLogoutURL(redirectURL string) string {
-	return redirectURL
+	return c.provider.GetLogoutURL(redirectURL)
 }
 
-// LoginURL 实现 Provider 接口（暂不支持）
+// LoginURL 生成 SAML AuthnRequest HTTP-Redirect 登录 URL
 func (c *SAMLClient) LoginURL(state string, redirectURL string) (string, error) {
-	return "", fmt.Errorf("SAML login not implemented, use OIDC")
+	return c.provider.LoginURL(state, redirectURL)
 }
 
-// GetLoginURL 生成 SAML 登录 URL
+// GetLoginURL 生成 SAML 登录 URL（兼容旧入口）
 func (c *SAMLClient) GetLoginURL(relayState string) string {
-	// SAML 简化实现 - 实际需要构建完整的 AuthnRequest
-	authnRequest := fmt.Sprintf(`<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" ID="_%s" Version="2.0" IssueInstant="%s" AssertionConsumerServiceURL="%s">
-		<saml:Issuer xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">%s</saml:Issuer>
-	</samlp:AuthnRequest>`,
-		uuid.New().String(),
-		time.Now().Format(time.RFC3339),
-		c.config.ACSURL,
-		c.config.SPEntityID,
-	)
+	authURL, err := c.provider.LoginURL(relayState, "")
+	if err != nil {
+		return ""
+	}
+	return authURL
+}
 
-	encoded := base64.StdEncoding.EncodeToString([]byte(authnRequest))
-	return fmt.Sprintf("%s?SAMLRequest=%s", c.config.SSOURL, url.QueryEscape(encoded))
+// SPMetadata 返回 SP metadata XML 供 IdP 注册
+func (c *SAMLClient) SPMetadata() ([]byte, error) {
+	return c.provider.SPMetadata()
 }
 
 // Provider SSO Provider 接口

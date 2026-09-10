@@ -14,7 +14,12 @@
 
 package agent
 
-import "time"
+import (
+	"context"
+	"time"
+
+	coreagent "github.com/Colin4k1024/Aetheris/v2/internal/agent"
+)
 
 // RunOptions 单次 Run 的可选参数（sessionID、超时、最大步数等）
 type RunOptions struct {
@@ -53,4 +58,21 @@ func applyRunOptions(opts []RunOption) *RunOptions {
 		f(o)
 	}
 	return o
+}
+
+// ContextWithMaxSteps 在 context 中设置单次调用 maxSteps 覆盖，供 inner Agent 读取。
+// 零或负值表示不覆盖（使用 Agent 构造时的默认值）。
+func ContextWithMaxSteps(ctx context.Context, maxSteps int) context.Context {
+	if maxSteps <= 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, coreagent.MaxStepsCtxKey{}, maxSteps)
+}
+
+// MaxStepsFromContext 从 context 读取 per-call maxSteps 覆盖；不存在时返回 0。
+func MaxStepsFromContext(ctx context.Context) int {
+	if v, ok := ctx.Value(coreagent.MaxStepsCtxKey{}).(int); ok {
+		return v
+	}
+	return 0
 }

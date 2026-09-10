@@ -16,12 +16,14 @@ package vision
 
 import (
 	"context"
+	"fmt"
+	"strings"
 )
 
 // Client 视觉模型接口。
 //
-// 当前状态：接口已定义，StubClient 仅供测试使用。
-// 生产环境需要实现具体的视觉模型 adapter（如 OpenAI Vision、Claude Vision 等）。
+// 当前状态：接口已定义，OpenAIVisionClient 已实现真实视觉适配。
+// StubClient 仅供测试使用，不应在生产环境注册。
 type Client interface {
 	// Describe 描述图像内容
 	Describe(ctx context.Context, imageURLOrBase64 string) (string, error)
@@ -30,7 +32,7 @@ type Client interface {
 }
 
 // StubClient 是一个测试占位实现，所有调用返回固定值。
-// 不要在生产环境使用。
+// 仅限测试使用；生产环境必须使用真实 provider 如 OpenAIVisionClient。
 type StubClient struct{}
 
 // Describe 返回占位文本
@@ -41,4 +43,25 @@ func (s *StubClient) Describe(ctx context.Context, imageURLOrBase64 string) (str
 // Name 返回 "stub"
 func (s *StubClient) Name() string {
 	return "stub"
+}
+
+// Config holds the configuration for creating a vision client.
+type Config struct {
+	Provider string // "openai" (future: "claude", "gemini", etc.)
+	APIKey   string
+	BaseURL  string
+	Model    string
+}
+
+// NewClientFromConfig creates a vision client based on the provider type.
+// Returns an error for unknown or unconfigured providers.
+func NewClientFromConfig(config Config) (Client, error) {
+	switch strings.ToLower(config.Provider) {
+	case "openai":
+		return NewOpenAIVisionClient(config.Model, config.APIKey, config.BaseURL)
+	case "stub":
+		return &StubClient{}, nil
+	default:
+		return nil, fmt.Errorf("unknown vision provider: %s", config.Provider)
+	}
 }

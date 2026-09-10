@@ -26,7 +26,7 @@ import (
 // Registry 模型注册表，支持按名称/类型解析 LLM、Embedding、Vision，便于运行时切换
 var (
 	llmRegistry       = make(map[string]llm.Client)
-	embeddingRegistry = make(map[string]*embedding.Embedder)
+	embeddingRegistry = make(map[string]embedding.Embedder)
 	visionRegistry    = make(map[string]vision.Client)
 	registryMu        sync.RWMutex
 )
@@ -50,14 +50,14 @@ func GetLLM(name string) (llm.Client, error) {
 }
 
 // RegisterEmbedding 注册 Embedding 实现
-func RegisterEmbedding(name string, e *embedding.Embedder) {
+func RegisterEmbedding(name string, e embedding.Embedder) {
 	registryMu.Lock()
 	defer registryMu.Unlock()
 	embeddingRegistry[name] = e
 }
 
 // GetEmbedding 按名称获取 Embedding
-func GetEmbedding(name string) (*embedding.Embedder, error) {
+func GetEmbedding(name string) (embedding.Embedder, error) {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
 	e, ok := embeddingRegistry[name]

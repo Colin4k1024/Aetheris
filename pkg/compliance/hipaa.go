@@ -31,9 +31,38 @@ type HIPAAConfig struct {
 	RequireEncryptionInTransit bool          // 传输中加密
 }
 
+// EncryptionEvidence 静态加密探测证据
+type EncryptionEvidence struct {
+	Encrypted  bool   // 存储是否已加密
+	Algorithm  string // 加密算法（如 AES-256）
+	Provider   string // 加密提供者（如 KMS）
+	VerifiedAt time.Time
+}
+
+// TLSEvidence 传输加密探测证据
+type TLSEvidence struct {
+	TLSEnabled  bool   // 是否启用 TLS
+	Version     string // TLS 版本（如 TLS 1.2）
+	CipherSuite string // 密码套件
+	VerifiedAt  time.Time
+}
+
+// EncryptionAtRestProbe 静态加密探测接口，供 CheckEncryptionAtRest 注入。
+// 生产实现委托存储后端（如 PostgreSQL TDE、KMS）；测试可 mock。
+type EncryptionAtRestProbe interface {
+	Probe(ctx context.Context) (*EncryptionEvidence, error)
+}
+
+// TLSConnectionProbe 传输加密探测接口，供 CheckEncryptionInTransit 注入。
+type TLSConnectionProbe interface {
+	Probe(ctx context.Context) (*TLSEvidence, error)
+}
+
 // HIPAACompliance HIPAA 合规检查器
 type HIPAACompliance struct {
-	config *HIPAAConfig
+	config      *HIPAAConfig
+	atRestProbe EncryptionAtRestProbe
+	tlsProbe    TLSConnectionProbe
 }
 
 // NewHIPAACompliance 创建 HIPAA 合规检查器
@@ -48,6 +77,16 @@ func NewHIPAACompliance(cfg *HIPAAConfig) *HIPAACompliance {
 		}
 	}
 	return &HIPAACompliance{config: cfg}
+}
+
+// SetEncryptionAtRestProbe 注入静态加密探测器
+func (h *HIPAACompliance) SetEncryptionAtRestProbe(probe EncryptionAtRestProbe) {
+	h.atRestProbe = probe
+}
+
+// SetTLSConnectionProbe 注入传输加密探测器
+func (h *HIPAACompliance) SetTLSConnectionProbe(probe TLSConnectionProbe) {
+	h.tlsProbe = probe
 }
 
 // PHIData PHI 数据
@@ -79,18 +118,40 @@ func (h *HIPAACompliance) ValidatePHIData(ctx context.Context, phi PHIData) erro
 	return nil
 }
 
-// CheckEncryptionAtRest 检查静态数据加密
+// CheckEncryptionAtRest 检查静态数据加密。
+// 配置要求加密但未注入探测器时返回错误（禁止以配置布尔值充当运行证据）。
 func (h *HIPAACompliance) CheckEncryptionAtRest(ctx context.Context) error {
-	if h.config.RequireEncryptionAtRest {
-		// TODO: 检查数据库存储加密状态
+	if !h.config.RequireEncryptionAtRest {
+		return nil
+	}
+	if h.atRestProbe == nil {
+		return fmt.Errorf("encryption at rest is required but no probe configured")
+	}
+	evidence, err := h.atRestProbe.Probe(ctx)
+	if err != nil {
+		return fmt.Errorf("encryption at rest probe failed: %w", err)
+	}
+	if evidence == nil || !evidence.Encrypted {
+		return fmt.Errorf("encryption at rest is required but storage is not encrypted")
 	}
 	return nil
 }
 
-// CheckEncryptionInTransit 检查传输中加密
+// CheckEncryptionInTransit 检查传输中加密。
+// 配置要求加密但未注入探测器时返回错误（禁止以配置布尔值充当运行证据）。
 func (h *HIPAACompliance) CheckEncryptionInTransit(ctx context.Context) error {
-	if h.config.RequireEncryptionInTransit {
-		// TODO: 检查 TLS 配置
+	if !h.config.RequireEncryptionInTransit {
+		return nil
+	}
+	if h.tlsProbe == nil {
+		return fmt.Errorf("encryption in transit is required but no TLS probe configured")
+	}
+	evidence, err := h.tlsProbe.Probe(ctx)
+	if err != nil {
+		return fmt.Errorf("TLS probe failed: %w", err)
+	}
+	if evidence == nil || !evidence.TLSEnabled {
+		return fmt.Errorf("encryption in transit is required but TLS is not enabled")
 	}
 	return nil
 }

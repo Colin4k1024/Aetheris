@@ -15,6 +15,13 @@
 package redaction
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"io"
 	"regexp"
 	"strings"
 )
@@ -36,10 +43,12 @@ const (
 
 // PIIDetector PII 检测器
 type PIIDetector struct {
-	patterns map[PIIType]*regexp.Regexp
+	patterns   map[PIIType]*regexp.Regexp
+	hashSalt   string // Hash 模式的 salt
+	encryptKey []byte // Encrypt 模式的 AES 密钥（32 字节）
 }
 
-// NewPIIDetector 创建 PII 检测器
+// NewPIIDetector 创建 PII 检测器（无密钥，Hash/Encrypt 模式降级为 Redact）
 func NewPIIDetector() *PIIDetector {
 	return &PIIDetector{
 		patterns: map[PIIType]*regexp.Regexp{
@@ -54,6 +63,24 @@ func NewPIIDetector() *PIIDetector {
 			PIITypeDriverLicense: regexp.MustCompile(`\b[A-Z]{1,2}[0-9]{5,8}\b`),
 		},
 	}
+}
+
+// SetHashSalt 设置 Hash 模式的 salt
+func (d *PIIDetector) SetHashSalt(salt string) {
+	d.hashSalt = salt
+}
+
+// SetEncryptKey 设置 Encrypt 模式的 AES 密钥（必须 32 字节）
+func (d *PIIDetector) SetEncryptKey(key []byte) {
+	d.encryptKey = key
+}
+
+// NewPIIDetectorWithKeys 创建带密钥的 PII 检测器
+func NewPIIDetectorWithKeys(hashSalt string, encryptKey []byte) *PIIDetector {
+	d := NewPIIDetector()
+	d.hashSalt = hashSalt
+	d.encryptKey = encryptKey
+	return d
 }
 
 // Detect 检测文本中的 PII
@@ -103,7 +130,7 @@ func (d *PIIDetector) RedactInText(text string, mode RedactionMode) string {
 	// 从后向前替换，避免索引偏移
 	for i := len(detections) - 1; i >= 0; i-- {
 		det := detections[i]
-		replacement := d.getReplacement(det.Type, mode)
+		replacement := d.getReplacement(det.Value, det.Type, mode)
 		result = result[:det.Start] + replacement + result[det.End:]
 	}
 
@@ -145,20 +172,101 @@ func (d *PIIDetector) redactSlice(slice []interface{}, mode RedactionMode) []int
 	return result
 }
 
-func (d *PIIDetector) getReplacement(piiType PIIType, mode RedactionMode) string {
+// getReplacement 根据模式对原始值执行真实变换，返回替换字符串。
+// Hash 模式：SHA256(value + salt) → hash:hex；不同输入产生不同摘要。
+// Encrypt 模式：AES-256-GCM 加密 → enc:hex；缺密钥时降级为 Redact，不声称加密成功。
+func (d *PIIDetector) getReplacement(value string, piiType PIIType, mode RedactionMode) string {
 	switch mode {
 	case RedactionModeRedact:
 		return "***REDACTED***"
 	case RedactionModeHash:
-		// 简化实现，实际应该用 hash
-		return "***HASH***"
+		return d.hashValue(value)
 	case RedactionModeEncrypt:
-		return "***ENCRYPTED***"
+		encrypted, err := d.encryptValue(value)
+		if err != nil {
+			// 缺密钥时降级为 Redact，不声称加密成功
+			return "***REDACTED***"
+		}
+		return encrypted
 	case RedactionModeRemove:
 		return ""
 	default:
 		return "***REDACTED***"
 	}
+}
+
+// hashValue 计算 SHA256(value + salt)，返回 hash:hex 格式
+func (d *PIIDetector) hashValue(value string) string {
+	h := sha256.New()
+	h.Write([]byte(value))
+	if d.hashSalt != "" {
+		h.Write([]byte(d.hashSalt))
+	}
+	return "hash:" + hex.EncodeToString(h.Sum(nil))
+}
+
+// encryptValue 使用 AES-256-GCM 加密，返回 enc:hex 格式
+func (d *PIIDetector) encryptValue(value string) (string, error) {
+	if len(d.encryptKey) == 0 {
+		return "", fmt.Errorf("encryption key not configured")
+	}
+
+	block, err := aes.NewCipher(d.encryptKey)
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", err
+	}
+
+	ciphertext := gcm.Seal(nonce, nonce, []byte(value), nil)
+	return "enc:" + hex.EncodeToString(ciphertext), nil
+}
+
+// DecryptValue 解密 enc:hex 格式的密文，返回原始值
+func (d *PIIDetector) DecryptValue(encrypted string) (string, error) {
+	if len(d.encryptKey) == 0 {
+		return "", fmt.Errorf("encryption key not configured")
+	}
+
+	if !strings.HasPrefix(encrypted, "enc:") {
+		return "", fmt.Errorf("not an encrypted value (missing enc: prefix)")
+	}
+
+	data, err := hex.DecodeString(encrypted[4:])
+	if err != nil {
+		return "", fmt.Errorf("hex decode failed: %w", err)
+	}
+
+	block, err := aes.NewCipher(d.encryptKey)
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonceSize := gcm.NonceSize()
+	if len(data) < nonceSize {
+		return "", fmt.Errorf("ciphertext too short")
+	}
+
+	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", fmt.Errorf("decryption failed (possibly tampered): %w", err)
+	}
+
+	return string(plaintext), nil
 }
 
 func (d *PIIDetector) getConfidence(piiType PIIType) float64 {

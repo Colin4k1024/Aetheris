@@ -79,8 +79,8 @@ func main() {
 }
 
 func lintPath(path string) {
-	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, path, func(info os.FileInfo) bool {
+	pkgFset = token.NewFileSet()
+	pkgs, err := parser.ParseDir(pkgFset, path, func(info os.FileInfo) bool {
 		return !strings.HasSuffix(info.Name(), "_test.go")
 	}, parser.ParseComments)
 
@@ -91,13 +91,13 @@ func lintPath(path string) {
 
 	for _, pkg := range pkgs {
 		for _, file := range pkg.Files {
-			lintFile(fset, file)
+			lintFile(file)
 		}
 	}
 }
 
-func lintFile(fset *token.FileSet, file *ast.File) {
-	filename := fset.Position(file.Pos()).Filename
+func lintFile(file *ast.File) {
+	filename := pkgFset.Position(file.Pos()).Filename
 
 	// 检查工具定义
 	ast.Inspect(file, func(n ast.Node) bool {
@@ -167,11 +167,73 @@ func lintToolDescriptor(filename string, spec *ast.TypeSpec) {
 }
 
 func lintSchemaFunc(filename string, fn *ast.FuncDecl) {
-	// 检查 Schema 的 Properties 是否都有 Description
-	// 这是一个简化检查，实际应该更复杂
+	// Check documentation
 	if fn.Doc == nil {
 		addWarning(filename, fn, "info", "Tool function should have documentation")
 	}
+
+	// Scan function body for schema construction containing "properties"
+	// and verify each property has a "description" key.
+	ast.Inspect(fn, func(n ast.Node) bool {
+		cl, ok := n.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+
+		// Look for map[string]any{...} literals containing a "properties" key
+		propKV, hasProperties := findMapKey(cl, "properties")
+		if !hasProperties {
+			return true
+		}
+
+		// The value of "properties" should itself be a map literal;
+		// check each property for a "description" sub-key.
+		propMap, ok := propKV.Value.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+
+		for _, el := range propMap.Elts {
+			kv, ok := el.(*ast.KeyValueExpr)
+			if !ok {
+				continue
+			}
+			// Each property value should be a map with at least a "description"
+			propValue, ok := kv.Value.(*ast.CompositeLit)
+			if !ok {
+				continue
+			}
+			if _, hasDesc := findMapKey(propValue, "description"); !hasDesc {
+				propName := litString(kv.Key)
+				addWarning(filename, fn, "warning",
+					fmt.Sprintf("schema property %q missing description", propName))
+			}
+		}
+		return true
+	})
+}
+
+// findMapKey searches a CompositeLit (map literal) for a key-value pair
+// whose key string matches name. Returns the KV expr and whether it was found.
+func findMapKey(cl *ast.CompositeLit, name string) (*ast.KeyValueExpr, bool) {
+	for _, el := range cl.Elts {
+		kv, ok := el.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		if litString(kv.Key) == name {
+			return kv, true
+		}
+	}
+	return nil, false
+}
+
+// litString extracts a string value from a basic literal AST expression.
+func litString(expr ast.Expr) string {
+	if bl, ok := expr.(*ast.BasicLit); ok && bl.Kind == token.STRING {
+		return strings.Trim(bl.Value, "\"'")
+	}
+	return ""
 }
 
 // 导出 JSON 格式的 lint 结果
@@ -208,10 +270,13 @@ func addWarning(filename string, node ast.Node, typ, msg string) {
 	})
 }
 
+// pkgFset is the file set shared across linting passes, used to resolve
+// AST node positions to real file:line:column.
+var pkgFset *token.FileSet
+
 func getPos(node ast.Node) token.Position {
-	// 简化实现
-	return token.Position{
-		Line:   1,
-		Column: 1,
+	if node == nil || pkgFset == nil {
+		return token.Position{Line: 1, Column: 1}
 	}
+	return pkgFset.Position(node.Pos())
 }

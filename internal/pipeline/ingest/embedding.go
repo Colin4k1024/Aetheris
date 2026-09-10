@@ -26,12 +26,12 @@ import (
 // DocumentEmbedding 文档向量化器
 type DocumentEmbedding struct {
 	name        string
-	embedder    *embedding.Embedder
+	embedder    embedding.Embedder
 	concurrency int
 }
 
 // NewDocumentEmbedding 创建新的文档向量化器
-func NewDocumentEmbedding(embedder *embedding.Embedder, concurrency int) *DocumentEmbedding {
+func NewDocumentEmbedding(embedder embedding.Embedder, concurrency int) *DocumentEmbedding {
 	if concurrency <= 0 {
 		concurrency = 4
 	}
@@ -170,11 +170,11 @@ func (e *DocumentEmbedding) embedChunks(ctx context.Context, doc *common.Documen
 }
 
 // SetEmbedder 设置嵌入器
-func (e *DocumentEmbedding) SetEmbedder(embedder *embedding.Embedder) {
+func (e *DocumentEmbedding) SetEmbedder(embedder embedding.Embedder) {
 	e.embedder = embedder
 }
 
 // GetEmbedder 获取嵌入器
-func (e *DocumentEmbedding) GetEmbedder() *embedding.Embedder {
+func (e *DocumentEmbedding) GetEmbedder() embedding.Embedder {
 	return e.embedder
 }

@@ -48,8 +48,11 @@ func NewLLMClientFromConfig(cfg *config.Config) (llm.Client, error) {
 	return llm.NewClient(provider, mi.Name, apiKey, baseURL)
 }
 
-// NewQueryEmbedderFromConfig 根据 config.Model 的 defaults.embedding 创建用于 query 向量化的 Embedder
-func NewQueryEmbedderFromConfig(cfg *config.Config) (*embedding.Embedder, error) {
+// NewQueryEmbedderFromConfig 根据 config.Model 的 defaults.embedding 创建用于 query 向量化的 Embedder。
+// 配置了 embedding provider 且有 API key 时创建真实 Embedder（调 OpenAI embeddings API）；
+// 未配置 defaults.embedding 时返回 (nil, nil)（表示 embedding 未启用）；
+// 配置了 provider 但缺 API key 时返回错误，禁止静默回退全零向量。
+func NewQueryEmbedderFromConfig(cfg *config.Config) (embedding.Embedder, error) {
 	if cfg == nil || cfg.Model.Defaults.Embedding == "" {
 		return nil, nil
 	}
@@ -69,7 +72,15 @@ func NewQueryEmbedderFromConfig(cfg *config.Config) (*embedding.Embedder, error)
 	if dimension <= 0 {
 		dimension = 1536
 	}
-	return embedding.NewEmbedder(mi.Name, dimension), nil
+	apiKey := pc.APIKey
+	if apiKey == "" {
+		return nil, fmt.Errorf("embedding provider %q api_key not configured", provider)
+	}
+	emb, err := embedding.NewOpenAIEmbedder(apiKey, mi.Name, pc.BaseURL, dimension)
+	if err != nil {
+		return nil, fmt.Errorf("create embedding client for provider %q: %w", provider, err)
+	}
+	return emb, nil
 }
 
 func parseDefaultKey(key string) (provider, modelKey string, err error) {

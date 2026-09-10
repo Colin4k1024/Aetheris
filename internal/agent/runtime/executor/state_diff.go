@@ -65,11 +65,12 @@ const (
 // ErrReplayVerificationHumanRequired 当 ReplayVerificationMode == HumanInLoop 且校验failed时返回，调用方应 park job 并等待人工确认后恢复
 var ErrReplayVerificationHumanRequired = errors.New("replay verification failed: human-in-loop required")
 
-// NoOpResourceVerifier 默认 ResourceVerifier：不做实际校验，始终返回 (true, nil)。
-// 用于 bootstrap 时挂载「有 Verifier 但暂不校验」的占位；生产环境应替换为具体实现（如 GitHubVerifier）。
+// NoOpResourceVerifier 显式禁用/测试用 ResourceVerifier：不做实际校验，始终返回 (true, nil)。
+// 仅用于测试或显式「暂不校验」的降级场景；生产环境必须注入具体实现（如 GitHubVerifier）或使用 nil（nil 时 runConfirmation 跳过验证）。
+// 不应将此类型用于生产回放验证，否则会允许不可信结果注入。
 type NoOpResourceVerifier struct{}
 
-// Verify 实现 ResourceVerifier，始终通过
+// Verify 实现 ResourceVerifier，始终通过（仅限测试/显式降级）
 func (NoOpResourceVerifier) Verify(_ context.Context, _, _, _, _, _, _ string) (bool, error) {
 	return true, nil
 }

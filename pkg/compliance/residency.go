@@ -17,6 +17,7 @@ package compliance
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -69,21 +70,61 @@ type RegionLookup interface {
 	GetRegion(ctx context.Context, identifier string) (RegionCode, error)
 }
 
-// IPRegionLookup 基于 IP 的区域查找
+// RegionUnknown 未知区域代码
+const RegionUnknown RegionCode = "unknown"
+
+// ErrInvalidIdentifier 标识符无法解析为 IP
+var ErrInvalidIdentifier = fmt.Errorf("invalid identifier: not a valid IP address")
+
+// IPRegionLookup 基于 IP 的区域查找。
+// 正确识别 IPv4/IPv6 私网、回环和链路本地地址；公网 IP 无法解析时返回 RegionUnknown + error，不默认为 US。
+// 生产环境应注入带 GeoIP 数据库的 RegionLookup 实现。
 type IPRegionLookup struct {
-	// 可以集成 GeoIP 数据库
+	// GeoIPDataPath 可选：GeoIP 数据库路径；为空时公网 IP 返回 unknown
+	GeoIPDataPath string
 }
 
 // GetRegion 获取 IP 对应的区域
 func (r *IPRegionLookup) GetRegion(ctx context.Context, identifier string) (RegionCode, error) {
-	// 简化实现：基于 IP 地址前缀判断
-	// 实际应该使用 GeoIP 数据库
-	if strings.HasPrefix(identifier, "10.") ||
-		strings.HasPrefix(identifier, "172.16.") ||
-		strings.HasPrefix(identifier, "192.168.") {
-		return "XX", nil // 内部网络
+	if identifier == "" {
+		return RegionUnknown, fmt.Errorf("empty identifier")
 	}
-	return "US", nil // 默认
+
+	ip := parseIP(identifier)
+	if ip == nil {
+		return RegionUnknown, ErrInvalidIdentifier
+	}
+
+	// 私网 / 回环 / 链路本地 → 内部网络
+	if ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return "XX", nil
+	}
+
+	// 无 GeoIP 数据库时公网 IP 无法解析区域
+	if r.GeoIPDataPath == "" {
+		return RegionUnknown, fmt.Errorf("no GeoIP database configured, cannot resolve region for %s", identifier)
+	}
+
+	// TODO: 使用 GeoIPDataPath 加载 GeoIP 数据库查询区域
+	// 当前仅返回 unknown，等待 GeoIP 集成
+	return RegionUnknown, fmt.Errorf("GeoIP lookup not yet implemented for %s", identifier)
+}
+
+// parseIP 解析 IPv4/IPv6 字符串为 net.IP
+func parseIP(identifier string) net.IP {
+	identifier = strings.TrimSpace(identifier)
+	return net.ParseIP(identifier)
+}
+
+// StaticRegionLookup 基于可信存储元数据的区域查找，优先返回预配置的区域。
+// 用于存储后端已声明区域（如 PostgreSQL 服务器区域）的场景，无需 GeoIP。
+type StaticRegionLookup struct {
+	Region RegionCode
+}
+
+// GetRegion 返回预配置的区域
+func (s *StaticRegionLookup) GetRegion(_ context.Context, _ string) (RegionCode, error) {
+	return s.Region, nil
 }
 
 // NewDataResidencyController 创建数据驻留控制器
@@ -93,6 +134,33 @@ func NewDataResidencyController(defaultPolicy *ResidencyPolicy) *DataResidencyCo
 		defaultPolicy: defaultPolicy,
 		regionLookup:  &IPRegionLookup{},
 	}
+}
+
+// NewDataResidencyControllerWithLookup 创建带自定义 RegionLookup 的数据驻留控制器
+func NewDataResidencyControllerWithLookup(defaultPolicy *ResidencyPolicy, lookup RegionLookup) *DataResidencyController {
+	c := NewDataResidencyController(defaultPolicy)
+	if lookup != nil {
+		c.regionLookup = lookup
+	}
+	return c
+}
+
+// SetRegionLookup 注入区域解析器（生产应注入带 GeoIP 数据库的实现）
+func (c *DataResidencyController) SetRegionLookup(lookup RegionLookup) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.regionLookup = lookup
+}
+
+// ResolveRegion 解析标识符对应的区域（委托 regionLookup）
+func (c *DataResidencyController) ResolveRegion(ctx context.Context, identifier string) (RegionCode, error) {
+	c.mu.RLock()
+	lookup := c.regionLookup
+	c.mu.RUnlock()
+	if lookup == nil {
+		return RegionUnknown, fmt.Errorf("no region lookup configured")
+	}
+	return lookup.GetRegion(ctx, identifier)
 }
 
 // SetPolicy 设置租户策略

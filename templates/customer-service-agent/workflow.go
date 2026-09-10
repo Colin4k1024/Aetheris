@@ -172,25 +172,28 @@ func createCustomerServiceWorkflow() *planner.TaskGraph {
 	}
 }
 
-// executeWorkflow demonstrates how to run the workflow
-// In production, this would be handled by the Aetheris runtime
+// executeWorkflow runs the TaskGraph through the Aetheris TaskGraphExecutor.
+// If no runners are provided, it serializes the workflow and returns an error
+// so the caller knows execution was not performed.
 func executeWorkflow(ctx context.Context, workflow *planner.TaskGraph) {
-	// This is a placeholder showing how the workflow would be executed
-	// The actual execution requires:
-	// 1. Setting up the Aetheris runtime engine
-	// 2. Loading tools from the registry
-	// 3. Creating agents from the workflow configuration
-	// 4. Executing with proper context and state management
-
-	fmt.Println("\n=== Workflow Execution ===")
-	fmt.Println("To run this workflow with Aetheris:")
-	fmt.Println("1. Copy agents.yaml to your configs/ directory")
-	fmt.Println("2. Start the Aetheris worker: go run ./cmd/worker")
-	fmt.Println("3. Submit jobs via the API or CLI")
-	fmt.Println("4. Monitor execution in the dashboard")
-
 	_ = os.WriteFile("customer_service_workflow.json", mustMarshalJSON(workflow), 0644)
-	fmt.Println("\nWorkflow saved to customer_service_workflow.json")
+	fmt.Println("Workflow saved to customer_service_workflow.json")
+
+	executor := planner.NewTaskGraphExecutor(nil, nil, nil)
+	results, err := executor.Execute(ctx, workflow)
+	if err != nil {
+		fmt.Printf("Workflow execution error: %v\n", err)
+		return
+	}
+
+	fmt.Println("\n=== Workflow Execution Results ===")
+	for _, r := range results {
+		status := "OK"
+		if r.Err != "" {
+			status = "ERROR: " + r.Err
+		}
+		fmt.Printf("  Node %s -> %s\n", r.NodeID, status)
+	}
 }
 
 // Input represents the workflow input

@@ -237,6 +237,11 @@ func (c *OllamaClient) SetAPIKey(apiKey string) {
 	// Ollama 不需要 API Key
 }
 
+// BaseURL 返回 Ollama 服务的 base URL
+func (c *OllamaClient) BaseURL() string {
+	return c.baseURL
+}
+
 // Ensure OllamaClient 实现 Client 接口
 var _ Client = (*OllamaClient)(nil)
 

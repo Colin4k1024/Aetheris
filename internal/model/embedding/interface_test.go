@@ -36,20 +36,6 @@ func TestNewEmbedder_DefaultDimension(t *testing.T) {
 	}
 }
 
-func TestEmbedder_Model_Nil(t *testing.T) {
-	var emb *Embedder
-	if emb.Model() != "" {
-		t.Errorf("expected empty string for nil, got %s", emb.Model())
-	}
-}
-
-func TestEmbedder_Dimension_Nil(t *testing.T) {
-	var emb *Embedder
-	if emb.Dimension() != 0 {
-		t.Errorf("expected 0 for nil, got %d", emb.Dimension())
-	}
-}
-
 func TestEmbedder_Embed(t *testing.T) {
 	emb := NewEmbedder("model", 128)
 	result, err := emb.Embed(context.Background(), []string{"hello", "world"})
@@ -57,21 +43,10 @@ func TestEmbedder_Embed(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(result) != 2 {
-		t.Errorf("expected 2 results, got %d", len(result))
+		t.Fatalf("expected 2 results, got %d", len(result))
 	}
 	if len(result[0]) != 128 {
-		t.Errorf("expected 128 dimensions, got %d", len(result[0]))
-	}
-}
-
-func TestEmbedder_Embed_Nil(t *testing.T) {
-	var emb *Embedder
-	result, err := emb.Embed(context.Background(), []string{"hello"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result != nil {
-		t.Error("expected nil for nil embedder")
+		t.Fatalf("expected 128 dimensions, got %d", len(result[0]))
 	}
 }
 
@@ -83,5 +58,64 @@ func TestEmbedder_Embed_EmptyTexts(t *testing.T) {
 	}
 	if result != nil {
 		t.Error("expected nil for empty texts")
+	}
+}
+
+func TestEmbedder_NonZeroVectors(t *testing.T) {
+	emb := NewEmbedder("model", 64)
+	result, err := emb.Embed(context.Background(), []string{"hello"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for i, v := range result[0] {
+		if v == 0 {
+			t.Errorf("expected non-zero vector, got 0 at index %d", i)
+		}
+	}
+}
+
+func TestEmbedder_DifferentTextsDifferentVectors(t *testing.T) {
+	emb := NewEmbedder("model", 64)
+	r1, err := emb.Embed(context.Background(), []string{"hello"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	r2, err := emb.Embed(context.Background(), []string{"world"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	same := true
+	for i := range r1[0] {
+		if r1[0][i] != r2[0][i] {
+			same = false
+			break
+		}
+	}
+	if same {
+		t.Error("expected different vectors for different texts")
+	}
+}
+
+func TestEmbedder_SameTextSameVector(t *testing.T) {
+	emb := NewEmbedder("model", 64)
+	r1, err := emb.Embed(context.Background(), []string{"hello"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	r2, err := emb.Embed(context.Background(), []string{"hello"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for i := range r1[0] {
+		if r1[0][i] != r2[0][i] {
+			t.Errorf("expected same vector for same text, differ at index %d", i)
+		}
+	}
+}
+
+func TestEmbedder_NilSafe(t *testing.T) {
+	var emb Embedder
+	if emb != nil {
+		t.Error("expected nil for uninitialized interface")
 	}
 }

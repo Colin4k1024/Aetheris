@@ -17,7 +17,6 @@ package gatekeeper
 import (
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -565,21 +564,4 @@ func matchesPattern(url, pattern string) bool {
 		return strings.HasSuffix(url, suffix) || strings.Contains(url, "/"+suffix)
 	}
 	return strings.Contains(url, pattern)
-}
-
-// ValidateSchema 验证 JSON Schema (简化实现)
-func ValidateSchema(data string, schema string) error {
-	// 实际实现应使用 JSON Schema 验证库
-	// 这里提供简化版本
-	if data == "" {
-		return &types.ValidationError{Field: "data", Message: "data cannot be empty"}
-	}
-
-	// 编译正则表达式模式
-	pattern := regexp.MustCompile(`^\{.*\}$`)
-	if !pattern.MatchString(data) {
-		return &types.ValidationError{Field: "data", Message: "invalid JSON format"}
-	}
-
-	return nil
 }
