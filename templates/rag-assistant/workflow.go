@@ -239,20 +239,28 @@ type RAGOutput struct {
 	QueryRewrite string   `json:"query_rewrite,omitempty"`
 }
 
-// executeDemo runs a demonstration of the RAG workflow
+// executeDemo runs the RAG workflow through the TaskGraphExecutor.
+// Without configured runners, nodes will report "not configured" errors,
+// making it clear which capabilities are missing.
 func executeDemo(ctx context.Context, workflow *planner.TaskGraph) {
-	fmt.Println("\n=== RAG Workflow Demo ===")
-	fmt.Println("This workflow demonstrates:")
-	fmt.Println("1. Query understanding and rewrite")
-	fmt.Println("2. Multi-source retrieval (vector DB + web)")
-	fmt.Println("3. Re-ranking and filtering")
-	fmt.Println("4. Context synthesis")
-	fmt.Println("5. Answer generation with citations")
-	fmt.Println("6. Quality assurance")
-
-	// Save workflow definition
 	_ = os.WriteFile("rag_workflow.json", mustMarshalJSON(workflow), 0644)
-	fmt.Println("\nWorkflow saved to rag_workflow.json")
+	fmt.Println("Workflow saved to rag_workflow.json")
+
+	executor := planner.NewTaskGraphExecutor(nil, nil, nil)
+	results, err := executor.Execute(ctx, workflow)
+	if err != nil {
+		fmt.Printf("Workflow execution error: %v\n", err)
+		return
+	}
+
+	fmt.Println("\n=== RAG Workflow Execution Results ===")
+	for _, r := range results {
+		status := "OK"
+		if r.Err != "" {
+			status = "ERROR: " + r.Err
+		}
+		fmt.Printf("  Node %s -> %s\n", r.NodeID, status)
+	}
 }
 
 // CreateQueryWorkflow creates a basic query workflow using compose

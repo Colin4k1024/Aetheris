@@ -116,13 +116,20 @@ func (a *Agent) RunWithSession(ctx context.Context, sessionID string, prompt str
 		a.sessions[sessionID] = sess
 	}
 	a.mu.Unlock()
-	if o.MaxSteps > 0 {
-		// 临时覆盖 inner 的 maxSteps 需要改 internal agent 或这里传 session 时带 option；简化起见本次不传，使用创建时的默认
-	}
 	return a.runWithSession(ctx, sess, prompt, o)
 }
 
 func (a *Agent) runWithSession(ctx context.Context, sess *session.Session, prompt string, o *RunOptions) (*RunResult, error) {
+	// 派生可取消 context（超时控制）
+	if o.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, o.Timeout)
+		defer cancel()
+	}
+	// 通过 context 传递 per-call maxSteps（避免修改共享 Agent）
+	if o.MaxSteps > 0 {
+		ctx = ContextWithMaxSteps(ctx, o.MaxSteps)
+	}
 	res, err := a.inner.RunWithSession(ctx, sess, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("agent run: %w", err)

@@ -202,3 +202,13 @@ func (c *OpenAIClient) SetModel(model string) {
 func (c *OpenAIClient) SetAPIKey(apiKey string) {
 	c.apiKey = apiKey
 }
+
+// BaseURL 返回 API base URL
+func (c *OpenAIClient) BaseURL() string {
+	return c.baseURL
+}
+
+// APIKey 返回 API Key
+func (c *OpenAIClient) APIKey() string {
+	return c.apiKey
+}

@@ -785,7 +785,7 @@ func NewApp(bootstrap *app.Bootstrap) (*App, error) {
 		mcpManager:   mcpMgr,
 	}
 	if bootstrap.Config != nil && bootstrap.Config.API.Grpc.Enable && bootstrap.Config.API.Grpc.Port > 0 {
-		gs, err := startGRPC(engine, docService, bootstrap.Config.API.Grpc.Port)
+		gs, err := startGRPC(engine, docService, jobStore, bootstrap.Config.API.Grpc.Port)
 		if err != nil {
 			bootstrap.Logger.Warn("gRPC 服务启动failed", "error", err)
 		} else {
@@ -1015,13 +1015,13 @@ func evidenceSigningConfigFromConfig(cfg config.EvidenceSigningConfig) (http.Evi
 }
 
 // startGRPC 创建并启动 gRPC 服务（在 goroutine 中 Serve），返回 grpcRun 以便 Shutdown 时 GracefulStop
-func startGRPC(engine *eino.Engine, docService app.DocumentService, port int) (*grpcRun, error) {
+func startGRPC(engine *eino.Engine, docService app.DocumentService, jobStore job.JobStore, port int) (*grpcRun, error) {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
 	}
 	srv := grpc.NewServer()
-	apigrpc.NewServer(engine, docService).Register(srv)
+	apigrpc.NewServerWithJobStore(engine, docService, jobStore).Register(srv)
 	go func() {
 		_ = srv.Serve(lis)
 	}()

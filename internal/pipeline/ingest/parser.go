@@ -171,14 +171,7 @@ func (p *TextParser) Supports(contentType string) bool {
 // MarkdownParser Markdown 解析器
 type MarkdownParser struct{}
 
-// Parse 解析 Markdown
-func (p *MarkdownParser) Parse(content string, metadata map[string]interface{}) (string, error) {
-	// 这里可以添加 Markdown 解析逻辑
-	// 暂时返回原始内容
-	return content, nil
-}
-
-// Supports 支持的内容类型
+// Supports 支持的内容类型（实现在 parser_impl.go）
 func (p *MarkdownParser) Supports(contentType string) bool {
 	return contentType == "text/markdown"
 }
@@ -186,14 +179,7 @@ func (p *MarkdownParser) Supports(contentType string) bool {
 // HTMLParser HTML 解析器
 type HTMLParser struct{}
 
-// Parse 解析 HTML
-func (p *HTMLParser) Parse(content string, metadata map[string]interface{}) (string, error) {
-	// 这里可以添加 HTML 解析逻辑
-	// 暂时返回原始内容
-	return content, nil
-}
-
-// Supports 支持的内容类型
+// Supports 支持的内容类型（实现在 parser_impl.go）
 func (p *HTMLParser) Supports(contentType string) bool {
 	return contentType == "text/html"
 }
@@ -201,14 +187,7 @@ func (p *HTMLParser) Supports(contentType string) bool {
 // JSONParser JSON 解析器
 type JSONParser struct{}
 
-// Parse 解析 JSON
-func (p *JSONParser) Parse(content string, metadata map[string]interface{}) (string, error) {
-	// 这里可以添加 JSON 解析逻辑
-	// 暂时返回原始内容
-	return content, nil
-}
-
-// Supports 支持的内容类型
+// Supports 支持的内容类型（实现在 parser_impl.go）
 func (p *JSONParser) Supports(contentType string) bool {
 	return contentType == "application/json"
 }

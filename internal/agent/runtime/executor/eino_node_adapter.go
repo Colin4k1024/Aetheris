@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
@@ -397,51 +396,62 @@ var _ NodeAdapter = (*EinoNodeAdapter)(nil)
 
 // ============ 工具实现 ============
 
-// BuiltinTools 内置工具实现
-type BuiltinTools struct {
-	calculator func(op string, v1, v2 int) (int, error)
-	search     func(query string) (string, error)
-	weather    func(city string) (string, error)
+// SearchProvider 搜索 provider 接口。生产实现注入真实搜索 API；未注入时工具返回错误。
+type SearchProvider interface {
+	Search(ctx context.Context, query string) (string, error)
 }
 
-// NewBuiltinTools 创建内置工具
+// WeatherProvider 天气 provider 接口。生产实现注入真实天气 API；未注入时工具返回错误。
+type WeatherProvider interface {
+	GetWeather(ctx context.Context, city string) (string, error)
+}
+
+// BuiltinTools 内置工具实现。calculator 为纯计算（无需 provider）；
+// search 和 weather 需注入 provider，未注入时返回错误，不返回固定数据。
+type BuiltinTools struct {
+	searchProvider  SearchProvider
+	weatherProvider WeatherProvider
+}
+
+// NewBuiltinTools 创建内置工具（无 search/weather provider，调用时返回错误）
 func NewBuiltinTools() *BuiltinTools {
+	return &BuiltinTools{}
+}
+
+// NewBuiltinToolsWithProviders 创建带真实 provider 的内置工具
+func NewBuiltinToolsWithProviders(search SearchProvider, weather WeatherProvider) *BuiltinTools {
 	return &BuiltinTools{
-		calculator: func(op string, v1, v2 int) (int, error) {
-			switch op {
-			case "add", "加", "+":
-				return v1 + v2, nil
-			case "subtract", "减", "-":
-				return v1 - v2, nil
-			case "multiply", "乘", "*":
-				return v1 * v2, nil
-			case "divide", "除", "/":
-				if v2 == 0 {
-					return 0, fmt.Errorf("division by zero")
-				}
-				return v1 / v2, nil
-			default:
-				return 0, fmt.Errorf("unknown operation: %s", op)
-			}
-		},
-		search: func(query string) (string, error) {
-			// 模拟搜索结果
-			return fmt.Sprintf("Search results for '%s':\n1. Result A\n2. Result B\n3. Result C", query), nil
-		},
-		weather: func(city string) (string, error) {
-			weatherMap := map[string]string{
-				"beijing":   "晴, 25°C",
-				"shanghai":  "多云, 28°C",
-				"guangzhou": "雷阵雨, 32°C",
-				"shenzhen":  "晴, 31°C",
-				"hangzhou":  "晴, 26°C",
-			}
-			w := strings.ToLower(city)
-			if result, ok := weatherMap[w]; ok {
-				return fmt.Sprintf("%s: %s", city, result), nil
-			}
-			return fmt.Sprintf("%s: 天气数据未知", city), nil
-		},
+		searchProvider:  search,
+		weatherProvider: weather,
+	}
+}
+
+// SetSearchProvider 注入搜索 provider
+func (b *BuiltinTools) SetSearchProvider(p SearchProvider) {
+	b.searchProvider = p
+}
+
+// SetWeatherProvider 注入天气 provider
+func (b *BuiltinTools) SetWeatherProvider(p WeatherProvider) {
+	b.weatherProvider = p
+}
+
+// calculator 纯计算函数，无需外部 provider
+func (b *BuiltinTools) calculator(op string, v1, v2 int) (int, error) {
+	switch op {
+	case "add", "加", "+":
+		return v1 + v2, nil
+	case "subtract", "减", "-":
+		return v1 - v2, nil
+	case "multiply", "乘", "*":
+		return v1 * v2, nil
+	case "divide", "除", "/":
+		if v2 == 0 {
+			return 0, fmt.Errorf("division by zero")
+		}
+		return v1 / v2, nil
+	default:
+		return 0, fmt.Errorf("unknown operation: %s", op)
 	}
 }
 
@@ -459,12 +469,18 @@ func (b *BuiltinTools) Execute(ctx context.Context, toolName string, input map[s
 		return fmt.Sprintf("%d", result), nil
 
 	case "search":
+		if b.searchProvider == nil {
+			return "", fmt.Errorf("search tool is unavailable: no search provider configured")
+		}
 		query, _ := input["query"].(string)
-		return b.search(query)
+		return b.searchProvider.Search(ctx, query)
 
 	case "weather":
+		if b.weatherProvider == nil {
+			return "", fmt.Errorf("weather tool is unavailable: no weather provider configured")
+		}
 		city, _ := input["city"].(string)
-		return b.weather(city)
+		return b.weatherProvider.GetWeather(ctx, city)
 
 	default:
 		return "", fmt.Errorf("unknown tool: %s", toolName)

@@ -31,6 +31,32 @@ import (
 
 // ============ ChatModel 接口定义 ============
 
+// ============ Tool 接口定义 ============
+
+// ToolExecutor defines the interface that tools in the Tools list must implement.
+// The adapters search the Tools list by name and delegate execution to the matching tool.
+type ToolExecutor interface {
+	// Name returns the tool's unique name (matching the LLM's function call name)
+	Name() string
+	// Execute runs the tool with the parsed JSON arguments
+	Execute(ctx context.Context, args map[string]any) (string, error)
+}
+
+// ADKInvokable is implemented by agents that support synchronous invocation.
+type ADKInvokable interface {
+	Invoke(ctx context.Context, input map[string]any) (map[string]any, error)
+}
+
+// ADKStreamable is implemented by agents that support streaming.
+type ADKStreamable interface {
+	Stream(ctx context.Context, input map[string]any, onChunk func(chunk map[string]any) error) error
+}
+
+// ADKStateful is implemented by checkpoint/state managers that can report agent state.
+type ADKStateful interface {
+	GetState(ctx context.Context) (map[string]any, error)
+}
+
 // ChatModel eino ChatModel 接口
 type ChatModel interface {
 	Generate(ctx context.Context, input []*schema.Message, opts ...Option) (*schema.Message, error)
@@ -213,10 +239,11 @@ func (a *ReactAgentAdapter) buildReactPrompt(goal string, history []*schema.Mess
 	return sb.String()
 }
 
-// executeTool 执行工具
+// executeTool finds the named tool in the Tools list, parses JSON args,
+// and delegates execution. Returns an error if the tool is not found or
+// doesn't implement ToolExecutor.
 func (a *ReactAgentAdapter) executeTool(ctx context.Context, toolName string, args string) (string, error) {
-	// 简化实现：记录工具调用
-	return fmt.Sprintf("Tool %s called with args: %s", toolName, args), nil
+	return executeToolFromList(ctx, a.Tools, toolName, args)
 }
 
 // extractMessage 从输入中提取消息
@@ -635,15 +662,9 @@ func (a *ManusAgentAdapter) buildContext(goal string, history []*schema.Message)
 	return sb.String()
 }
 
-// executeTool 执行工具
+// executeTool finds the named tool in the Tools list and delegates execution.
 func (a *ManusAgentAdapter) executeTool(ctx context.Context, toolName string, args string) (string, error) {
-	var params map[string]any
-	if err := json.Unmarshal([]byte(args), &params); err != nil {
-		return "", fmt.Errorf("failed to parse tool arguments: %w", err)
-	}
-
-	// 简化实现
-	return fmt.Sprintf("Tool %s executed with params: %v", toolName, params), nil
+	return executeToolFromList(ctx, a.Tools, toolName, args)
 }
 
 // extractMessage 从输入中提取消息
@@ -857,34 +878,46 @@ func (g *GraphAdapter) SetOutputKey(key string) {
 	g.OutputKey = key
 }
 
-// Invoke 执行 Graph (简化版)
+// Invoke 执行 Graph，支持菱形 DAG（多个分支汇聚到同一节点）
 func (g *GraphAdapter) Invoke(ctx context.Context, input map[string]any) (map[string]any, error) {
 	if g.EntryID == "" {
 		return input, nil
 	}
 
-	currentNode := g.EntryID
-	result := input
+	// 构建邻接表和入度表
+	outgoing := make(map[string][]string)
+	inDegree := make(map[string]int)
+	for _, edge := range g.Edges {
+		if len(edge) < 2 {
+			continue
+		}
+		from, to := edge[0], edge[1]
+		outgoing[from] = append(outgoing[from], to)
+		inDegree[to]++
+	}
+
+	// Kahn 拓扑排序：从入口节点开始 BFS 执行
+	queue := []string{g.EntryID}
 	visited := make(map[string]bool)
+	result := input
 
-	for {
-		if currentNode == "" {
-			break
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		if visited[current] {
+			continue
 		}
+		visited[current] = true
 
-		if visited[currentNode] {
-			break
-		}
-		visited[currentNode] = true
-
-		node, ok := g.Nodes[currentNode]
+		node, ok := g.Nodes[current]
 		if !ok {
-			break
+			continue
 		}
 
 		output, err := node(ctx, result)
 		if err != nil {
-			return nil, fmt.Errorf("node %s failed: %w", currentNode, err)
+			return nil, fmt.Errorf("node %s failed: %w", current, err)
 		}
 
 		// 合并结果
@@ -896,24 +929,27 @@ func (g *GraphAdapter) Invoke(ctx context.Context, input map[string]any) (map[st
 			result["result"] = output
 		}
 
-		nextNode := g.findNextNode(currentNode)
-		if nextNode == "" {
-			break
+		// 将所有下游节点加入队列（入度为 0 时才执行）
+		for _, next := range outgoing[current] {
+			inDegree[next]--
+			if inDegree[next] <= 0 {
+				queue = append(queue, next)
+			}
 		}
-		currentNode = nextNode
 	}
 
 	return result, nil
 }
 
-// findNextNode 查找下一个节点
-func (g *GraphAdapter) findNextNode(current string) string {
+// findNextNodes 查找当前节点的所有下游节点
+func (g *GraphAdapter) findNextNodes(current string) []string {
+	var nexts []string
 	for _, edge := range g.Edges {
 		if len(edge) >= 2 && edge[0] == current {
-			return edge[1]
+			nexts = append(nexts, edge[1])
 		}
 	}
-	return ""
+	return nexts
 }
 
 // Stream 流式执行
@@ -1043,21 +1079,38 @@ func NewADKAdapter(agent interface{}, checkpoint interface{}) *ADKAdapter {
 
 // Invoke 执行 ADK Agent
 func (a *ADKAdapter) Invoke(ctx context.Context, input map[string]any) (map[string]any, error) {
-	return map[string]any{
-		"response": "ADK response",
-	}, nil
+	if a.Agent == nil {
+		return nil, fmt.Errorf("ADKAdapter: agent not configured")
+	}
+	invokable, ok := a.Agent.(ADKInvokable)
+	if !ok {
+		return nil, fmt.Errorf("ADKAdapter: agent does not implement ADKInvokable (type %T)", a.Agent)
+	}
+	return invokable.Invoke(ctx, input)
 }
 
-// Stream 流式执行
+// Stream delegates to the Agent if it implements ADKStreamable
 func (a *ADKAdapter) Stream(ctx context.Context, input map[string]any, onChunk func(chunk map[string]any) error) error {
-	return nil
+	if a.Agent == nil {
+		return fmt.Errorf("ADKAdapter: agent not configured")
+	}
+	streamable, ok := a.Agent.(ADKStreamable)
+	if !ok {
+		return fmt.Errorf("ADKAdapter: agent does not implement ADKStreamable (type %T)", a.Agent)
+	}
+	return streamable.Stream(ctx, input, onChunk)
 }
 
-// GetState 获取状态
+// GetState delegates to the Checkpoint if it implements ADKStateful
 func (a *ADKAdapter) GetState(ctx context.Context) (map[string]any, error) {
-	return map[string]any{
-		"status": "ready",
-	}, nil
+	if a.Checkpoint == nil {
+		return nil, fmt.Errorf("ADKAdapter: checkpoint not configured")
+	}
+	stateful, ok := a.Checkpoint.(ADKStateful)
+	if !ok {
+		return nil, fmt.Errorf("ADKAdapter: checkpoint does not implement ADKStateful (type %T)", a.Checkpoint)
+	}
+	return stateful.GetState(ctx)
 }
 
 // ToNodeRunner 将适配器转换为 NodeRunner
@@ -1098,4 +1151,31 @@ func ConvertToPlannerTaskNode(adapter EinoExampleAdapter, nodeType string, confi
 func JSONMarshal(v any) []byte {
 	b, _ := json.Marshal(v)
 	return b
+}
+
+// executeToolFromList searches the tools list for a tool matching toolName,
+// parses the JSON args, and delegates execution. Returns an error if the
+// tool is not found or doesn't implement ToolExecutor.
+func executeToolFromList(ctx context.Context, tools []interface{}, toolName, args string) (string, error) {
+	for _, t := range tools {
+		if t == nil {
+			continue
+		}
+		executor, ok := t.(ToolExecutor)
+		if !ok {
+			continue
+		}
+		if executor.Name() == toolName {
+			var params map[string]any
+			if args != "" {
+				if err := json.Unmarshal([]byte(args), &params); err != nil {
+					return "", fmt.Errorf("failed to parse tool arguments for %s: %w", toolName, err)
+				}
+			} else {
+				params = make(map[string]any)
+			}
+			return executor.Execute(ctx, params)
+		}
+	}
+	return "", fmt.Errorf("tool %q not found or does not implement ToolExecutor", toolName)
 }

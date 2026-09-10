@@ -38,6 +38,10 @@ type SchemaProvider interface {
 	SchemasForLLM() ([]byte, error)
 }
 
+// MaxStepsCtxKey 用于 context 中传递 per-call maxSteps 覆盖的键。
+// pkg/agent 使用此键在 context 中设置单次调用的 maxSteps。
+type MaxStepsCtxKey struct{}
+
 // Deprecated: Agent 自定义 Plan→Execute 循环已被 Eino ADK Agent 取代。
 // 新代码应使用 eino.AgentFactory 创建基于 Eino 的 Agent Runner。
 // 此类型仍被 internal/agent/runtime/executor 和 internal/app/api 使用，
@@ -114,8 +118,14 @@ func (a *Agent) runInternal(ctx context.Context, sessionID string, userQuery str
 	}
 	totalSteps := 0
 
+	// 优先使用 per-call maxSteps（从 context 覆盖），否则用 Agent 构造时的默认值
+	effectiveMaxSteps := a.maxSteps
+	if override, ok := ctx.Value(MaxStepsCtxKey{}).(int); ok && override > 0 {
+		effectiveMaxSteps = override
+	}
+
 	// 基于 Session 的单步循环：Next -> Execute -> AddObservation
-	for totalSteps < a.maxSteps {
+	for totalSteps < effectiveMaxSteps {
 		step, err := a.planner.Next(ctx, sess, userQuery, schemas)
 		if err != nil {
 			return nil, fmt.Errorf("planner Next failed: %w", err)

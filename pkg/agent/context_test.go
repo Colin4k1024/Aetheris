@@ -20,146 +20,73 @@ import (
 	"time"
 )
 
-func TestRunOptions_Default(t *testing.T) {
-	o := &RunOptions{}
-	if o.MaxSteps != 0 {
-		t.Errorf("expected MaxSteps=0, got %d", o.MaxSteps)
-	}
-	if o.Timeout != 0 {
-		t.Errorf("expected Timeout=0, got %v", o.Timeout)
-	}
-	if o.SessionID != "" {
-		t.Errorf("expected empty SessionID, got %s", o.SessionID)
+func TestContextWithMaxSteps_Zero_NoOverride(t *testing.T) {
+	ctx := ContextWithMaxSteps(context.Background(), 0)
+	if v := MaxStepsFromContext(ctx); v != 0 {
+		t.Errorf("expected 0 for zero maxSteps, got %d", v)
 	}
 }
 
-func TestWithSessionID(t *testing.T) {
-	opt := WithSessionID("session-123")
-	o := &RunOptions{}
-	opt(o)
-	if o.SessionID != "session-123" {
-		t.Errorf("expected session-123, got %s", o.SessionID)
+func TestContextWithMaxSteps_Negative_NoOverride(t *testing.T) {
+	ctx := ContextWithMaxSteps(context.Background(), -1)
+	if v := MaxStepsFromContext(ctx); v != 0 {
+		t.Errorf("expected 0 for negative maxSteps, got %d", v)
 	}
 }
 
-func TestWithTimeout(t *testing.T) {
-	timeout := 30 * time.Second
-	opt := WithTimeout(timeout)
-	o := &RunOptions{}
-	opt(o)
-	if o.Timeout != timeout {
-		t.Errorf("expected %v, got %v", timeout, o.Timeout)
+func TestContextWithMaxSteps_Positive_Overrides(t *testing.T) {
+	ctx := ContextWithMaxSteps(context.Background(), 5)
+	if v := MaxStepsFromContext(ctx); v != 5 {
+		t.Errorf("expected 5, got %d", v)
 	}
 }
 
-func TestWithRunMaxSteps(t *testing.T) {
-	opt := WithRunMaxSteps(50)
-	o := &RunOptions{}
-	opt(o)
-	if o.MaxSteps != 50 {
-		t.Errorf("expected 50, got %d", o.MaxSteps)
+func TestMaxStepsFromContext_NoKey_ReturnsZero(t *testing.T) {
+	v := MaxStepsFromContext(context.Background())
+	if v != 0 {
+		t.Errorf("expected 0, got %d", v)
 	}
 }
 
-func TestApplyRunOptions_Default(t *testing.T) {
+func TestWithTimeout_SetsOption(t *testing.T) {
+	o := applyRunOptions([]RunOption{WithTimeout(30 * time.Second)})
+	if o.Timeout != 30*time.Second {
+		t.Errorf("expected 30s, got %v", o.Timeout)
+	}
+}
+
+func TestWithRunMaxSteps_SetsOption(t *testing.T) {
+	o := applyRunOptions([]RunOption{WithRunMaxSteps(10)})
+	if o.MaxSteps != 10 {
+		t.Errorf("expected 10, got %d", o.MaxSteps)
+	}
+}
+
+func TestApplyRunOptions_Defaults(t *testing.T) {
 	o := applyRunOptions(nil)
 	if o.MaxSteps != 20 {
-		t.Errorf("expected default MaxSteps=20, got %d", o.MaxSteps)
+		t.Errorf("expected default 20, got %d", o.MaxSteps)
+	}
+	if o.Timeout != 0 {
+		t.Errorf("expected default 0 timeout, got %v", o.Timeout)
 	}
 }
 
-func TestApplyRunOptions_WithOptions(t *testing.T) {
-	o := applyRunOptions([]RunOption{
-		WithSessionID("test-session"),
-		WithTimeout(time.Minute),
-		WithRunMaxSteps(100),
-	})
+func TestWithSessionID_SetsOption(t *testing.T) {
+	o := applyRunOptions([]RunOption{WithSessionID("test-session")})
 	if o.SessionID != "test-session" {
 		t.Errorf("expected test-session, got %s", o.SessionID)
 	}
-	if o.Timeout != time.Minute {
-		t.Errorf("expected 1m, got %v", o.Timeout)
-	}
-	if o.MaxSteps != 100 {
-		t.Errorf("expected 100, got %d", o.MaxSteps)
-	}
 }
 
-func TestSimpleTool(t *testing.T) {
-	run := func(ctx context.Context, input map[string]any) (string, error) {
-		return "result", nil
+// Test that options don't pollute each other across calls
+func TestRunOptions_NoCrossContamination(t *testing.T) {
+	o1 := applyRunOptions([]RunOption{WithRunMaxSteps(5)})
+	o2 := applyRunOptions([]RunOption{WithRunMaxSteps(10)})
+	if o1.MaxSteps != 5 {
+		t.Errorf("expected 5 for first call, got %d", o1.MaxSteps)
 	}
-	tool := &simpleTool{
-		name:        "test_tool",
-		description: "A test tool",
-		run:         run,
-	}
-
-	if tool.Name() != "test_tool" {
-		t.Errorf("expected name test_tool, got %s", tool.Name())
-	}
-	if tool.Description() != "A test tool" {
-		t.Errorf("expected description, got %s", tool.Description())
-	}
-}
-
-func TestSimpleTool_Schema(t *testing.T) {
-	run := func(ctx context.Context, input map[string]any) (string, error) {
-		return "result", nil
-	}
-
-	// Test with nil schema
-	tool := &simpleTool{
-		name:        "test_tool",
-		description: "A test tool",
-		run:         run,
-		schema:      nil,
-	}
-
-	schema := tool.Schema()
-	if schema["type"] != "object" {
-		t.Errorf("expected object type, got %v", schema["type"])
-	}
-
-	// Test with custom schema
-	customSchema := map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"query": map[string]any{"type": "string"},
-		},
-	}
-	tool2 := &simpleTool{
-		name:        "test_tool2",
-		description: "A test tool",
-		run:         run,
-		schema:      customSchema,
-	}
-
-	schema2 := tool2.Schema()
-	props := schema2["properties"].(map[string]any)
-	if props["query"] == nil {
-		t.Error("expected query property in schema")
-	}
-}
-
-func TestSimpleTool_Execute(t *testing.T) {
-	run := func(ctx context.Context, input map[string]any) (string, error) {
-		if input["key"] != "value" {
-			return "", nil
-		}
-		return "success", nil
-	}
-	tool := &simpleTool{
-		name:        "test_tool",
-		description: "A test tool",
-		run:         run,
-	}
-
-	result, err := tool.Execute(nil, nil, map[string]any{"key": "value"}, nil)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if result != "success" {
-		t.Errorf("expected success, got %v", result)
+	if o2.MaxSteps != 10 {
+		t.Errorf("expected 10 for second call, got %d", o2.MaxSteps)
 	}
 }

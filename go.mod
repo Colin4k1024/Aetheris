@@ -3,6 +3,7 @@ module github.com/Colin4k1024/Aetheris/v2
 go 1.26.1
 
 require (
+	github.com/beevik/etree v1.5.0
 	github.com/cloudwego/eino v0.7.29
 	github.com/cloudwego/eino-ext/components/indexer/redis v0.0.0-20260204064123-1f91f547c77e
 	github.com/cloudwego/eino-ext/components/model/openai v0.1.8
@@ -10,6 +11,7 @@ require (
 	github.com/cloudwego/eino-ext/devops v0.1.8
 	github.com/cloudwego/hertz v0.10.4
 	github.com/coreos/go-oidc v2.5.0+incompatible
+	github.com/crewjam/saml v0.5.1
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/go-github/v45 v45.2.0
@@ -22,6 +24,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.66.1
 	github.com/redis/go-redis/v9 v9.17.1
+	github.com/russellhaering/goxmldsig v1.4.0
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.11.1
 	github.com/unidoc/unipdf/v3 v3.69.0
@@ -37,6 +40,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.40.0
 	go.opentelemetry.io/otel/trace v1.40.0
 	golang.org/x/crypto v0.47.0
+	golang.org/x/net v0.49.0
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/time v0.14.0
 	google.golang.org/grpc v1.78.0
@@ -78,11 +82,13 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/json-iterator/go v1.1.13-0.20220915233716-71ac16282d12 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/matoous/go-nanoid v1.5.1 // indirect
+	github.com/mattermost/xml-roundtrip-validator v0.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/meguminnnnnnnnn/go-openai v0.1.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
@@ -128,7 +134,6 @@ require (
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
 	golang.org/x/image v0.24.0 // indirect
-	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.33.0 // indirect

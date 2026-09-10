@@ -280,15 +280,18 @@ func TestPIIDetector_GetReplacement(t *testing.T) {
 	detector := NewPIIDetector()
 
 	// Test redact mode
-	replacement := detector.getReplacement(PIITypeEmail, RedactionModeRedact)
+	replacement := detector.getReplacement("test@example.com", PIITypeEmail, RedactionModeRedact)
 	if replacement == "" {
 		t.Error("expected non-empty replacement")
 	}
 
-	// Test hash mode
-	replacement = detector.getReplacement(PIITypeEmail, RedactionModeHash)
+	// Test hash mode (deterministic, non-fixed)
+	replacement = detector.getReplacement("test@example.com", PIITypeEmail, RedactionModeHash)
 	if replacement == "" {
 		t.Error("expected non-empty replacement")
+	}
+	if replacement == "***HASH***" {
+		t.Error("expected real hash, not fixed placeholder")
 	}
 }
 

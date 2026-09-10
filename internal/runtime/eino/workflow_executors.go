@@ -199,11 +199,27 @@ func (e *ingestWorkflowExecutor) Execute(ctx context.Context, params map[string]
 		}
 	}
 
+	// 定义 ingest 状态：parse-only（无 embedding/indexer）或 indexed（完整管线）
+	ingestStatus := "parse_only"
+	if e.embedding != nil && e.indexer != nil {
+		ingestStatus = "indexed"
+	} else if e.embedding != nil && e.indexer == nil {
+		// 配置了 embedding 但无 indexer → 警告
+		if e.logger != nil {
+			e.logger.Warn("ingest_pipeline 配置了 embedding 但无 indexer，文档未索引", "ingest_id", ingestID, "doc_id", doc.ID)
+		}
+		ingestStatus = "embedded_not_indexed"
+	} else if e.embedding == nil && e.indexer != nil {
+		// 有 indexer 但无 embedding → 错误：索引器需要向量
+		return nil, fmt.Errorf("ingest_pipeline: indexer configured without embedding, cannot index without vectors")
+	}
+
 	if e.logger != nil {
-		e.logger.Info("ingest_pipeline 完成", "ingest_id", ingestID, "doc_id", doc.ID, "chunks", len(doc.Chunks))
+		e.logger.Info("ingest_pipeline 完成", "ingest_id", ingestID, "doc_id", doc.ID, "chunks", len(doc.Chunks), "status", ingestStatus)
 	}
 	return map[string]interface{}{
 		"status":   "success",
+		"mode":     ingestStatus,
 		"doc_id":   doc.ID,
 		"chunks":   len(doc.Chunks),
 		"metadata": params["metadata"],
@@ -220,12 +236,12 @@ type QueryRetrieverForWorkflow interface {
 type queryWorkflowExecutor struct {
 	retriever     QueryRetrieverForWorkflow
 	generator     *query.Generator
-	queryEmbedder *embedding.Embedder
+	queryEmbedder embedding.Embedder
 	logger        *log.Logger
 }
 
 // NewQueryWorkflowExecutor 创建可执行的 query 工作流（由 app 装配后注册到 Engine）
-func NewQueryWorkflowExecutor(retriever QueryRetrieverForWorkflow, generator *query.Generator, queryEmbedder *embedding.Embedder, logger *log.Logger) WorkflowExecutor {
+func NewQueryWorkflowExecutor(retriever QueryRetrieverForWorkflow, generator *query.Generator, queryEmbedder embedding.Embedder, logger *log.Logger) WorkflowExecutor {
 	return &queryWorkflowExecutor{
 		retriever:     retriever,
 		generator:     generator,
@@ -258,19 +274,9 @@ func (e *queryWorkflowExecutor) Execute(ctx context.Context, params map[string]i
 		topK = k
 	}
 
-	// 未注入 retriever/generator 或无 query 时返回占位
+	// 未注入 retriever/generator 时返回错误，不返回模拟成功
 	if e.retriever == nil || e.generator == nil {
-		if q != nil {
-			return map[string]interface{}{
-				"status":   "success",
-				"query_id": q.ID,
-				"answer":   "Query pipeline placeholder (wire retriever+generator in app).",
-			}, nil
-		}
-		return map[string]interface{}{
-			"status": "success",
-			"answer": "Query pipeline placeholder.",
-		}, nil
+		return nil, fmt.Errorf("query_pipeline cannot execute: retriever or generator not configured")
 	}
 	if q == nil {
 		return nil, fmt.Errorf("query_pipeline requires params[\"query\"] 为 *common.Query")

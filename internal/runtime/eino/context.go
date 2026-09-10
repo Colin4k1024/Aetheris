@@ -89,12 +89,15 @@ func (cm *ContextManager) ExecuteQuery(ctx context.Context, runnerName, query st
 	return eventCh, nil
 }
 
-// ExecuteTool 执行工具
+// ExecuteTool 执行工具。需通过已注册的 Runner 执行；未配置时返回错误，不返回模拟结果。
 func (cm *ContextManager) ExecuteTool(ctx context.Context, runnerName, toolName, input string) (string, error) {
-	_, err := cm.GetRunner(runnerName)
+	runner, err := cm.GetRunner(runnerName)
 	if err != nil {
 		return "", err
 	}
-	// 这里可以通过 Agent 执行工具；暂时返回模拟结果
-	return fmt.Sprintf("工具 %s 执行结果: %s", toolName, input), nil
+	if runner == nil {
+		return "", fmt.Errorf("runner %q is not configured, cannot execute tool %q", runnerName, toolName)
+	}
+	// Runner 接口不支持直接执行单个工具；返回不支持错误
+	return "", fmt.Errorf("direct tool execution via ContextManager is not supported; use Runner workflow instead (tool: %s)", toolName)
 }

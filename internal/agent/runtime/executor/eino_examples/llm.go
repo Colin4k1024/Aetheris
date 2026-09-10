@@ -15,8 +15,12 @@
 package eino_examples
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -133,10 +137,41 @@ func estimateTokenCount(messages []llm.Message) int {
 	return total
 }
 
-// Stream 实现 ChatModel 接口
+// Stream 实现 ChatModel 接口：通过 Ollama /api/chat stream=true 获取 NDJSON 流式响应
 func (m *OllamaChatModel) Stream(ctx context.Context, input []*schema.Message, opts ...Option) (*schema.StreamReader[*schema.Message], error) {
-	// TODO: 实现流式支持
-	return nil, fmt.Errorf("streaming not implemented yet")
+	if m.client == nil {
+		return nil, fmt.Errorf("OllamaChatModel: client not configured")
+	}
+
+	// 合并选项
+	options := m.options
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	// 转换消息
+	chatMessages := make([]struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
+	}, len(input))
+	for i, msg := range input {
+		chatMessages[i].Role = string(msg.Role)
+		chatMessages[i].Content = msg.Content
+	}
+
+	reqBody := map[string]any{
+		"model":    m.client.Model(),
+		"messages": chatMessages,
+		"stream":   true,
+	}
+	if options.Temperature > 0 || options.MaxTokens > 0 {
+		reqBody["options"] = map[string]any{
+			"temperature": options.Temperature,
+			"num_predict": options.MaxTokens,
+		}
+	}
+
+	return streamHTTP(ctx, m.client.BaseURL()+"/api/chat", reqBody, nil, parseOllamaStreamChunk)
 }
 
 // Ensure OllamaChatModel implements ChatModel
@@ -230,10 +265,45 @@ func (m *OpenAIChatModel) Generate(ctx context.Context, input []*schema.Message,
 	}, nil
 }
 
-// Stream 实现 ChatModel 接口
+// Stream 实现 ChatModel 接口：通过 OpenAI /chat/completions stream=true 获取 SSE 流式响应
 func (m *OpenAIChatModel) Stream(ctx context.Context, input []*schema.Message, opts ...Option) (*schema.StreamReader[*schema.Message], error) {
-	// TODO: 实现流式支持
-	return nil, fmt.Errorf("streaming not implemented yet")
+	if m.client == nil {
+		return nil, fmt.Errorf("OpenAIChatModel: client not configured")
+	}
+
+	options := m.options
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	messages := make([]map[string]string, len(input))
+	for i, msg := range input {
+		messages[i] = map[string]string{
+			"role":    string(msg.Role),
+			"content": msg.Content,
+		}
+	}
+
+	oc, ok := m.client.(*llm.OpenAIClient)
+	if !ok {
+		return nil, fmt.Errorf("OpenAIChatModel.Stream: client is not *llm.OpenAIClient (got %T)", m.client)
+	}
+
+	reqBody := map[string]any{
+		"model":       m.client.Model(),
+		"messages":    messages,
+		"stream":      true,
+		"temperature": options.Temperature,
+	}
+	if options.MaxTokens > 0 {
+		reqBody["max_tokens"] = options.MaxTokens
+	}
+
+	headers := map[string]string{
+		"Authorization": "Bearer " + oc.APIKey(),
+	}
+
+	return streamHTTP(ctx, oc.BaseURL()+"/chat/completions", reqBody, headers, parseOpenAIStreamChunk)
 }
 
 // Ensure OpenAIChatModel implements ChatModel
@@ -321,9 +391,46 @@ func (m *ClaudeChatModel) Generate(ctx context.Context, input []*schema.Message,
 	}, nil
 }
 
-// Stream 实现 ChatModel 接口
+// Stream 实现 ChatModel 接口：Claude 流式通过 OpenAI 兼容层（如 OpenRouter），否则返回错误
 func (m *ClaudeChatModel) Stream(ctx context.Context, input []*schema.Message, opts ...Option) (*schema.StreamReader[*schema.Message], error) {
-	return nil, fmt.Errorf("streaming not implemented yet")
+	if m.client == nil {
+		return nil, fmt.Errorf("ClaudeChatModel: client not configured")
+	}
+
+	options := m.options
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	messages := make([]map[string]string, len(input))
+	for i, msg := range input {
+		messages[i] = map[string]string{
+			"role":    string(msg.Role),
+			"content": msg.Content,
+		}
+	}
+
+	// 尝试 OpenAI 兼容层（Claude via OpenRouter/proxy）
+	oc, ok := m.client.(*llm.OpenAIClient)
+	if !ok {
+		return nil, fmt.Errorf("ClaudeChatModel.Stream: streaming requires OpenAI-compatible client (got %T)", m.client)
+	}
+
+	reqBody := map[string]any{
+		"model":       m.client.Model(),
+		"messages":    messages,
+		"stream":      true,
+		"temperature": options.Temperature,
+	}
+	if options.MaxTokens > 0 {
+		reqBody["max_tokens"] = options.MaxTokens
+	}
+
+	headers := map[string]string{
+		"Authorization": "Bearer " + oc.APIKey(),
+	}
+
+	return streamHTTP(ctx, oc.BaseURL()+"/chat/completions", reqBody, headers, parseOpenAIStreamChunk)
 }
 
 // Ensure ClaudeChatModel implements ChatModel
@@ -357,14 +464,26 @@ func NewChatModelFromEnv() (ChatModel, error) {
 
 // isOllamaAvailable 检查 Ollama 是否可用
 func isOllamaAvailable() bool {
-	// 简单检查，不实际请求
-	return true
+	baseURL := os.Getenv("OLLAMA_BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:11434"
+	}
+	probe := &http.Client{Timeout: 2 * time.Second}
+	resp, err := probe.Get(baseURL + "/api/tags")
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
 }
 
-// CreateToolsFromFuncs 将函数转换为 eino 工具
-// CreateToolsFromFuncs 占位符
-func CreateToolsFromFuncs(funcs map[string]func(ctx context.Context, args map[string]any) (string, error)) {
-	// 简化实现，实际项目中需要完整的 tool 定义
+// CreateToolsFromFuncs 将函数映射转换为 ToolExecutor 列表，可直接传入 adapter 的 Tools 字段。
+func CreateToolsFromFuncs(funcs map[string]func(ctx context.Context, args map[string]any) (string, error)) []interface{} {
+	tools := make([]interface{}, 0, len(funcs))
+	for name, fn := range funcs {
+		tools = append(tools, NewSimpleTool(name, "Tool: "+name, fn))
+	}
+	return tools
 }
 
 // SimpleTool 简单工具实现（占位符，完整实现需要 eino tool 接口）
@@ -381,6 +500,24 @@ func NewSimpleTool(name, description string, fn func(ctx context.Context, args m
 		description: description,
 		fn:          fn,
 	}
+}
+
+// Name returns the tool's unique name.
+func (t *SimpleTool) Name() string {
+	return t.name
+}
+
+// Description returns the tool's description.
+func (t *SimpleTool) Description() string {
+	return t.description
+}
+
+// Execute runs the tool with the parsed JSON arguments.
+func (t *SimpleTool) Execute(ctx context.Context, args map[string]any) (string, error) {
+	if t.fn == nil {
+		return "", fmt.Errorf("tool %q has no handler", t.name)
+	}
+	return t.fn(ctx, args)
 }
 
 // MockChatModelWithResponse 创建带有预设响应的 Mock ChatModel
@@ -409,30 +546,170 @@ func (m *MockChatModel) Generate(ctx context.Context, input []*schema.Message, o
 	return &schema.Message{Content: "mock response"}, nil
 }
 
-// Stream 实现 ChatModel 接口
+// Stream 实现 ChatModel 接口：将预设响应分片发送
 func (m *MockChatModel) Stream(ctx context.Context, input []*schema.Message, opts ...Option) (*schema.StreamReader[*schema.Message], error) {
-	return nil, fmt.Errorf("streaming not implemented")
+	sr, sw := schema.Pipe[*schema.Message](10)
+	go func() {
+		defer sw.Close()
+		if m.err != nil {
+			sw.Send(nil, m.err)
+			return
+		}
+		content := "mock response"
+		if m.response != nil && m.response.Content != "" {
+			content = m.response.Content
+		}
+		// Split into word-sized chunks
+		words := strings.Fields(content)
+		if len(words) == 0 {
+			words = []string{content}
+		}
+		for _, word := range words {
+			select {
+			case <-ctx.Done():
+				sw.Send(nil, ctx.Err())
+				return
+			default:
+			}
+			sw.Send(&schema.Message{
+				Role:    schema.Assistant,
+				Content: word + " ",
+			}, nil)
+		}
+	}()
+	return sr, nil
 }
 
 // Ensure MockChatModel implements ChatModel
 var _ ChatModel = (*MockChatModel)(nil)
 
-// ParseToolArguments 解析工具参数 JSON 字符串
+// ParseToolArguments 解析工具参数 JSON 字符串为 map
 func ParseToolArguments(jsonStr string) (map[string]any, error) {
-	// 这是一个占位实现
-	// 实际项目中需要完整的 JSON 解析
 	if jsonStr == "" {
 		return make(map[string]any), nil
 	}
-
-	// 简单的 key=value 解析
-	args := make(map[string]any)
-	pairs := strings.Split(jsonStr, ",")
-	for _, pair := range pairs {
-		kv := strings.SplitN(pair, "=", 2)
-		if len(kv) == 2 {
-			args[kv[0]] = kv[1]
-		}
+	var args map[string]any
+	if err := json.Unmarshal([]byte(jsonStr), &args); err != nil {
+		return nil, fmt.Errorf("parse tool arguments: %w", err)
+	}
+	if args == nil {
+		args = make(map[string]any)
 	}
 	return args, nil
+}
+
+// streamChunkParser 解析单条流式响应数据，返回消息内容和是否结束
+type streamChunkParser func(line string) (content string, done bool, err error)
+
+// streamHTTP 发起 HTTP 请求并将流式响应通过 schema.Pipe 转换为 StreamReader
+func streamHTTP(ctx context.Context, url string, reqBody map[string]any, headers map[string]string, parser streamChunkParser) (*schema.StreamReader[*schema.Message], error) {
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		httpReq.Header.Set(k, v)
+	}
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("stream request: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+		resp.Body.Close()
+		return nil, fmt.Errorf("stream request failed (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	sr, sw := schema.Pipe[*schema.Message](50)
+	go func() {
+		defer sw.Close()
+		defer resp.Body.Close()
+
+		scanner := bufio.NewScanner(resp.Body)
+		scanner.Buffer(make([]byte, 0, 64*1024), 10*1024*1024)
+		for scanner.Scan() {
+			select {
+			case <-ctx.Done():
+				sw.Send(nil, ctx.Err())
+				return
+			default:
+			}
+			line := scanner.Text()
+			if line == "" {
+				continue
+			}
+			content, done, perr := parser(line)
+			if perr != nil {
+				sw.Send(nil, perr)
+				return
+			}
+			if done {
+				return
+			}
+			if content != "" {
+				sw.Send(&schema.Message{
+					Role:    schema.Assistant,
+					Content: content,
+				}, nil)
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			sw.Send(nil, err)
+		}
+	}()
+
+	return sr, nil
+}
+
+// parseOllamaStreamChunk 解析 Ollama NDJSON 流式响应行
+func parseOllamaStreamChunk(line string) (content string, done bool, err error) {
+	var chunk struct {
+		Message struct {
+			Content string `json:"content"`
+		} `json:"message"`
+		Done bool `json:"done"`
+	}
+	if err := json.Unmarshal([]byte(line), &chunk); err != nil {
+		return "", false, nil // skip unparseable lines
+	}
+	if chunk.Done {
+		return "", true, nil
+	}
+	return chunk.Message.Content, false, nil
+}
+
+// parseOpenAIStreamChunk 解析 OpenAI SSE 流式响应行
+func parseOpenAIStreamChunk(line string) (content string, done bool, err error) {
+	if !strings.HasPrefix(line, "data: ") {
+		return "", false, nil // skip non-data lines
+	}
+	data := strings.TrimPrefix(line, "data: ")
+	if data == "[DONE]" {
+		return "", true, nil
+	}
+	var chunk struct {
+		Choices []struct {
+			Delta struct {
+				Content string `json:"content"`
+			} `json:"delta"`
+			FinishReason string `json:"finish_reason"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+		return "", false, nil // skip unparseable
+	}
+	if len(chunk.Choices) == 0 {
+		return "", false, nil
+	}
+	if chunk.Choices[0].FinishReason != "" {
+		return "", true, nil
+	}
+	return chunk.Choices[0].Delta.Content, false, nil
 }

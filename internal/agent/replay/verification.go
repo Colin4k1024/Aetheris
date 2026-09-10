@@ -76,12 +76,33 @@ type ExternalStateVerifier interface {
 	Name() string
 }
 
+// ToolLedgerEntry Tool 账本查询返回的只读记录
+type ToolLedgerEntry struct {
+	IdempotencyKey string
+	ExternalRef    string
+	Status         string // started | success | failure | confirmed
+	ResultHash     string // 结果摘要，供比较
+}
+
+// ErrToolLedgerNotFound 查询无对应记录
+var ErrToolLedgerNotFound = errors.New("tool ledger entry not found")
+
+// ToolLedgerLookup 只读账本查询接口，供 ToolLedgerVerifier 注入。
+// 生产实现委托 executor.ToolInvocationStore（适配器转换）；测试可 mock。
+type ToolLedgerLookup interface {
+	// LookupByExternalRef 按 external_ref 或 resource_id 查询工具调用记录
+	LookupByExternalRef(ctx context.Context, externalRef string) (*ToolLedgerEntry, error)
+}
+
 // ToolLedgerVerifier ToolLedger 验证器 - 验证工具调用的幂等性。
-//
-// 当前状态：占位实现，VerifyStateChange 始终返回 match。
-// 完整实现需要注入 ToolLedger store 并查询 idempotency_key 的实际状态。
+// 必须注入 ToolLedgerLookup；未注入时 VerifyStateChange 返回 error（禁止静默 match）。
 type ToolLedgerVerifier struct {
-	// TODO: 注入 ToolLedger store 进行验证
+	lookup ToolLedgerLookup
+}
+
+// NewToolLedgerVerifier 创建带 store 的 ToolLedgerVerifier
+func NewToolLedgerVerifier(lookup ToolLedgerLookup) *ToolLedgerVerifier {
+	return &ToolLedgerVerifier{lookup: lookup}
 }
 
 // Name 返回验证器名称
@@ -96,29 +117,80 @@ func (v *ToolLedgerVerifier) VerifyStateChange(ctx context.Context, record State
 		Status: VerificationStatusPending,
 	}
 
-	// 如果记录中没有外部引用，跳过验证
+	// 无外部引用时跳过
 	if record.ExternalRef == "" && record.ResourceID == "" {
 		result.Status = VerificationStatusSkipped
 		result.Message = "no external reference to verify"
 		return result, nil
 	}
 
-	// ToolLedger 验证：检查 idempotency_key 是否已存在
-	// TODO: 实际查询 ToolLedger store
-	// 这里返回已匹配作为占位实现
-	result.Status = VerificationStatusMatch
-	result.Message = "ToolLedger verification passed (stub)"
-	result.MatchDetails = `{"verified": true, "store": "tool_ledger"}`
+	// 非工具相关记录跳过（交给 DatabaseStateVerifier 等处理）
+	if record.ToolName == "" && record.ResourceType != "tool" && record.ResourceType != "tool_invocation" {
+		result.Status = VerificationStatusSkipped
+		result.Message = "not a tool invocation record"
+		return result, nil
+	}
+
+	// 未注入 store 时禁止静默 match
+	if v.lookup == nil {
+		result.Status = VerificationStatusError
+		result.Message = "ToolLedgerVerifier: no store configured, cannot verify"
+		return result, nil
+	}
+
+	// 确定查询键：优先 external_ref，回退 resource_id
+	ref := record.ExternalRef
+	if ref == "" {
+		ref = record.ResourceID
+	}
+
+	entry, err := v.lookup.LookupByExternalRef(ctx, ref)
+	if err != nil {
+		if errors.Is(err, ErrToolLedgerNotFound) {
+			result.Status = VerificationStatusMismatch
+			result.Message = fmt.Sprintf("tool ledger entry not found for ref %q", ref)
+			return result, nil
+		}
+		result.Status = VerificationStatusError
+		result.Message = fmt.Sprintf("tool ledger lookup error: %v", err)
+		return result, nil
+	}
+
+	// 检查状态：仅 confirmed/success 表示外部世界已变更
+	switch entry.Status {
+	case "confirmed", "success":
+		result.Status = VerificationStatusMatch
+		result.Message = "tool ledger entry confirmed"
+		result.MatchDetails = fmt.Sprintf(`{"status": "%s", "result_hash": "%s"}`, entry.Status, entry.ResultHash)
+	case "started":
+		result.Status = VerificationStatusPending
+		result.Message = "tool ledger entry is in-flight"
+	default:
+		result.Status = VerificationStatusMismatch
+		result.Message = fmt.Sprintf("tool ledger entry status %q does not indicate committed state", entry.Status)
+	}
 
 	return result, nil
 }
 
+// DatabaseStateLookup 只读数据库资源查询接口，供 DatabaseStateVerifier 注入。
+type DatabaseStateLookup interface {
+	// Lookup 查询资源当前的 version 和 etag
+	Lookup(ctx context.Context, resourceID string) (version, etag string, err error)
+}
+
+// ErrDatabaseResourceNotFound 查询无对应资源
+var ErrDatabaseResourceNotFound = errors.New("database resource not found")
+
 // DatabaseStateVerifier 数据库状态验证器 - 验证数据库记录的版本/ETag。
-//
-// 当前状态：占位实现，VerifyStateChange 始终返回 match。
-// 完整实现需要注入数据库连接并查询资源的实际版本/ETag。
+// 必须注入 DatabaseStateLookup；未注入时返回 error（禁止静默 match）。
 type DatabaseStateVerifier struct {
-	// TODO: 注入数据库连接进行验证
+	lookup DatabaseStateLookup
+}
+
+// NewDatabaseStateVerifier 创建带 lookup 的 DatabaseStateVerifier
+func NewDatabaseStateVerifier(lookup DatabaseStateLookup) *DatabaseStateVerifier {
+	return &DatabaseStateVerifier{lookup: lookup}
 }
 
 // Name 返回验证器名称
@@ -139,12 +211,52 @@ func (v *DatabaseStateVerifier) VerifyStateChange(ctx context.Context, record St
 		return result, nil
 	}
 
-	// 数据库验证：检查记录版本/ETag 是否匹配
-	// TODO: 实际查询数据库
-	// 这里返回已匹配作为占位实现
+	if record.ResourceID == "" {
+		result.Status = VerificationStatusSkipped
+		result.Message = "no resource ID to verify"
+		return result, nil
+	}
+
+	// 未注入 lookup 时禁止静默 match
+	if v.lookup == nil {
+		result.Status = VerificationStatusError
+		result.Message = "DatabaseStateVerifier: no lookup configured, cannot verify"
+		return result, nil
+	}
+
+	currentVersion, currentEtag, err := v.lookup.Lookup(ctx, record.ResourceID)
+	if err != nil {
+		if errors.Is(err, ErrDatabaseResourceNotFound) {
+			result.Status = VerificationStatusMismatch
+			result.Message = fmt.Sprintf("database resource %q not found", record.ResourceID)
+			return result, nil
+		}
+		result.Status = VerificationStatusError
+		result.Message = fmt.Sprintf("database lookup error: %v", err)
+		return result, nil
+	}
+
+	// 比较 version 和 etag
+	mismatchMsg := ""
+	if record.Version != "" && currentVersion != "" && record.Version != currentVersion {
+		mismatchMsg = fmt.Sprintf("version mismatch: expected %s, got %s", record.Version, currentVersion)
+	}
+	if record.Etag != "" && currentEtag != "" && record.Etag != currentEtag {
+		if mismatchMsg != "" {
+			mismatchMsg += "; "
+		}
+		mismatchMsg += fmt.Sprintf("etag mismatch: expected %s, got %s", record.Etag, currentEtag)
+	}
+
+	if mismatchMsg != "" {
+		result.Status = VerificationStatusMismatch
+		result.Message = mismatchMsg
+		return result, nil
+	}
+
 	result.Status = VerificationStatusMatch
-	result.Message = "Database verification passed (stub)"
-	result.MatchDetails = fmt.Sprintf(`{"resource_id": "%s", "verified": true}`, record.ResourceID)
+	result.Message = "database state verified"
+	result.MatchDetails = fmt.Sprintf(`{"resource_id": "%s", "version": "%s", "etag": "%s"}`, record.ResourceID, currentVersion, currentEtag)
 
 	return result, nil
 }
@@ -154,12 +266,10 @@ type ReplayVerifier struct {
 	verifiers []ExternalStateVerifier
 }
 
-// NewReplayVerifier 创建 ReplayVerifier
+// NewReplayVerifier 创建 ReplayVerifier。
+// 不传 verifiers 时使用空列表，所有状态变更将被 skip → decision=Execute（正常执行）。
+// 生产环境应显式注入带 store 的 ToolLedgerVerifier / DatabaseStateVerifier。
 func NewReplayVerifier(verifiers ...ExternalStateVerifier) *ReplayVerifier {
-	if len(verifiers) == 0 {
-		// 默认添加 ToolLedger 和 Database 验证器
-		verifiers = append(verifiers, &ToolLedgerVerifier{}, &DatabaseStateVerifier{})
-	}
 	return &ReplayVerifier{
 		verifiers: verifiers,
 	}

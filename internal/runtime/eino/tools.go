@@ -75,9 +75,11 @@ func inferToolOrUnavailable(name, desc string, fn func(context.Context, string) 
 	return t
 }
 
-func createPlaceholderTool(name, desc string) tool.BaseTool {
+// createUnavailableTool 创建一个不可用工具，调用时返回错误而非模拟成功。
+// 当 engine 依赖未注入时使用此工具，确保工具调用不返回伪造结果。
+func createUnavailableTool(name, desc string) tool.BaseTool {
 	return inferToolOrUnavailable(name, desc, func(ctx context.Context, input string) (string, error) {
-		return fmt.Sprintf("%s 结果: %s", name, input), nil
+		return "", fmt.Errorf("tool %q is unavailable: required dependency not configured", name)
 	})
 }
 
@@ -110,7 +112,7 @@ func CreateRetrieverTool(engine *Engine) tool.BaseTool {
 			return string(out), nil
 		})
 	}
-	return createPlaceholderTool("retriever", "检索相关文档")
+	return createUnavailableTool("retriever", "检索相关文档")
 }
 
 // CreateGeneratorTool 创建生成工具（若 engine.Generator 已注入则对接真实生成）
@@ -122,7 +124,7 @@ func CreateGeneratorTool(engine *Engine) tool.BaseTool {
 		}
 		return genTool
 	}
-	return createPlaceholderTool("generator", "生成回答")
+	return createUnavailableTool("generator", "生成回答")
 }
 
 // generatorTool 支持对象输入的生成工具
@@ -184,7 +186,7 @@ func CreateDocumentLoaderTool(engine *Engine) tool.BaseTool {
 			return string(out), nil
 		})
 	}
-	return createPlaceholderTool("document_loader", "加载文档")
+	return createUnavailableTool("document_loader", "加载文档")
 }
 
 // CreateDocumentParserTool 创建文档解析工具
@@ -201,7 +203,7 @@ func CreateDocumentParserTool(engine *Engine) tool.BaseTool {
 			return string(out), nil
 		})
 	}
-	return createPlaceholderTool("document_parser", "解析文档")
+	return createUnavailableTool("document_parser", "解析文档")
 }
 
 // CreateSplitterTool 创建文档切片工具
@@ -218,7 +220,7 @@ func CreateSplitterTool(engine *Engine) tool.BaseTool {
 			return string(out), nil
 		})
 	}
-	return createPlaceholderTool("splitter", "文档切片")
+	return createUnavailableTool("splitter", "文档切片")
 }
 
 // CreateEmbeddingTool 创建文本向量化工具
@@ -235,7 +237,7 @@ func CreateEmbeddingTool(engine *Engine) tool.BaseTool {
 			return string(out), nil
 		})
 	}
-	return createPlaceholderTool("embedding", "文本向量化")
+	return createUnavailableTool("embedding", "文本向量化")
 }
 
 // CreateIndexBuilderTool 创建索引构建工具
@@ -252,7 +254,7 @@ func CreateIndexBuilderTool(engine *Engine) tool.BaseTool {
 			return string(out), nil
 		})
 	}
-	return createPlaceholderTool("index_builder", "构建索引")
+	return createUnavailableTool("index_builder", "构建索引")
 }
 
 // GetDefaultTools 获取默认工具列表（requires传入 engine 以支持注入组件）

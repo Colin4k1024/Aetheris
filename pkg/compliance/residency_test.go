@@ -105,20 +105,21 @@ func TestDataRetention(t *testing.T) {
 	}
 }
 
-func TestIPRegionLookup(t *testing.T) {
+func TestIPRegionLookup_PrivateIPv4(t *testing.T) {
 	lookup := &IPRegionLookup{}
-
 	tests := []struct {
 		identifier string
 		expected   RegionCode
 	}{
 		{"10.0.0.1", "XX"},
+		{"10.255.255.255", "XX"},
 		{"172.16.0.1", "XX"},
+		{"172.31.255.255", "XX"},
 		{"192.168.0.1", "XX"},
-		{"8.8.8.8", "US"},
-		{"1.2.3.4", "US"},
+		{"192.168.255.255", "XX"},
+		{"127.0.0.1", "XX"},
+		{"169.254.1.1", "XX"},
 	}
-
 	for _, tt := range tests {
 		result, err := lookup.GetRegion(context.Background(), tt.identifier)
 		if err != nil {
@@ -127,6 +128,127 @@ func TestIPRegionLookup(t *testing.T) {
 		if result != tt.expected {
 			t.Errorf("expected %s for %s, got %s", tt.expected, tt.identifier, result)
 		}
+	}
+}
+
+func TestIPRegionLookup_PrivateIPv6(t *testing.T) {
+	lookup := &IPRegionLookup{}
+	tests := []struct {
+		identifier string
+		expected   RegionCode
+	}{
+		{"::1", "XX"},     // loopback
+		{"fe80::1", "XX"}, // link-local
+		{"fc00::1", "XX"}, // unique local
+		{"fd00::1", "XX"}, // unique local
+		{"ff02::1", "XX"}, // link-local multicast
+	}
+	for _, tt := range tests {
+		result, err := lookup.GetRegion(context.Background(), tt.identifier)
+		if err != nil {
+			t.Errorf("unexpected error for %s: %v", tt.identifier, err)
+		}
+		if result != tt.expected {
+			t.Errorf("expected %s for %s, got %s", tt.expected, tt.identifier, result)
+		}
+	}
+}
+
+func TestIPRegionLookup_PublicIP_UnknownWithoutGeoIP(t *testing.T) {
+	lookup := &IPRegionLookup{}
+	// Without GeoIP database, public IPs return unknown + error (NOT US)
+	result, err := lookup.GetRegion(context.Background(), "8.8.8.8")
+	if err == nil {
+		t.Error("expected error for public IP without GeoIP")
+	}
+	if result != RegionUnknown {
+		t.Errorf("expected unknown, got %s", result)
+	}
+}
+
+func TestIPRegionLookup_EmptyIdentifier(t *testing.T) {
+	lookup := &IPRegionLookup{}
+	_, err := lookup.GetRegion(context.Background(), "")
+	if err == nil {
+		t.Fatal("expected error for empty identifier")
+	}
+}
+
+func TestIPRegionLookup_InvalidInput(t *testing.T) {
+	lookup := &IPRegionLookup{}
+	tests := []string{
+		"not-an-ip",
+		"abc:def:ghi",
+		"999.999.999.999",
+	}
+	for _, tt := range tests {
+		_, err := lookup.GetRegion(context.Background(), tt)
+		if err == nil {
+			t.Errorf("expected error for invalid input %q", tt)
+		}
+	}
+}
+
+func TestStaticRegionLookup(t *testing.T) {
+	lookup := &StaticRegionLookup{Region: "EU"}
+	result, err := lookup.GetRegion(context.Background(), "anything")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "EU" {
+		t.Errorf("expected EU, got %s", result)
+	}
+}
+
+func TestDataResidencyController_SetRegionLookup(t *testing.T) {
+	controller := NewDataResidencyController(&ResidencyPolicy{DefaultRegion: "US"})
+	controller.SetRegionLookup(&StaticRegionLookup{Region: "DE"})
+	region, err := controller.ResolveRegion(context.Background(), "1.2.3.4")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if region != "DE" {
+		t.Errorf("expected DE, got %s", region)
+	}
+}
+
+func TestDataResidencyController_ResolveRegion_NoLookup(t *testing.T) {
+	controller := &DataResidencyController{}
+	_, err := controller.ResolveRegion(context.Background(), "1.2.3.4")
+	if err == nil {
+		t.Fatal("expected error with no lookup configured")
+	}
+}
+
+func TestNewDataResidencyControllerWithLookup(t *testing.T) {
+	lookup := &StaticRegionLookup{Region: "CN"}
+	controller := NewDataResidencyControllerWithLookup(
+		&ResidencyPolicy{DefaultRegion: "US"},
+		lookup,
+	)
+	region, err := controller.ResolveRegion(context.Background(), "any")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if region != "CN" {
+		t.Errorf("expected CN, got %s", region)
+	}
+}
+
+func TestDataResidencyController_NonUS_StoragePolicy(t *testing.T) {
+	controller := NewDataResidencyController(&ResidencyPolicy{
+		AllowedRegions: []RegionCode{"EU", "DE"},
+		BlockedRegions: []RegionCode{"US"},
+	})
+	// EU allowed
+	err := controller.CheckStorageCompliance(context.Background(), "t1", "EU", DataCategoryPersonal)
+	if err != nil {
+		t.Errorf("EU should be allowed, got: %v", err)
+	}
+	// US blocked
+	err = controller.CheckStorageCompliance(context.Background(), "t1", "US", DataCategoryPersonal)
+	if err == nil {
+		t.Error("US should be blocked")
 	}
 }
 
